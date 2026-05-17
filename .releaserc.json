@@ -1,0 +1,6 @@
+{
+  "branches": ["main"],
+  "repositoryUrl": "https://github.com/JakeShirley/scrapbook.git",
+  "tagFormat": "v${version}",
+  "plugins": ["@semantic-release/commit-analyzer", "@semantic-release/release-notes-generator"]
+}

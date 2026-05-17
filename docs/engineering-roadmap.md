@@ -15,8 +15,8 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
 | Application code | `In progress` | Validated monorepo scaffold, starter API, config package, API contract package, domain package, test utilities, and web shell exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
-| CI/CD | `Not started` | GitHub Actions workflows are planned but not implemented. |
-| Release automation | `Not started` | semantic-release is planned but not configured. |
+| CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
+| Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
 
 ## Status Legend
 
@@ -84,7 +84,7 @@ Goal: settle enough decisions to scaffold without over-designing.
 | E01.6 | Choose editor spike candidates | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | `tldraw`, Konva, and Fabric.js are initial spike candidates. |
 | E01.7 | Add repository operating docs | `Done` | E01.1-E01.6 | `docs/development.md` draft | Branch, commit, validation, and roadmap-update rules are documented. |
 
-Next task: `E03.5`.
+Next task: `E04.2`.
 
 Suggested commits:
 
@@ -125,9 +125,9 @@ Goal: define runtime configuration early and make validation automatic.
 | E03.2 | Add environment examples | `Done` | E03.1 | `.env.example` | Supported initial variables have safe placeholders. |
 | E03.3 | Document configuration | `Done` | E03.2 | `docs/configuration.md` | Variables include default, required status, and secret status. |
 | E03.4 | Define local data layout | `Done` | E03.1 | `SCRAPBOOK_DATA_DIR` convention | SQLite, uploads, variants, previews, and exports will root under the configured data directory. |
-| E03.5 | Add local Docker shell | `Not started` | E02.6, E03.1 | Dockerfile and Docker Compose plan | Container path mounts persistent database and asset volumes. |
-| E03.6 | Add initial GitHub CI | `Not started` | E02.6 | `.github/workflows/ci.yml` | Pull requests run install, format, lint, typecheck, tests, and build. |
-| E03.7 | Configure semantic-release skeleton | `Not started` | E03.6 | Release config and dry-run workflow | Dry-run can calculate releases without changing checked-in versions. |
+| E03.5 | Add local Docker shell | `Done` | E02.6, E03.1 | `Dockerfile`, `docker-compose.yml` | API container exposes port 4000 and mounts persistent application data at `/data/scrapbook`. |
+| E03.6 | Add initial GitHub CI | `Done` | E02.6 | `.github/workflows/ci.yml` | Pull requests run install, format, lint, typecheck, tests, and build. |
+| E03.7 | Configure semantic-release skeleton | `Done` | E03.6 | `.releaserc.json`, release dry-run workflow | Dry-run calculates releases without changing checked-in versions, publishing, or tagging. |
 
 Suggested commits:
 

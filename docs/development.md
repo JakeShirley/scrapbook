@@ -25,9 +25,24 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm release:dry-run
 ```
 
 The API health endpoint is available at `http://127.0.0.1:4000/api/v1/health` when the API dev server is running. The web client runs at `http://127.0.0.1:5173`.
+
+## Docker
+
+Run the local API container with persistent application data:
+
+```sh
+docker compose up --build
+```
+
+The Compose service exposes the API on `http://127.0.0.1:4000` and mounts the `scrapbook-data` Docker volume at `/data/scrapbook` inside the container. That path is the container value for `SCRAPBOOK_DATA_DIR` and will hold future SQLite files, uploads, variants, previews, and exports.
+
+## Release Dry Runs
+
+Release automation uses semantic-release with package manifests left at `0.0.0-development`. The local and GitHub Actions dry-run command calculates the next release from Conventional Commits without publishing, tagging, generating changelogs, or changing checked-in package versions.
 
 ## Repository Rules
 
