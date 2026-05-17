@@ -13,6 +13,9 @@ import {
   bookResponseSchema,
   type BookSetPagesRequest,
   errorResponseSchema,
+  type ExportCreateRequest,
+  type ExportJobResponse,
+  exportJobResponseSchema,
   type HealthResponse,
   healthResponseSchema,
   type LoginRequest,
@@ -123,6 +126,15 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
       body: JSON.stringify(input),
       method: "PUT",
     }),
+
+  createExport: (input: ExportCreateRequest): Promise<ExportJobResponse> =>
+    requestJson(baseUrl, exportJobResponseSchema, "/api/v1/exports", {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  getExport: (exportId: string): Promise<ExportJobResponse> =>
+    requestJson(baseUrl, exportJobResponseSchema, `/api/v1/exports/${exportId}`),
 
   createPage: (input: PageCreateRequest): Promise<PageResponse> =>
     requestJson(baseUrl, pageResponseSchema, "/api/v1/pages", {

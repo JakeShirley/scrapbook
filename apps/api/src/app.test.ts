@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   authSessionResponseSchema,
   bookResponseSchema,
+  exportJobResponseSchema,
   healthResponseSchema,
   pageResponseSchema,
 } from "@scrapbook/api-contract";
@@ -515,6 +516,88 @@ describe("api app", () => {
     expect(bookResponseSchema.parse(await detailResponse.json()).pageCount).toBe(3);
     expect(secondDetailResponse.status).toBe(404);
     expect(crossAccountPageResponse.status).toBe(400);
+  });
+
+  it("creates page and book exports and streams completed output", async () => {
+    const app = await createTestAppWithStorage();
+    const firstCookie = await registerAccount(app, {
+      displayName: "First",
+      email: "first-exports@example.com",
+    });
+    const secondCookie = await registerAccount(app, {
+      displayName: "Second",
+      email: "second-exports@example.com",
+    });
+    const firstPageResponse = await postJson(
+      app,
+      "/api/v1/pages",
+      {
+        title: "Exportable page",
+        document: createPageDocument({
+          layers: [createTextLayer({ id: "export_text", text: "Ready to print" })],
+        }),
+      },
+      firstCookie,
+    );
+    const secondPageResponse = await postJson(
+      app,
+      "/api/v1/pages",
+      { title: "Private page" },
+      secondCookie,
+    );
+    const page = pageResponseSchema.parse(await firstPageResponse.json());
+    const secondPage = pageResponseSchema.parse(await secondPageResponse.json());
+    const pageExportResponse = await postJson(
+      app,
+      "/api/v1/exports",
+      { pageId: page.id, format: "png", preset: "digital" },
+      firstCookie,
+    );
+    const pageExport = exportJobResponseSchema.parse(await pageExportResponse.json());
+    const contentResponse = await app.request(`/api/v1/exports/${pageExport.id}/content`, {
+      headers: { cookie: firstCookie },
+    });
+    const secondContentResponse = await app.request(`/api/v1/exports/${pageExport.id}/content`, {
+      headers: { cookie: secondCookie },
+    });
+    const crossAccountExportResponse = await postJson(
+      app,
+      "/api/v1/exports",
+      { pageId: secondPage.id, format: "png", preset: "digital" },
+      firstCookie,
+    );
+    const bookResponse = await postJson(
+      app,
+      "/api/v1/books",
+      { title: "Export book" },
+      firstCookie,
+    );
+    const book = bookResponseSchema.parse(await bookResponse.json());
+
+    await app.request(`/api/v1/books/${book.id}/pages`, {
+      body: JSON.stringify({ pageIds: [page.id] }),
+      headers: { cookie: firstCookie, "content-type": "application/json" },
+      method: "PUT",
+    });
+
+    const bookExportResponse = await postJson(
+      app,
+      "/api/v1/exports",
+      { bookId: book.id, format: "jpeg", preset: "print" },
+      firstCookie,
+    );
+    const bookExport = exportJobResponseSchema.parse(await bookExportResponse.json());
+
+    expect(pageExportResponse.status).toBe(201);
+    expect(pageExport).toMatchObject({ status: "completed", targetKind: "page" });
+    expect(pageExport.outputContentUrl).toBe(`/api/v1/exports/${pageExport.id}/content`);
+    expect(contentResponse.status).toBe(200);
+    expect(contentResponse.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await contentResponse.arrayBuffer()).byteLength).toBeGreaterThan(100);
+    expect(secondContentResponse.status).toBe(404);
+    expect(crossAccountExportResponse.status).toBe(404);
+    expect(bookExportResponse.status).toBe(201);
+    expect(bookExport).toMatchObject({ format: "jpeg", preset: "print", targetKind: "book" });
   });
 
   it("persists non-destructive photo edits without mutating original assets", async () => {

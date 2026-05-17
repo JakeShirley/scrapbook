@@ -398,7 +398,8 @@ textarea:focus-visible {
 
 .empty-state,
 .panel-alert,
-.upload-progress {
+.upload-progress,
+.download-banner {
   margin: 14px;
 }
 
@@ -409,6 +410,20 @@ textarea:focus-visible {
   color: #763c2b;
   background: #fff1ec;
   font-size: 0.9rem;
+}
+
+.download-banner {
+  border: 1px solid #aed1c8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #1f6159;
+  background: #edf8f4;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.download-banner a {
+  color: inherit;
 }
 
 .upload-progress {
@@ -534,7 +549,7 @@ textarea:focus-visible {
 
 .compact-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: end;
   padding: 14px;

@@ -42,6 +42,7 @@ type AuthSession = Awaited<ReturnType<typeof apiClient.getCurrentSession>>;
 type Asset = Awaited<ReturnType<typeof apiClient.listAssets>>["assets"][number];
 type BookSummary = Awaited<ReturnType<typeof apiClient.listBooks>>["books"][number];
 type BookDetail = Awaited<ReturnType<typeof apiClient.getBook>>;
+type ExportJob = Awaited<ReturnType<typeof apiClient.createExport>>;
 type PageSummary = Awaited<ReturnType<typeof apiClient.listPages>>["pages"][number];
 type PageDetail = Awaited<ReturnType<typeof apiClient.getPage>>;
 
@@ -748,6 +749,7 @@ function EditorView() {
   const [title, setTitle] = useState("Untitled page");
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [status, setStatus] = useState<"loading" | "saved" | "unsaved" | "saving" | "error">(
     "loading",
   );
@@ -907,6 +909,22 @@ function EditorView() {
     }
   };
 
+  const exportPage = async () => {
+    if (!page) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      setExportJob(
+        await apiClient.createExport({ format: "png", pageId: page.id, preset: "print" }),
+      );
+    } catch (exportError: unknown) {
+      setError(getErrorMessage(exportError));
+    }
+  };
+
   if (status === "loading" || !document || !page) {
     return (
       <>
@@ -934,6 +952,9 @@ function EditorView() {
         <button type="button" className="secondary-button" onClick={deletePage}>
           Delete
         </button>
+        <button type="button" className="secondary-button" onClick={exportPage}>
+          Export PNG
+        </button>
         <button
           type="button"
           className="primary-button"
@@ -947,6 +968,13 @@ function EditorView() {
       {error ? (
         <p className="panel-alert" role="alert">
           {error}
+        </p>
+      ) : null}
+      {exportJob?.outputContentUrl ? (
+        <p className="download-banner">
+          <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">
+            Download {exportJob.preset} {exportJob.format.toUpperCase()}
+          </a>
         </p>
       ) : null}
 
@@ -1064,6 +1092,7 @@ function BooksView() {
   const [pages, setPages] = useState<PageSummary[]>([]);
   const [selectedBook, setSelectedBook] = useState<BookDetail | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
+  const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1212,6 +1241,25 @@ function BooksView() {
     void setBookPageIds(pageIds);
   };
 
+  const exportBook = async () => {
+    if (!selectedBook) {
+      return;
+    }
+
+    setIsWorking(true);
+    setError(null);
+
+    try {
+      setExportJob(
+        await apiClient.createExport({ bookId: selectedBook.id, format: "png", preset: "print" }),
+      );
+    } catch (exportError: unknown) {
+      setError(getErrorMessage(exportError));
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
   const availablePages = selectedBook
     ? pages.filter((page) => !selectedBook.pages.some((bookPage) => bookPage.pageId === page.id))
     : pages;
@@ -1226,6 +1274,13 @@ function BooksView() {
       {error ? (
         <p className="panel-alert" role="alert">
           {error}
+        </p>
+      ) : null}
+      {exportJob?.outputContentUrl ? (
+        <p className="download-banner">
+          <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">
+            Download book {exportJob.format.toUpperCase()}
+          </a>
         </p>
       ) : null}
       <div className="workspace-grid split-grid">
@@ -1248,6 +1303,14 @@ function BooksView() {
                 </label>
                 <button className="secondary-button" type="submit" disabled={isWorking}>
                   Rename
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={isWorking}
+                  onClick={exportBook}
+                >
+                  Export
                 </button>
               </form>
               {selectedBook.pages.length === 0 ? (

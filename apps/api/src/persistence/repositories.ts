@@ -21,6 +21,7 @@ import {
   books,
   type ExportFormat,
   type ExportJobRecord,
+  type ExportPreset,
   exportJobs,
   type PageRecord,
   pages,
@@ -614,6 +615,7 @@ export class ExportJobRepository {
   create(input: {
     accountId: string;
     format: ExportFormat;
+    preset?: ExportPreset;
     bookId?: string | null;
     pageId?: string | null;
     outputStorageKey?: string | null;
@@ -647,6 +649,7 @@ export class ExportJobRepository {
       pageId: input.pageId ?? null,
       status: "queued",
       format: input.format,
+      preset: input.preset ?? "digital",
       outputStorageKey: input.outputStorageKey ?? null,
       errorMessage: input.errorMessage ?? null,
       createdAt: timestamp,
@@ -666,6 +669,31 @@ export class ExportJobRepository {
         .where(and(eq(exportJobs.accountId, accountId), eq(exportJobs.id, exportId)))
         .get() ?? null
     );
+  }
+
+  updateForAccount(
+    accountId: string,
+    exportId: string,
+    input: Partial<Pick<ExportJobRecord, "errorMessage" | "outputStorageKey" | "status">>,
+  ): ExportJobRecord | null {
+    const existing = this.findByIdForAccount(accountId, exportId);
+
+    if (!existing) {
+      return null;
+    }
+
+    this.db
+      .update(exportJobs)
+      .set({
+        errorMessage: input.errorMessage ?? existing.errorMessage,
+        outputStorageKey: input.outputStorageKey ?? existing.outputStorageKey,
+        status: input.status ?? existing.status,
+        updatedAt: now(this.clock),
+      })
+      .where(and(eq(exportJobs.accountId, accountId), eq(exportJobs.id, exportId)))
+      .run();
+
+    return this.findByIdForAccount(accountId, exportId);
   }
 }
 

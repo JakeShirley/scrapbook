@@ -24,6 +24,11 @@ import {
   authSessionResponseSchema,
   currentSessionRoute,
   type ErrorResponse,
+  exportContentRoute,
+  exportCreateRoute,
+  exportDetailRoute,
+  type ExportJobResponse,
+  exportJobResponseSchema,
   healthResponseSchema,
   healthRoute,
   loginRoute,
@@ -62,6 +67,7 @@ import {
   sessionCookieName,
   verifyPassword,
 } from "./auth.js";
+import { ExportRenderError, renderBookExport, renderPageExport } from "./exports.js";
 import {
   OwnershipError,
   type Repositories,
@@ -73,6 +79,7 @@ import type {
   AssetVariantRecord,
   BookPageRecord,
   BookRecord,
+  ExportJobRecord,
   PageRecord,
   SessionRecord,
 } from "./persistence/schema.js";
@@ -240,6 +247,26 @@ const toBookResponse = (book: BookRecord, repositories: Repositories): BookRespo
     spreads,
   });
 };
+
+const buildExportContentUrl = (exportId: string): string => `/api/v1/exports/${exportId}/content`;
+
+const toExportJobResponse = (exportJob: ExportJobRecord): ExportJobResponse =>
+  exportJobResponseSchema.parse({
+    id: exportJob.id,
+    status: exportJob.status,
+    format: exportJob.format,
+    preset: exportJob.preset,
+    targetKind: exportJob.pageId ? "page" : "book",
+    pageId: exportJob.pageId,
+    bookId: exportJob.bookId,
+    outputContentUrl:
+      exportJob.status === "completed" && exportJob.outputStorageKey
+        ? buildExportContentUrl(exportJob.id)
+        : null,
+    errorMessage: exportJob.errorMessage,
+    createdAt: exportJob.createdAt,
+    updatedAt: exportJob.updatedAt,
+  });
 
 const validatePageDocumentAssets = (
   accountId: string,
@@ -1037,6 +1064,183 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     return context.json(toBookResponse(book, options.repositories), 200);
+  });
+
+  app.openapi(exportCreateRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "exports_unavailable", "Exports are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const input = context.req.valid("json");
+    let exportJob: ExportJobRecord;
+
+    try {
+      exportJob = options.repositories.exports.create({
+        accountId: authSession.account.id,
+        bookId: input.bookId ?? null,
+        format: input.format,
+        pageId: input.pageId ?? null,
+        preset: input.preset,
+      });
+    } catch (error) {
+      if (error instanceof OwnershipError) {
+        return context.json(
+          createErrorResponse(context, "export_target_not_found", "Export target was not found"),
+          404,
+        );
+      }
+
+      throw error;
+    }
+
+    options.repositories.exports.updateForAccount(authSession.account.id, exportJob.id, {
+      status: "running",
+    });
+
+    try {
+      const rendered = input.pageId
+        ? await renderPageExport({
+            accountId: authSession.account.id,
+            format: input.format,
+            pageId: input.pageId,
+            preset: input.preset,
+            repositories: options.repositories,
+            storage: options.storage,
+          })
+        : await renderBookExport({
+            accountId: authSession.account.id,
+            bookId: input.bookId ?? "",
+            format: input.format,
+            preset: input.preset,
+            repositories: options.repositories,
+            storage: options.storage,
+          });
+      const stored = await options.storage.write("exports", rendered.buffer, {
+        extension: rendered.extension,
+      });
+      const completedJob = options.repositories.exports.updateForAccount(
+        authSession.account.id,
+        exportJob.id,
+        {
+          outputStorageKey: stored.key,
+          status: "completed",
+        },
+      );
+
+      if (!completedJob) {
+        return context.json(
+          createErrorResponse(context, "export_not_found", "Export not found"),
+          404,
+        );
+      }
+
+      return context.json(toExportJobResponse(completedJob), 201);
+    } catch (error) {
+      const failedJob = options.repositories.exports.updateForAccount(
+        authSession.account.id,
+        exportJob.id,
+        {
+          errorMessage: error instanceof Error ? error.message : "Export failed",
+          status: "failed",
+        },
+      );
+
+      if (error instanceof ExportRenderError) {
+        return context.json(
+          failedJob
+            ? toExportJobResponse(failedJob)
+            : createErrorResponse(context, error.code, error.message),
+          error.status === 404 ? 404 : 400,
+        );
+      }
+
+      throw error;
+    }
+  });
+
+  app.openapi(exportDetailRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "exports_unavailable", "Exports are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { exportId } = context.req.valid("param");
+    const exportJob = options.repositories.exports.findByIdForAccount(
+      authSession.account.id,
+      exportId,
+    );
+
+    if (!exportJob) {
+      return context.json(
+        createErrorResponse(context, "export_not_found", "Export not found"),
+        404,
+      );
+    }
+
+    return context.json(toExportJobResponse(exportJob), 200);
+  });
+
+  app.openapi(exportContentRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "exports_unavailable", "Exports are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { exportId } = context.req.valid("param");
+    const exportJob = options.repositories.exports.findByIdForAccount(
+      authSession.account.id,
+      exportId,
+    );
+
+    if (!exportJob || exportJob.status !== "completed" || !exportJob.outputStorageKey) {
+      return context.json(
+        createErrorResponse(context, "export_not_found", "Export not found"),
+        404,
+      );
+    }
+
+    const buffer = await options.storage.read(exportJob.outputStorageKey);
+    const contentType = exportJob.format === "jpeg" ? "image/jpeg" : "image/png";
+
+    return context.body(toArrayBuffer(buffer), 200, {
+      "cache-control": "private, max-age=86400",
+      "content-length": String(buffer.byteLength),
+      "content-type": contentType,
+    });
   });
 
   app.doc("/api/v1/openapi.json", {

@@ -29,6 +29,8 @@ Scrapbook pages are owned by the authenticated account that created them. The AP
 
 Books are account-owned ordered collections of pages. The `book_pages` join table stores the stable page IDs and zero-based `sort_order`; replacing book order never deletes the underlying pages. The first ordered page is treated as a single cover, and remaining pages are grouped into adjacent left/right facing spreads for previews, navigation, and export ordering.
 
+Exports are account-owned jobs stored in SQLite with status, format, preset, target, and output storage key. The initial renderer writes completed PNG/JPEG outputs under `exports/`. Page exports render one saved page document; book exports render an ordered image sheet using the book's persisted page order.
+
 Page create, list, detail, patch, duplicate, and delete routes all resolve records by the current browser session account before reading or writing page data.
 
 ## Migrations

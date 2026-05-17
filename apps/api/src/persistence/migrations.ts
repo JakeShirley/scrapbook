@@ -132,6 +132,12 @@ CREATE INDEX exports_book_id_idx ON exports (book_id);
 CREATE INDEX exports_page_id_idx ON exports (page_id);
 `,
   },
+  {
+    id: "0002_add_export_presets",
+    sql: `
+ALTER TABLE exports ADD COLUMN preset TEXT NOT NULL DEFAULT 'digital' CHECK (preset IN ('digital', 'print'));
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

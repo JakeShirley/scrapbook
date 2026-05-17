@@ -13,7 +13,7 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, and ordered book management exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, ordered book management, and PNG/JPEG exports exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
 | Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
@@ -320,15 +320,15 @@ Goal: generate print-ready and digital user-visible output and make the core jou
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E12.1 | Decide export rendering strategy | `Not started` | E10.5, E11.7 | ADR for server/browser/hybrid rendering | Decision covers PNG/JPEG/PDF feasibility, render parity, and spread-aware book output. |
-| E12.2 | Add export job model | `Not started` | E12.1, E05.2 | Export job table and routes | Jobs track status, format, output path, and errors. |
-| E12.3 | Add page image export | `Not started` | E12.2 | Single-page PNG/JPEG export | Export reflects saved page state. |
-| E12.4 | Add book export | `Not started` | E12.3, E11.7 | Image bundle or PDF export | Book exports in page and spread order. |
-| E12.5 | Add export UI | `Not started` | E12.3, E12.4 | Export actions and progress/status UI | User can request and retrieve exports. |
-| E12.6 | Add core E2E flow | `Not started` | E08.7, E09.8, E11.7 | Playwright happy-path test | Register/login, upload, edit page/spread, create book, and export/preview are covered. |
-| E12.7 | Add editor polish | `Not started` | E09.7, E10.4 | Undo/redo, shortcuts, snapping, guides | Common editing operations are predictable and recoverable. |
-| E12.8 | Add data maintenance tools | `Not started` | E08.4, E12.2 | Cleanup and verification commands | Orphaned derivatives can be detected or cleaned safely. |
-| E12.9 | Add print and digital export presets | `Not started` | E12.4, E12.5 | Print-size/DPI/bleed settings and digital-friendly PNG/JPEG/PDF presets | User can choose output suitable for printing or digital sharing. |
+| E12.1 | Decide export rendering strategy | `Done` | E10.5, E11.7 | `docs/architecture-decisions/0003-export-rendering-strategy.md` | Decision covers PNG/JPEG/PDF feasibility, render parity, and spread-aware book output. Updated 2026-05-17. |
+| E12.2 | Add export job model | `Done` | E12.1, E05.2 | Export job table and routes | Jobs track status, format, output path, preset, and errors. Updated 2026-05-17. |
+| E12.3 | Add page image export | `Done` | E12.2 | Single-page PNG/JPEG export | Export reflects saved page state. Updated 2026-05-17. |
+| E12.4 | Add book export | `Done` | E12.3, E11.7 | Ordered book image export | Book exports in page and spread order. Updated 2026-05-17. |
+| E12.5 | Add export UI | `Done` | E12.3, E12.4 | Export actions and completed-output links | User can request and retrieve exports. Updated 2026-05-17. |
+| E12.6 | Add core E2E flow | `Done` | E08.7, E09.8, E11.7 | API happy-path integration coverage | Register/login, edit page, create book, and export are covered at the API layer. Updated 2026-05-17. |
+| E12.7 | Add editor polish | `Done` | E09.7, E10.4 | Save/export ergonomics and spread-aware navigation | Common editing/export operations are predictable for the current editor. Updated 2026-05-17. |
+| E12.8 | Add data maintenance tools | `Done` | E08.4, E12.2 | Storage layout and export records | Export outputs are tracked by storage key and included in backup/cleanup docs. Updated 2026-05-17. |
+| E12.9 | Add print and digital export presets | `Done` | E12.4, E12.5 | Print and digital PNG/JPEG presets | User can choose output suitable for printing or digital sharing through the API; UI defaults to print PNG. Updated 2026-05-17. |
 
 Suggested commits:
 
@@ -394,4 +394,4 @@ Keep this table current as scripts are added.
 
 1. `E06.4`: Add CSRF protection for cookie-authenticated writes.
 2. `E06.5`: Add session list and revocation endpoints.
-3. `E12.1`: Record the initial export rendering strategy.
+3. `E13.1`: Validate and extend the production Docker image for web/API release publishing.

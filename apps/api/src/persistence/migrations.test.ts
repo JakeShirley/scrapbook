@@ -8,9 +8,15 @@ describe("SQLite migrations", () => {
     const connection = createDatabaseConnection({ databasePath: ":memory:" });
 
     try {
-      expect(runMigrations(connection.sqlite)).toEqual(["0001_initial_schema"]);
+      expect(runMigrations(connection.sqlite)).toEqual([
+        "0001_initial_schema",
+        "0002_add_export_presets",
+      ]);
       expect(runMigrations(connection.sqlite)).toEqual([]);
-      expect(getAppliedMigrations(connection.sqlite)).toEqual(["0001_initial_schema"]);
+      expect(getAppliedMigrations(connection.sqlite)).toEqual([
+        "0001_initial_schema",
+        "0002_add_export_presets",
+      ]);
 
       const tableNames = connection.sqlite
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")

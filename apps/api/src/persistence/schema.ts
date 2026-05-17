@@ -4,11 +4,13 @@ export const authIdentityProviders = ["email_password", "passkey", "native_token
 export const assetVariantKinds = ["thumbnail", "preview", "render", "export"] as const;
 export const exportStatuses = ["queued", "running", "completed", "failed", "cancelled"] as const;
 export const exportFormats = ["png", "jpeg", "pdf", "zip"] as const;
+export const exportPresets = ["digital", "print"] as const;
 
 export type AuthIdentityProvider = (typeof authIdentityProviders)[number];
 export type AssetVariantKind = (typeof assetVariantKinds)[number];
 export type ExportStatus = (typeof exportStatuses)[number];
 export type ExportFormat = (typeof exportFormats)[number];
+export type ExportPreset = (typeof exportPresets)[number];
 
 const timestampColumns = () => ({
   createdAt: text("created_at").notNull(),
@@ -185,6 +187,7 @@ export const exportJobs = sqliteTable(
     pageId: text("page_id").references(() => pages.id, { onDelete: "set null" }),
     status: text("status", { enum: exportStatuses }).notNull(),
     format: text("format", { enum: exportFormats }).notNull(),
+    preset: text("preset", { enum: exportPresets }).notNull(),
     outputStorageKey: text("output_storage_key"),
     errorMessage: text("error_message"),
     ...timestampColumns(),
