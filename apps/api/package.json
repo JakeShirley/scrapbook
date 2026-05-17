@@ -1,0 +1,22 @@
+{
+  "name": "@scrapbook/api",
+  "version": "0.0.0-development",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "openapi:check": "tsx src/openapi.ts > /dev/null",
+    "openapi:print": "tsx src/openapi.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.0.2",
+    "@hono/zod-openapi": "1.4.0",
+    "@scrapbook/api-contract": "workspace:*",
+    "@scrapbook/config": "workspace:*",
+    "hono": "4.12.19"
+  }
+}

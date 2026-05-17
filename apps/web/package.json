@@ -1,0 +1,24 @@
+{
+  "name": "@scrapbook/web",
+  "version": "0.0.0-development",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && vite build",
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@scrapbook/api-contract": "workspace:*",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-router": "7.15.1",
+    "vite": "8.0.13"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2"
+  }
+}

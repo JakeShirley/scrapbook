@@ -1,0 +1,30 @@
+{
+  "name": "scrapbook",
+  "version": "0.0.0-development",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "check": "biome check .",
+    "dev": "turbo run dev",
+    "dev:api": "pnpm --filter @scrapbook/api dev",
+    "dev:web": "pnpm --filter @scrapbook/web dev",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint .",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "@types/node": "25.8.0",
+    "tsx": "4.22.1",
+    "turbo": "2.9.14",
+    "typescript": "6.0.3",
+    "vitest": "4.1.6"
+  }
+}

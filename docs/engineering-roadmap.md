@@ -12,8 +12,8 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | --- | --- | --- |
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
-| Engineering roadmap | `In progress` | This document is the first execution tracker. |
-| Application code | `Not started` | No app scaffold, API, database, or web client exists yet. |
+| Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, config package, API contract package, domain package, test utilities, and web shell exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Not started` | GitHub Actions workflows are planned but not implemented. |
 | Release automation | `Not started` | semantic-release is planned but not configured. |
@@ -76,15 +76,15 @@ Goal: settle enough decisions to scaffold without over-designing.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E01.1 | Choose initial API framework | `Not started` | Product roadmap | ADR choosing Hono or Fastify | Decision covers OpenAPI generation, uploads, testing, and Docker runtime. |
-| E01.2 | Choose schema and OpenAPI tooling | `Not started` | E01.1 | ADR or decision note | Tooling can validate runtime input and produce OpenAPI 3.1. |
-| E01.3 | Choose SQLite query layer | `Not started` | Product roadmap | ADR choosing Drizzle, Kysely, or equivalent | Decision covers migrations, type inference, and SQLite test ergonomics. |
-| E01.4 | Choose web scaffold/router | `Not started` | Product roadmap | ADR choosing Vite/router, Next.js, or equivalent | Decision covers SPA behavior, Docker serving, and native-friendly API separation. |
-| E01.5 | Choose initial auth sequence | `Not started` | Product roadmap | ADR for email/password, passkeys, or combined launch | Decision states what ships first and what is deferred. |
-| E01.6 | Choose editor spike candidates | `Not started` | Product roadmap | Short spike plan | Candidate libraries and evaluation criteria are documented. |
-| E01.7 | Add repository operating docs | `Not started` | E01.1-E01.6 | `docs/development.md` draft | Branch, commit, validation, and roadmap-update rules are documented. |
+| E01.1 | Choose initial API framework | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Hono chosen; decision covers OpenAPI generation, uploads, testing, and Docker runtime. |
+| E01.2 | Choose schema and OpenAPI tooling | `Done` | E01.1 | `docs/architecture-decisions/0001-initial-application-stack.md` | Zod and `@hono/zod-openapi` chosen for runtime validation and OpenAPI generation. |
+| E01.3 | Choose SQLite query layer | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Drizzle chosen; decision covers migrations, type inference, and SQLite test ergonomics. |
+| E01.4 | Choose web scaffold/router | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Vite, React, and React Router chosen for SPA behavior, Docker serving, and API separation. |
+| E01.5 | Choose initial auth sequence | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Email/password starts first; passkeys and native token flow are deferred until session foundation exists. |
+| E01.6 | Choose editor spike candidates | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | `tldraw`, Konva, and Fabric.js are initial spike candidates. |
+| E01.7 | Add repository operating docs | `Done` | E01.1-E01.6 | `docs/development.md` draft | Branch, commit, validation, and roadmap-update rules are documented. |
 
-Next task: `E01.1`.
+Next task: `E03.5`.
 
 Suggested commits:
 
@@ -99,13 +99,13 @@ Goal: create a healthy monorepo shell with repeatable validation.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E02.1 | Initialize pnpm workspace | `Not started` | E01 | `package.json`, `pnpm-workspace.yaml`, app/package folders | `pnpm install` succeeds; root version is `0.0.0-development`. |
-| E02.2 | Add ignore and data-safety defaults | `Not started` | E02.1 | `.gitignore` | Dependencies, builds, `.env`, SQLite files, uploads, and generated assets are ignored. |
-| E02.3 | Add TypeScript baseline | `Not started` | E02.1 | Shared tsconfig setup | Placeholder packages typecheck. |
-| E02.4 | Add formatting and linting | `Not started` | E02.1 | Biome and optional ESLint config | `pnpm format:check` and `pnpm lint` pass. |
-| E02.5 | Add test harness | `Not started` | E02.1 | Vitest config and test utilities | `pnpm test` passes with initial tests. |
-| E02.6 | Add root task orchestration | `Not started` | E02.3-E02.5 | Turborepo or package scripts | Root `build`, `typecheck`, `lint`, and `test` scripts work. |
-| E02.7 | Add developer documentation | `Not started` | E02.6 | `docs/development.md` | Fresh-clone setup and common commands are documented. |
+| E02.1 | Initialize pnpm workspace | `Done` | E01 | `package.json`, `pnpm-workspace.yaml`, app/package folders | `pnpm install` succeeds; root version is `0.0.0-development`. |
+| E02.2 | Add ignore and data-safety defaults | `Done` | E02.1 | `.gitignore` | Dependencies, builds, `.env`, SQLite files, uploads, and generated assets are ignored. |
+| E02.3 | Add TypeScript baseline | `Done` | E02.1 | Shared tsconfig setup | Workspace typecheck passes. |
+| E02.4 | Add formatting and linting | `Done` | E02.1 | Biome config | `pnpm format:check` and `pnpm lint` pass. |
+| E02.5 | Add test harness | `Done` | E02.1 | Vitest workspace and initial tests | `pnpm test` passes with initial tests. |
+| E02.6 | Add root task orchestration | `Done` | E02.3-E02.5 | Turborepo tasks and package scripts | Root `build`, `typecheck`, `lint`, and `test` scripts pass. |
+| E02.7 | Add developer documentation | `Done` | E02.6 | `docs/development.md` | Fresh-clone setup and common commands are documented and validated. |
 
 Suggested commits:
 
@@ -121,10 +121,10 @@ Goal: define runtime configuration early and make validation automatic.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E03.1 | Add typed runtime config | `Not started` | E02.3 | Config package/module | Required production config fails fast with clear errors. |
-| E03.2 | Add environment examples | `Not started` | E03.1 | `.env.example` | Every supported variable has a safe placeholder and docs. |
-| E03.3 | Document configuration | `Not started` | E03.2 | `docs/configuration.md` | Variables include default, required status, and secret status. |
-| E03.4 | Define local data layout | `Not started` | E03.1 | Data directory convention | SQLite, uploads, variants, previews, and exports have configurable paths. |
+| E03.1 | Add typed runtime config | `Done` | E02.3 | `packages/config` | Runtime config validates local API host, port, web origin, and data directory; production secrets are deferred. |
+| E03.2 | Add environment examples | `Done` | E03.1 | `.env.example` | Supported initial variables have safe placeholders. |
+| E03.3 | Document configuration | `Done` | E03.2 | `docs/configuration.md` | Variables include default, required status, and secret status. |
+| E03.4 | Define local data layout | `Done` | E03.1 | `SCRAPBOOK_DATA_DIR` convention | SQLite, uploads, variants, previews, and exports will root under the configured data directory. |
 | E03.5 | Add local Docker shell | `Not started` | E02.6, E03.1 | Dockerfile and Docker Compose plan | Container path mounts persistent database and asset volumes. |
 | E03.6 | Add initial GitHub CI | `Not started` | E02.6 | `.github/workflows/ci.yml` | Pull requests run install, format, lint, typecheck, tests, and build. |
 | E03.7 | Configure semantic-release skeleton | `Not started` | E03.6 | Release config and dry-run workflow | Dry-run can calculate releases without changing checked-in versions. |
@@ -144,12 +144,12 @@ Goal: establish the documented API boundary before feature routes expand.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E04.1 | Create API app shell | `Not started` | E01.1, E03.1 | `apps/api` server entrypoint | API starts locally with typed config and graceful shutdown. |
-| E04.2 | Add request infrastructure | `Not started` | E04.1 | Logging, request IDs, error boundary | Unexpected errors use the standard error envelope. |
-| E04.3 | Add API contract package | `Not started` | E01.2, E04.1 | `packages/api-contract` | Schemas can be shared by server and client tooling. |
-| E04.4 | Add health endpoint | `Not started` | E04.1, E04.3 | `GET /api/v1/health` | Health route reports readiness without leaking secrets. |
-| E04.5 | Generate OpenAPI document | `Not started` | E04.3, E04.4 | OpenAPI 3.1 output | CI can validate generated OpenAPI. |
-| E04.6 | Add API integration tests | `Not started` | E04.4 | Test server utilities | Tests run with isolated config and no persistent state. |
+| E04.1 | Create API app shell | `Done` | E01.1, E03.1 | `apps/api` server entrypoint | API server entrypoint uses typed config and graceful shutdown and passes build validation. |
+| E04.2 | Add request infrastructure | `In progress` | E04.1 | Request IDs and basic error boundary | Unexpected errors use the standard error envelope and request IDs are returned; structured request logging is still pending. |
+| E04.3 | Add API contract package | `Done` | E01.2, E04.1 | `packages/api-contract` | Initial schemas can be shared by server and client tooling. |
+| E04.4 | Add health endpoint | `Done` | E04.1, E04.3 | `GET /api/v1/health` | Health route reports readiness without leaking secrets and has integration coverage. |
+| E04.5 | Generate OpenAPI document | `Done` | E04.3, E04.4 | Runtime OpenAPI 3.1 output | `/api/v1/openapi.json` is available and `pnpm --filter @scrapbook/api openapi:check` passes. |
+| E04.6 | Add API integration tests | `Done` | E04.4 | Initial app tests | Tests use in-memory Hono requests and no persistent state. |
 | E04.7 | Add API contract workflow | `Not started` | E04.5 | `api-contract.yml` or CI job | Route/schema drift fails CI. |
 
 Suggested commits:
@@ -211,7 +211,7 @@ Goal: create authenticated browser navigation before asset and editor workflows.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E07.1 | Create web app scaffold | `Not started` | E01.4, E02.6 | `apps/web` React app | Web app starts and builds locally. |
+| E07.1 | Create web app scaffold | `Done` | E01.4, E02.6 | `apps/web` React app | Web app shell builds locally. |
 | E07.2 | Add API client layer | `Not started` | E04.5, E07.1 | Generated or typed client | Client calls use the documented API contract. |
 | E07.3 | Add base UI system | `Not started` | E07.1 | Layout, tokens, common states | Controls are accessible and consistent. |
 | E07.4 | Add auth UI | `Not started` | E06.3, E07.2 | Register, login, logout, session loading | User can sign in and out through the browser. |
