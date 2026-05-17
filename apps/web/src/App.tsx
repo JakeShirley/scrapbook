@@ -1,8 +1,26 @@
 import {
-  type CSSProperties,
+  addLayer,
+  createEmbellishmentLayer,
+  createPageDocument,
+  createPhotoLayer,
+  createTextLayer,
+  deleteLayer,
+  duplicateLayer,
+  type EmbellishmentLayer,
+  type PageDocument,
+  type PageLayer,
+  type PhotoLayer,
+  reorderLayer,
+  resetPhotoLayerEdits,
+  updateCanvas,
+  updateLayer,
+} from "@scrapbook/editor-core";
+import {
   type ChangeEvent,
+  type CSSProperties,
   type FormEvent,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
   useMemo,
   useRef,
@@ -17,23 +35,6 @@ import {
   useNavigate,
   useParams,
 } from "react-router";
-import {
-  addLayer,
-  createEmbellishmentLayer,
-  createPageDocument,
-  createPhotoLayer,
-  createTextLayer,
-  deleteLayer,
-  duplicateLayer,
-  type EmbellishmentLayer,
-  reorderLayer,
-  type PageDocument,
-  type PageLayer,
-  type PhotoLayer,
-  resetPhotoLayerEdits,
-  updateCanvas,
-  updateLayer,
-} from "@scrapbook/editor-core";
 
 import { ApiClientError, apiClient } from "./apiClient";
 
@@ -48,6 +49,25 @@ type SessionState =
   | { status: "authenticated"; session: AuthSession };
 
 type AuthMode = "login" | "register";
+
+type CanvasPoint = {
+  x: number;
+  y: number;
+};
+
+type ResizeHandle = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
+type TransformMode = "move" | "resize" | "rotate";
+
+type ActiveTransform = {
+  center: CanvasPoint;
+  handle: ResizeHandle | undefined;
+  layerId: string;
+  mode: TransformMode;
+  pointerId: number;
+  startLayer: PageLayer;
+  startPointer: CanvasPoint;
+  startPointerAngle: number;
+};
 
 const navItems = [
   { to: "/library", label: "Library" },
@@ -97,6 +117,109 @@ const embellishmentPresets: Array<
     name: "Pattern paper",
   },
 ];
+
+const resizeHandles: Array<{ handle: ResizeHandle; label: string }> = [
+  { handle: "nw", label: "Resize from top left" },
+  { handle: "n", label: "Resize from top" },
+  { handle: "ne", label: "Resize from top right" },
+  { handle: "e", label: "Resize from right" },
+  { handle: "se", label: "Resize from bottom right" },
+  { handle: "s", label: "Resize from bottom" },
+  { handle: "sw", label: "Resize from bottom left" },
+  { handle: "w", label: "Resize from left" },
+];
+
+const minimumLayerSize = 32;
+
+const rotatePoint = (point: CanvasPoint, degrees: number): CanvasPoint => {
+  const radians = (degrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+
+  return {
+    x: point.x * cos - point.y * sin,
+    y: point.x * sin + point.y * cos,
+  };
+};
+
+const getLayerCenter = (layer: PageLayer): CanvasPoint => ({
+  x: layer.x + layer.width / 2,
+  y: layer.y + layer.height / 2,
+});
+
+const getAngle = (origin: CanvasPoint, point: CanvasPoint): number =>
+  (Math.atan2(point.y - origin.y, point.x - origin.x) * 180) / Math.PI;
+
+const normalizeRotation = (degrees: number): number => {
+  const normalized = ((((degrees + 180) % 360) + 360) % 360) - 180;
+
+  return Number.isFinite(normalized) ? normalized : 0;
+};
+
+const resizeLayerFromHandle = (
+  layer: PageLayer,
+  handle: ResizeHandle,
+  pointer: CanvasPoint,
+  startPointer: CanvasPoint,
+): Pick<PageLayer, "height" | "width" | "x" | "y"> => {
+  const delta = {
+    x: pointer.x - startPointer.x,
+    y: pointer.y - startPointer.y,
+  };
+  const localDelta = rotatePoint(delta, -layer.rotation);
+  let left = -layer.width / 2;
+  let right = layer.width / 2;
+  let top = -layer.height / 2;
+  let bottom = layer.height / 2;
+
+  if (handle.includes("w")) {
+    left += localDelta.x;
+  }
+
+  if (handle.includes("e")) {
+    right += localDelta.x;
+  }
+
+  if (handle.includes("n")) {
+    top += localDelta.y;
+  }
+
+  if (handle.includes("s")) {
+    bottom += localDelta.y;
+  }
+
+  if (right - left < minimumLayerSize) {
+    if (handle.includes("w")) {
+      left = right - minimumLayerSize;
+    } else {
+      right = left + minimumLayerSize;
+    }
+  }
+
+  if (bottom - top < minimumLayerSize) {
+    if (handle.includes("n")) {
+      top = bottom - minimumLayerSize;
+    } else {
+      bottom = top + minimumLayerSize;
+    }
+  }
+
+  const width = right - left;
+  const height = bottom - top;
+  const centerShift = rotatePoint({ x: (left + right) / 2, y: (top + bottom) / 2 }, layer.rotation);
+  const startCenter = getLayerCenter(layer);
+  const center = {
+    x: startCenter.x + centerShift.x,
+    y: startCenter.y + centerShift.y,
+  };
+
+  return {
+    height,
+    width,
+    x: center.x - width / 2,
+    y: center.y - height / 2,
+  };
+};
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof ApiClientError) {
@@ -682,6 +805,14 @@ function EditorView() {
     editDocument(updateLayer(document, selectedLayerId, update));
   };
 
+  const updateLayerTransform = (layerId: string, update: Partial<PageLayer>) => {
+    if (!document) {
+      return;
+    }
+
+    editDocument(updateLayer(document, layerId, update));
+  };
+
   const addText = () => {
     if (!document) {
       return;
@@ -903,6 +1034,7 @@ function EditorView() {
             document={document}
             selectedLayerId={selectedLayerId}
             onSelectLayer={setSelectedLayerId}
+            onTransformLayer={updateLayerTransform}
           />
         </section>
 
@@ -1035,21 +1167,129 @@ function PageCanvas({
   document,
   selectedLayerId,
   onSelectLayer,
+  onTransformLayer,
 }: {
   assetById: Map<string, Asset>;
   document: PageDocument;
   selectedLayerId: string | null;
   onSelectLayer: (layerId: string) => void;
+  onTransformLayer: (layerId: string, update: Partial<PageLayer>) => void;
 }) {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [activeTransform, setActiveTransform] = useState<ActiveTransform | null>(null);
+
+  const getCanvasPoint = (event: ReactPointerEvent): CanvasPoint | null => {
+    const canvasElement = canvasRef.current;
+
+    if (!canvasElement) {
+      return null;
+    }
+
+    const bounds = canvasElement.getBoundingClientRect();
+
+    return {
+      x: ((event.clientX - bounds.left) / bounds.width) * document.canvas.width,
+      y: ((event.clientY - bounds.top) / bounds.height) * document.canvas.height,
+    };
+  };
+
+  const startTransform = (
+    event: ReactPointerEvent<HTMLElement>,
+    layer: PageLayer,
+    mode: TransformMode,
+    handle?: ResizeHandle,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelectLayer(layer.id);
+
+    if (layer.locked) {
+      return;
+    }
+
+    const pointer = getCanvasPoint(event);
+
+    if (!pointer) {
+      return;
+    }
+
+    const center = getLayerCenter(layer);
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setActiveTransform({
+      center,
+      handle,
+      layerId: layer.id,
+      mode,
+      pointerId: event.pointerId,
+      startLayer: layer,
+      startPointer: pointer,
+      startPointerAngle: getAngle(center, pointer),
+    });
+  };
+
+  const transformLayer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!activeTransform || event.pointerId !== activeTransform.pointerId) {
+      return;
+    }
+
+    const pointer = getCanvasPoint(event);
+
+    if (!pointer) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (activeTransform.mode === "move") {
+      onTransformLayer(activeTransform.layerId, {
+        x: activeTransform.startLayer.x + pointer.x - activeTransform.startPointer.x,
+        y: activeTransform.startLayer.y + pointer.y - activeTransform.startPointer.y,
+      });
+      return;
+    }
+
+    if (activeTransform.mode === "resize" && activeTransform.handle) {
+      onTransformLayer(
+        activeTransform.layerId,
+        resizeLayerFromHandle(
+          activeTransform.startLayer,
+          activeTransform.handle,
+          pointer,
+          activeTransform.startPointer,
+        ),
+      );
+      return;
+    }
+
+    const rotation = normalizeRotation(
+      activeTransform.startLayer.rotation +
+        getAngle(activeTransform.center, pointer) -
+        activeTransform.startPointerAngle,
+    );
+    onTransformLayer(activeTransform.layerId, { rotation });
+  };
+
+  const stopTransform = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (activeTransform?.pointerId === event.pointerId) {
+      setActiveTransform(null);
+    }
+  };
+
   return (
     <div
+      ref={canvasRef}
       className="editor-canvas"
       style={{
         aspectRatio: `${document.canvas.width} / ${document.canvas.height}`,
         background: document.canvas.backgroundColor,
       }}
+      onPointerCancel={stopTransform}
+      onPointerMove={transformLayer}
+      onPointerUp={stopTransform}
     >
       {document.layers.map((layer) => {
+        const isSelected = layer.id === selectedLayerId;
         const layerStyle: CSSProperties = {
           left: `${(layer.x / document.canvas.width) * 100}%`,
           top: `${(layer.y / document.canvas.height) * 100}%`,
@@ -1060,59 +1300,91 @@ function PageCanvas({
         };
 
         return (
-          <button
-            type="button"
+          <div
             key={layer.id}
             className="canvas-layer"
             data-kind={layer.kind}
-            data-selected={layer.id === selectedLayerId}
+            data-locked={layer.locked}
+            data-selected={isSelected}
+            data-transforming={activeTransform?.layerId === layer.id}
             style={layerStyle}
-            onClick={() => onSelectLayer(layer.id)}
           >
-            {layer.kind === "photo" ? (
-              <span
-                className="photo-frame-preview"
-                data-frame={layer.border.framePreset}
-                style={buildPhotoFrameStyle(layer)}
-              >
-                <img
-                  src={
-                    assetById.get(layer.assetId)?.thumbnailUrl ??
-                    assetById.get(layer.assetId)?.originalContentUrl
-                  }
-                  alt=""
-                  style={buildPhotoImageStyle(layer)}
+            <button
+              type="button"
+              aria-label={`${layer.name} ${layer.kind} layer`}
+              className="canvas-layer-hitbox"
+              onClick={() => onSelectLayer(layer.id)}
+              onPointerDown={(event) => startTransform(event, layer, "move")}
+            >
+              <span className="canvas-layer-content">
+                {layer.kind === "photo" ? (
+                  <span
+                    className="photo-frame-preview"
+                    data-frame={layer.border.framePreset}
+                    style={buildPhotoFrameStyle(layer)}
+                  >
+                    <img
+                      src={
+                        assetById.get(layer.assetId)?.thumbnailUrl ??
+                        assetById.get(layer.assetId)?.originalContentUrl
+                      }
+                      alt=""
+                      style={buildPhotoImageStyle(layer)}
+                    />
+                    {getFrameLabel(layer) ? (
+                      <span className="frame-label">{getFrameLabel(layer)}</span>
+                    ) : null}
+                  </span>
+                ) : layer.kind === "text" ? (
+                  <span
+                    style={{
+                      color: layer.color,
+                      fontFamily: layer.fontFamily,
+                      fontSize: `${Math.max(10, Math.min(42, layer.fontSize / 3))}px`,
+                      textAlign: layer.align,
+                    }}
+                  >
+                    {layer.text}
+                  </span>
+                ) : (
+                  <span
+                    className="embellishment-preview"
+                    data-element={layer.element}
+                    style={
+                      {
+                        "--element-accent": layer.accentColor,
+                        "--element-color": layer.color,
+                      } as CSSProperties
+                    }
+                  >
+                    {layer.label}
+                  </span>
+                )}
+              </span>
+            </button>
+            {isSelected && !layer.locked ? (
+              <>
+                <button
+                  type="button"
+                  aria-label="Rotate layer"
+                  className="transform-rotate-handle"
+                  title="Rotate"
+                  onPointerDown={(event) => startTransform(event, layer, "rotate")}
                 />
-                {getFrameLabel(layer) ? (
-                  <span className="frame-label">{getFrameLabel(layer)}</span>
-                ) : null}
-              </span>
-            ) : layer.kind === "text" ? (
-              <span
-                style={{
-                  color: layer.color,
-                  fontFamily: layer.fontFamily,
-                  fontSize: `${Math.max(10, Math.min(42, layer.fontSize / 3))}px`,
-                  textAlign: layer.align,
-                }}
-              >
-                {layer.text}
-              </span>
-            ) : (
-              <span
-                className="embellishment-preview"
-                data-element={layer.element}
-                style={
-                  {
-                    "--element-accent": layer.accentColor,
-                    "--element-color": layer.color,
-                  } as CSSProperties
-                }
-              >
-                {layer.label}
-              </span>
-            )}
-          </button>
+                {resizeHandles.map(({ handle, label }) => (
+                  <button
+                    type="button"
+                    aria-label={label}
+                    className="transform-resize-handle"
+                    data-handle={handle}
+                    key={handle}
+                    title={label}
+                    onPointerDown={(event) => startTransform(event, layer, "resize", handle)}
+                  />
+                ))}
+              </>
+            ) : null}
+          </div>
         );
       })}
     </div>
