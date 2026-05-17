@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   addLayer,
+  createBookSpreads,
   createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
@@ -151,5 +152,38 @@ describe("page document helpers", () => {
       element: "paper-label",
       label: "Picnic",
     });
+  });
+
+  it("groups ordered book pages into cover and facing spreads", () => {
+    const spreads = createBookSpreads([
+      { pageId: "page_3", sortOrder: 3 },
+      { pageId: "page_0", sortOrder: 0 },
+      { pageId: "page_2", sortOrder: 2 },
+      { pageId: "page_1", sortOrder: 1 },
+    ]);
+
+    expect(spreads).toEqual([
+      {
+        spreadIndex: 0,
+        kind: "cover",
+        leftPageId: null,
+        rightPageId: "page_0",
+        pageIds: ["page_0"],
+      },
+      {
+        spreadIndex: 1,
+        kind: "facing",
+        leftPageId: "page_1",
+        rightPageId: "page_2",
+        pageIds: ["page_1", "page_2"],
+      },
+      {
+        spreadIndex: 2,
+        kind: "single",
+        leftPageId: "page_3",
+        rightPageId: null,
+        pageIds: ["page_3"],
+      },
+    ]);
   });
 });

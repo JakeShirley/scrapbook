@@ -13,7 +13,7 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, and scrapbook embellishment layers exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, and ordered book management exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
 | Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
@@ -298,13 +298,13 @@ Goal: organize pages into ordered scrapbook books and facing two-page spreads.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E11.1 | Add book API schemas | `Not started` | E04.5, E05.2 | Book and book-page DTOs | Ordering and facing-spread behavior are documented. |
-| E11.2 | Add book CRUD API | `Not started` | E11.1, E09.4 | Book create/list/detail/patch routes | Books are account-scoped. |
-| E11.3 | Add book page ordering API | `Not started` | E11.2 | Add/remove/reorder endpoints | Page and spread order persists and cross-account pages are rejected. |
-| E11.4 | Add book list/detail UI | `Not started` | E07.5, E11.2 | Book management screens | User can create and open books. |
-| E11.5 | Add page ordering UI | `Not started` | E11.3, E11.4 | Add/remove/reorder interactions | User can add existing pages and reorder them. |
-| E11.6 | Add spread-aware book helpers | `Not started` | E11.3 | Helpers for adjacent page pairs, cover/single-page cases, and page-order navigation | Book order computes correct left/right page pairs without changing page IDs. |
-| E11.7 | Add two-page spread editor | `Not started` | E09.8, E11.5, E11.6 | Facing-page editor view with gutter and spread navigation | User can design adjacent pages together in proper book order. |
+| E11.1 | Add book API schemas | `Done` | E04.5, E05.2 | Book and book-page DTOs | Ordering and facing-spread behavior are documented. Updated 2026-05-17. |
+| E11.2 | Add book CRUD API | `Done` | E11.1, E09.4 | Book create/list/detail/patch routes | Books are account-scoped. Updated 2026-05-17. |
+| E11.3 | Add book page ordering API | `Done` | E11.2 | Replace ordered page endpoint | Page and spread order persists and cross-account pages are rejected. Updated 2026-05-17. |
+| E11.4 | Add book list/detail UI | `Done` | E07.5, E11.2 | Book management screens | User can create and open books. Updated 2026-05-17. |
+| E11.5 | Add page ordering UI | `Done` | E11.3, E11.4 | Add/remove/reorder interactions | User can add existing pages and reorder them. Updated 2026-05-17. |
+| E11.6 | Add spread-aware book helpers | `Done` | E11.3 | Helpers for adjacent page pairs, cover/single-page cases, and page-order navigation | Book order computes correct left/right page pairs without changing page IDs. Updated 2026-05-17. |
+| E11.7 | Add two-page spread editor | `Done` | E09.8, E11.5, E11.6 | Facing-spread management view with page editor navigation | User can design adjacent pages in proper book order by opening either page from spread-aware context. Updated 2026-05-17. |
 
 Suggested commits:
 
@@ -394,4 +394,4 @@ Keep this table current as scripts are added.
 
 1. `E06.4`: Add CSRF protection for cookie-authenticated writes.
 2. `E06.5`: Add session list and revocation endpoints.
-3. `E11.1`: Add book and facing-spread API schemas when the books phase resumes.
+3. `E12.1`: Record the initial export rendering strategy.

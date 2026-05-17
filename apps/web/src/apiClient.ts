@@ -5,6 +5,13 @@ import {
   assetListResponseSchema,
   assetResponseSchema,
   authSessionResponseSchema,
+  type BookCreateRequest,
+  type BookListResponse,
+  bookListResponseSchema,
+  type BookPatchRequest,
+  type BookResponse,
+  bookResponseSchema,
+  type BookSetPagesRequest,
   errorResponseSchema,
   type HealthResponse,
   healthResponseSchema,
@@ -92,6 +99,30 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
 
   listPages: (): Promise<PageListResponse> =>
     requestJson(baseUrl, pageListResponseSchema, "/api/v1/pages"),
+
+  listBooks: (): Promise<BookListResponse> =>
+    requestJson(baseUrl, bookListResponseSchema, "/api/v1/books"),
+
+  createBook: (input: BookCreateRequest): Promise<BookResponse> =>
+    requestJson(baseUrl, bookResponseSchema, "/api/v1/books", {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  getBook: (bookId: string): Promise<BookResponse> =>
+    requestJson(baseUrl, bookResponseSchema, `/api/v1/books/${bookId}`),
+
+  updateBook: (bookId: string, input: BookPatchRequest): Promise<BookResponse> =>
+    requestJson(baseUrl, bookResponseSchema, `/api/v1/books/${bookId}`, {
+      body: JSON.stringify(input),
+      method: "PATCH",
+    }),
+
+  setBookPages: (bookId: string, input: BookSetPagesRequest): Promise<BookResponse> =>
+    requestJson(baseUrl, bookResponseSchema, `/api/v1/books/${bookId}/pages`, {
+      body: JSON.stringify(input),
+      method: "PUT",
+    }),
 
   createPage: (input: PageCreateRequest): Promise<PageResponse> =>
     requestJson(baseUrl, pageResponseSchema, "/api/v1/pages", {

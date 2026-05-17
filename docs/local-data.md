@@ -27,6 +27,8 @@ The upload endpoint accepts JPEG, PNG, and WebP images up to 20 MB. Originals ar
 
 Scrapbook pages are owned by the authenticated account that created them. The API stores page title, canvas dimensions, timestamps, and a versioned page document JSON blob in SQLite. Page documents contain canvas settings plus ordered text and photo layers; photo layers may only reference assets owned by the same account.
 
+Books are account-owned ordered collections of pages. The `book_pages` join table stores the stable page IDs and zero-based `sort_order`; replacing book order never deletes the underlying pages. The first ordered page is treated as a single cover, and remaining pages are grouped into adjacent left/right facing spreads for previews, navigation, and export ordering.
+
 Page create, list, detail, patch, duplicate, and delete routes all resolve records by the current browser session account before reading or writing page data.
 
 ## Migrations

@@ -1,6 +1,6 @@
 import { createTimestamp, type ISODateTime } from "@scrapbook/domain";
 import { createPageDocument } from "@scrapbook/editor-core";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull } from "drizzle-orm";
 
 import type { AppDatabase } from "./database.js";
 import { createEntityId, createInternalId } from "./ids.js";
@@ -472,6 +472,48 @@ export class BookRepository {
     );
   }
 
+  listForAccount(accountId: string): BookRecord[] {
+    return this.db
+      .select()
+      .from(books)
+      .where(eq(books.accountId, accountId))
+      .orderBy(desc(books.updatedAt))
+      .all();
+  }
+
+  updateForAccount(
+    accountId: string,
+    bookId: string,
+    input: Partial<Pick<BookRecord, "title">>,
+  ): BookRecord | null {
+    const existing = this.findByIdForAccount(accountId, bookId);
+
+    if (!existing) {
+      return null;
+    }
+
+    this.db
+      .update(books)
+      .set({ title: input.title ?? existing.title, updatedAt: now(this.clock) })
+      .where(and(eq(books.accountId, accountId), eq(books.id, bookId)))
+      .run();
+
+    return this.findByIdForAccount(accountId, bookId);
+  }
+
+  listPagesForBook(
+    accountId: string,
+    bookId: string,
+  ): Array<{ bookPage: BookPageRecord; page: PageRecord }> {
+    return this.db
+      .select({ bookPage: bookPages, page: pages })
+      .from(bookPages)
+      .innerJoin(pages, and(eq(bookPages.pageId, pages.id), eq(pages.accountId, accountId)))
+      .where(and(eq(bookPages.accountId, accountId), eq(bookPages.bookId, bookId)))
+      .orderBy(asc(bookPages.sortOrder))
+      .all();
+  }
+
   addPage(input: {
     accountId: string;
     bookId: string;
@@ -505,6 +547,61 @@ export class BookRepository {
     this.db.insert(bookPages).values(record).run();
 
     return record;
+  }
+
+  replacePages(input: { accountId: string; bookId: string; pageIds: string[] }): BookPageRecord[] {
+    const book = this.findByIdForAccount(input.accountId, input.bookId);
+
+    if (!book) {
+      throw new OwnershipError("Book does not belong to the account");
+    }
+
+    const uniquePageIds = new Set(input.pageIds);
+
+    if (uniquePageIds.size !== input.pageIds.length) {
+      throw new OwnershipError("A page can only appear once in a book");
+    }
+
+    for (const pageId of input.pageIds) {
+      const page =
+        this.db
+          .select({ id: pages.id })
+          .from(pages)
+          .where(and(eq(pages.accountId, input.accountId), eq(pages.id, pageId)))
+          .get() ?? null;
+
+      if (!page) {
+        throw new OwnershipError("Book pages cannot cross account boundaries");
+      }
+    }
+
+    const timestamp = now(this.clock);
+    const records = input.pageIds.map<BookPageRecord>((pageId, sortOrder) => ({
+      id: createInternalId("bookPage"),
+      accountId: input.accountId,
+      bookId: input.bookId,
+      pageId,
+      sortOrder,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }));
+
+    this.db
+      .delete(bookPages)
+      .where(and(eq(bookPages.accountId, input.accountId), eq(bookPages.bookId, input.bookId)))
+      .run();
+
+    if (records.length > 0) {
+      this.db.insert(bookPages).values(records).run();
+    }
+
+    this.db
+      .update(books)
+      .set({ updatedAt: timestamp })
+      .where(and(eq(books.accountId, input.accountId), eq(books.id, input.bookId)))
+      .run();
+
+    return records;
   }
 }
 

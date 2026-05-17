@@ -526,6 +526,91 @@ textarea:focus-visible {
   font-size: 0.8rem;
 }
 
+.book-detail-stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.compact-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 14px;
+  border-bottom: 1px solid #edf0ed;
+}
+
+.compact-form label {
+  display: grid;
+  gap: 5px;
+  color: #4f595c;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.compact-form input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cbd2cf;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #202426;
+  background: #ffffff;
+}
+
+.book-page-list li {
+  border: 1px solid #d8ddd8;
+  border-radius: 8px;
+  padding: 6px;
+  background: #fbfbf8;
+}
+
+.book-page-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  gap: 8px;
+  align-items: center;
+}
+
+.book-page-row > button {
+  border: 0;
+  background: transparent;
+}
+
+.spread-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  list-style: none;
+}
+
+.spread-preview-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.spread-preview-row span {
+  display: grid;
+  min-height: 74px;
+  align-content: center;
+  border: 1px solid #d7d0c5;
+  border-radius: 6px;
+  padding: 10px;
+  color: #202426;
+  background: #fffdf7;
+  box-shadow: inset 0 0 0 4px rgb(36 118 110 / 8%);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.spread-preview-row[data-kind="cover"],
+.spread-preview-row[data-kind="single"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .editor-shell {
   display: grid;
   grid-template-columns: minmax(180px, 230px) minmax(420px, 1fr) minmax(240px, 310px);

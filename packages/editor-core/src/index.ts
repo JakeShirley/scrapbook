@@ -173,6 +173,19 @@ export type TextLayer = z.infer<typeof textLayerSchema>;
 export type EmbellishmentLayer = z.infer<typeof embellishmentLayerSchema>;
 export type PageLayerKind = PageLayer["kind"];
 
+export type OrderedBookPage = {
+  pageId: string;
+  sortOrder: number;
+};
+
+export type BookSpread = {
+  spreadIndex: number;
+  kind: "cover" | "facing" | "single";
+  leftPageId: string | null;
+  rightPageId: string | null;
+  pageIds: string[];
+};
+
 export type CreatePageDocumentInput = {
   canvas?: Partial<PageDocument["canvas"]>;
   layers?: PageLayer[];
@@ -426,4 +439,51 @@ export const updateCanvas = (
     ...parsedDocument,
     canvas: { ...parsedDocument.canvas, ...canvas },
   });
+};
+
+export const createBookSpreads = (pages: OrderedBookPage[]): BookSpread[] => {
+  const sortedPages = [...pages].sort((first, second) => first.sortOrder - second.sortOrder);
+
+  return sortedPages.reduce<BookSpread[]>((spreads, page, index) => {
+    if (index === 0) {
+      spreads.push({
+        spreadIndex: 0,
+        kind: "cover",
+        leftPageId: null,
+        rightPageId: page.pageId,
+        pageIds: [page.pageId],
+      });
+
+      return spreads;
+    }
+
+    const spreadIndex = Math.floor((index + 1) / 2);
+    const isLeftPage = index % 2 === 1;
+
+    if (isLeftPage) {
+      spreads.push({
+        spreadIndex,
+        kind: "single",
+        leftPageId: page.pageId,
+        rightPageId: null,
+        pageIds: [page.pageId],
+      });
+
+      return spreads;
+    }
+
+    const spread = spreads[spreads.length - 1];
+
+    if (!spread) {
+      return spreads;
+    }
+
+    spread.kind = "facing";
+    spread.rightPageId = page.pageId;
+    spread.pageIds = [spread.leftPageId, page.pageId].filter((pageId): pageId is string =>
+      Boolean(pageId),
+    );
+
+    return spreads;
+  }, []);
 };

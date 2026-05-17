@@ -3,6 +3,17 @@ import {
   type AccountResponse,
   type AssetResponse,
   type AuthSessionResponse,
+  bookCreateRoute,
+  bookDetailRoute,
+  bookListResponseSchema,
+  bookListRoute,
+  bookPatchRoute,
+  type BookPageResponse,
+  bookResponseSchema,
+  type BookResponse,
+  type BookSummaryResponse,
+  bookSummaryResponseSchema,
+  bookSetPagesRoute,
   assetDetailRoute,
   assetListResponseSchema,
   assetListRoute,
@@ -31,7 +42,12 @@ import {
   registerRoute,
   type SessionResponse,
 } from "@scrapbook/api-contract";
-import { createPageDocument, type PageDocument, pageDocumentSchema } from "@scrapbook/editor-core";
+import {
+  createBookSpreads,
+  createPageDocument,
+  type PageDocument,
+  pageDocumentSchema,
+} from "@scrapbook/editor-core";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { type AssetStorage, AssetUploadError, createAssetFromUpload } from "./assets.js";
@@ -46,11 +62,17 @@ import {
   sessionCookieName,
   verifyPassword,
 } from "./auth.js";
-import type { Repositories, RepositoryClock } from "./persistence/repositories.js";
+import {
+  OwnershipError,
+  type Repositories,
+  type RepositoryClock,
+} from "./persistence/repositories.js";
 import type {
   AccountRecord,
   AssetRecord,
   AssetVariantRecord,
+  BookPageRecord,
+  BookRecord,
   PageRecord,
   SessionRecord,
 } from "./persistence/schema.js";
@@ -178,6 +200,44 @@ const toPageResponse = (page: PageRecord): PageResponse => {
   return pageResponseSchema.parse({
     ...toPageSummaryResponse(page),
     document,
+  });
+};
+
+const toBookPageResponse = (bookPage: BookPageRecord, page: PageRecord): BookPageResponse => ({
+  id: bookPage.id,
+  bookId: bookPage.bookId,
+  pageId: bookPage.pageId,
+  sortOrder: bookPage.sortOrder,
+  page: toPageSummaryResponse(page),
+  createdAt: bookPage.createdAt,
+  updatedAt: bookPage.updatedAt,
+});
+
+const toBookSummaryResponse = (
+  book: BookRecord,
+  pages: Array<{ bookPage: BookPageRecord; page: PageRecord }>,
+): BookSummaryResponse =>
+  bookSummaryResponseSchema.parse({
+    id: book.id,
+    title: book.title,
+    pageCount: pages.length,
+    spreadCount: createBookSpreads(
+      pages.map(({ bookPage }) => ({ pageId: bookPage.pageId, sortOrder: bookPage.sortOrder })),
+    ).length,
+    createdAt: book.createdAt,
+    updatedAt: book.updatedAt,
+  });
+
+const toBookResponse = (book: BookRecord, repositories: Repositories): BookResponse => {
+  const pages = repositories.books.listPagesForBook(book.accountId, book.id);
+  const spreads = createBookSpreads(
+    pages.map(({ bookPage }) => ({ pageId: bookPage.pageId, sortOrder: bookPage.sortOrder })),
+  );
+
+  return bookResponseSchema.parse({
+    ...toBookSummaryResponse(book, pages),
+    pages: pages.map(({ bookPage, page }) => toBookPageResponse(bookPage, page)),
+    spreads,
   });
 };
 
@@ -810,6 +870,173 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     return context.body(null, 204);
+  });
+
+  app.openapi(bookCreateRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const input = context.req.valid("json");
+    const book = options.repositories.books.create({
+      accountId: authSession.account.id,
+      title: input.title.trim(),
+    });
+
+    return context.json(toBookResponse(book, options.repositories), 201);
+  });
+
+  app.openapi(bookListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const books = options.repositories.books
+      .listForAccount(authSession.account.id)
+      .map((book) =>
+        toBookSummaryResponse(
+          book,
+          options.repositories?.books.listPagesForBook(authSession.account.id, book.id) ?? [],
+        ),
+      );
+
+    return context.json(bookListResponseSchema.parse({ books }), 200);
+  });
+
+  app.openapi(bookDetailRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { bookId } = context.req.valid("param");
+    const book = options.repositories.books.findByIdForAccount(authSession.account.id, bookId);
+
+    if (!book) {
+      return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);
+    }
+
+    return context.json(toBookResponse(book, options.repositories), 200);
+  });
+
+  app.openapi(bookPatchRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { bookId } = context.req.valid("param");
+    const input = context.req.valid("json");
+    const book = options.repositories.books.updateForAccount(authSession.account.id, bookId, {
+      title: input.title.trim(),
+    });
+
+    if (!book) {
+      return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);
+    }
+
+    return context.json(toBookResponse(book, options.repositories), 200);
+  });
+
+  app.openapi(bookSetPagesRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { bookId } = context.req.valid("param");
+    const input = context.req.valid("json");
+    const existing = options.repositories.books.findByIdForAccount(authSession.account.id, bookId);
+
+    if (!existing) {
+      return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);
+    }
+
+    try {
+      options.repositories.books.replacePages({
+        accountId: authSession.account.id,
+        bookId,
+        pageIds: input.pageIds,
+      });
+    } catch (error) {
+      if (error instanceof OwnershipError) {
+        return context.json(
+          createErrorResponse(
+            context,
+            "book_page_not_found",
+            "Book pages must belong to the account",
+          ),
+          400,
+        );
+      }
+
+      throw error;
+    }
+
+    const book = options.repositories.books.findByIdForAccount(authSession.account.id, bookId);
+
+    if (!book) {
+      return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);
+    }
+
+    return context.json(toBookResponse(book, options.repositories), 200);
   });
 
   app.doc("/api/v1/openapi.json", {

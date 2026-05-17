@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import {
   authSessionResponseSchema,
+  bookResponseSchema,
   healthResponseSchema,
   pageResponseSchema,
 } from "@scrapbook/api-contract";
@@ -445,6 +446,75 @@ describe("api app", () => {
     expect(await crossAccountAssetResponse.json()).toMatchObject({
       error: { code: "page_asset_not_found" },
     });
+  });
+
+  it("creates books, orders pages into spreads, and rejects cross-account pages", async () => {
+    const app = createTestApp();
+    const firstCookie = await registerAccount(app, {
+      displayName: "First",
+      email: "first-books@example.com",
+    });
+    const secondCookie = await registerAccount(app, {
+      displayName: "Second",
+      email: "second-books@example.com",
+    });
+    const pageResponses = await Promise.all(
+      ["Cover", "Left", "Right"].map((title) =>
+        postJson(app, "/api/v1/pages", { title }, firstCookie),
+      ),
+    );
+    const pages = await Promise.all(
+      pageResponses.map(async (response) => pageResponseSchema.parse(await response.json())),
+    );
+    const secondPageResponse = await postJson(
+      app,
+      "/api/v1/pages",
+      { title: "Other account" },
+      secondCookie,
+    );
+    const secondPage = pageResponseSchema.parse(await secondPageResponse.json());
+    const createBookResponse = await postJson(
+      app,
+      "/api/v1/books",
+      { title: "Family book" },
+      firstCookie,
+    );
+
+    expect(createBookResponse.status).toBe(201);
+
+    const createdBook = bookResponseSchema.parse(await createBookResponse.json());
+    const orderedResponse = await app.request(`/api/v1/books/${createdBook.id}/pages`, {
+      body: JSON.stringify({ pageIds: pages.map((page) => page.id) }),
+      headers: { cookie: firstCookie, "content-type": "application/json" },
+      method: "PUT",
+    });
+    const orderedBook = bookResponseSchema.parse(await orderedResponse.json());
+    const detailResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
+      headers: { cookie: firstCookie },
+    });
+    const secondDetailResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
+      headers: { cookie: secondCookie },
+    });
+    const crossAccountPageResponse = await app.request(`/api/v1/books/${createdBook.id}/pages`, {
+      body: JSON.stringify({ pageIds: [pages[0]?.id, secondPage.id] }),
+      headers: { cookie: firstCookie, "content-type": "application/json" },
+      method: "PUT",
+    });
+
+    expect(orderedResponse.status).toBe(200);
+    expect(orderedBook.pages.map((bookPage) => bookPage.page.title)).toEqual([
+      "Cover",
+      "Left",
+      "Right",
+    ]);
+    expect(orderedBook.spreads).toMatchObject([
+      { kind: "cover", rightPageId: pages[0]?.id },
+      { kind: "facing", leftPageId: pages[1]?.id, rightPageId: pages[2]?.id },
+    ]);
+    expect(detailResponse.status).toBe(200);
+    expect(bookResponseSchema.parse(await detailResponse.json()).pageCount).toBe(3);
+    expect(secondDetailResponse.status).toBe(404);
+    expect(crossAccountPageResponse.status).toBe(400);
   });
 
   it("persists non-destructive photo edits without mutating original assets", async () => {
