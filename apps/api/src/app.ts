@@ -83,6 +83,7 @@ import type {
   PageRecord,
   SessionRecord,
 } from "./persistence/schema.js";
+import { readStaticAsset } from "./static.js";
 
 type ApiBindings = {
   Variables: {
@@ -98,6 +99,7 @@ export type CreateAppOptions = {
   clock?: RepositoryClock;
   sessionCookieSecure?: boolean;
   sessionTtlMs?: number;
+  staticAssetsDir?: string;
 };
 
 type ApiContext = Context<ApiBindings>;
@@ -361,6 +363,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     repositories: createOptions.repositories,
     sessionCookieSecure: createOptions.sessionCookieSecure ?? false,
     sessionTtlMs: createOptions.sessionTtlMs ?? defaultSessionTtlMs,
+    staticAssetsDir: createOptions.staticAssetsDir,
     storage: createOptions.storage,
   };
 
@@ -1159,9 +1162,11 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
 
       if (error instanceof ExportRenderError) {
         return context.json(
-          failedJob
-            ? toExportJobResponse(failedJob)
-            : createErrorResponse(context, error.code, error.message),
+          createErrorResponse(
+            context,
+            failedJob?.errorMessage ? "export_failed" : error.code,
+            failedJob?.errorMessage ?? error.message,
+          ),
           error.status === 404 ? 404 : 400,
         );
       }
@@ -1251,7 +1256,23 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     },
   });
 
-  app.notFound((context) => {
+  app.notFound(async (context) => {
+    if (options.staticAssetsDir) {
+      const staticAsset = await readStaticAsset(
+        options.staticAssetsDir,
+        new URL(context.req.url).pathname,
+      );
+
+      if (staticAsset) {
+        return context.body(staticAsset.body, 200, {
+          "cache-control": staticAsset.contentType.startsWith("text/html")
+            ? "no-cache"
+            : "public, max-age=31536000, immutable",
+          "content-type": staticAsset.contentType,
+        });
+      }
+    }
+
     const body: ErrorResponse = {
       error: {
         code: "not_found",

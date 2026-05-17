@@ -29,4 +29,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Calculate semantic release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm release:dry-run

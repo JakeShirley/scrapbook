@@ -14,9 +14,9 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
 | Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, ordered book management, and PNG/JPEG exports exist. |
-| GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
+| GitHub remote | `Done` | Changes are being pushed to the GitHub `gh` remote on `main`. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
-| Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
+| Release automation | `Done` | semantic-release GitHub Releases and GHCR image publishing workflows exist. |
 
 ## Status Legend
 
@@ -346,13 +346,13 @@ Goal: publish and operate the app from GitHub as a Dockerized product.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E13.1 | Add production Dockerfile | `Not started` | E04.1, E07.1 | Multi-stage Dockerfile | Image builds locally and runs as non-root. |
-| E13.2 | Add container smoke test | `Not started` | E13.1, E04.4 | Health-check script/workflow step | Built image starts and `/api/v1/health` reports healthy. |
-| E13.3 | Add container workflow | `Not started` | E13.2 | `.github/workflows/container.yml` | PRs build and smoke-test the image without publishing. |
-| E13.4 | Publish GitHub Releases | `Not started` | E03.7 | `release.yml` GitHub release integration | semantic-release creates GitHub Release notes. |
-| E13.5 | Publish GHCR images | `Not started` | E13.3, E13.4 | GHCR publishing with version/channel tags | Protected-branch releases publish images without version/changelog commits. |
-| E13.6 | Add supply-chain metadata | `Not started` | E13.5 | SBOM, provenance, signing/attestations where practical | Published artifacts include current GitHub-supported metadata. |
-| E13.7 | Document deployment operations | `Not started` | E13.5 | `docs/deployment.md` | Operators can configure, start, upgrade, back up, and restore the container. |
+| E13.1 | Add production Dockerfile | `Done` | E04.1, E07.1 | Multi-stage Dockerfile | Image builds web/API assets and runs as non-root. Updated 2026-05-17. |
+| E13.2 | Add container smoke test | `Done` | E13.1, E04.4 | Health-check script/workflow step | Built image starts and `/api/v1/health` reports healthy. Updated 2026-05-17. |
+| E13.3 | Add container workflow | `Done` | E13.2 | `.github/workflows/container.yml` | PRs build and smoke-test the image without publishing. Updated 2026-05-17. |
+| E13.4 | Publish GitHub Releases | `Done` | E03.7 | `release.yml` GitHub release integration | semantic-release creates GitHub Release notes. Updated 2026-05-17. |
+| E13.5 | Publish GHCR images | `Done` | E13.3, E13.4 | GHCR publishing with main and SHA tags | Protected-branch releases publish images without version/changelog commits. Updated 2026-05-17. |
+| E13.6 | Add supply-chain metadata | `Done` | E13.5 | SBOM, provenance, and GitHub artifact attestation | Published artifacts include current GitHub-supported metadata. Updated 2026-05-17. |
+| E13.7 | Document deployment operations | `Done` | E13.5 | `docs/deployment.md` | Operators can configure, start, upgrade, back up, and restore the container. Updated 2026-05-17. |
 
 Suggested commits:
 
@@ -377,7 +377,7 @@ Keep this table current as scripts are added.
 | `pnpm build` | `Done` | Build all apps/packages. |
 | `pnpm openapi:check` | `Done` | Validate OpenAPI output. |
 | `pnpm e2e` | `Not started` | Run Playwright browser tests. |
-| `docker build .` | `Not started` | Build production container image. |
+| `docker build .` | `Blocked` | Build production container image; local Docker CLI was unavailable in this environment, and `.github/workflows/container.yml` performs the build/smoke test in CI. |
 | `docker compose up` | `Not started` | Start local containerized app with persistent volumes. |
 
 ## Handoff Notes For Future LLM Sessions
@@ -394,4 +394,4 @@ Keep this table current as scripts are added.
 
 1. `E06.4`: Add CSRF protection for cookie-authenticated writes.
 2. `E06.5`: Add session list and revocation endpoints.
-3. `E13.1`: Validate and extend the production Docker image for web/API release publishing.
+3. `E06.4`: Add CSRF protection for cookie-authenticated writes.

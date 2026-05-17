@@ -14,9 +14,11 @@ const databaseConnection = createDatabaseConnection({
 const storage = createDiskStorage({ rootDir: config.SCRAPBOOK_DATA_DIR });
 await storage.ensureReady();
 
+const staticAssetsDir = process.env.WEB_ASSETS_DIR;
 const app = createApp({
   repositories: createRepositories(databaseConnection.db),
   sessionCookieSecure: config.NODE_ENV === "production",
+  ...(staticAssetsDir ? { staticAssetsDir } : {}),
   storage,
 });
 
