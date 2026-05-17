@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { healthResponseSchema, healthRoute, type ErrorResponse } from "@scrapbook/api-contract";
+import { type ErrorResponse, healthResponseSchema, healthRoute } from "@scrapbook/api-contract";
 
 type ApiBindings = {
   Variables: {

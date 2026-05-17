@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "db:migrate": "tsx src/persistence/migrate.ts",
     "dev": "tsx watch src/index.ts",
     "openapi:check": "tsx src/openapi.ts > /dev/null",
     "openapi:print": "tsx src/openapi.ts",
@@ -17,6 +18,13 @@
     "@hono/zod-openapi": "1.4.0",
     "@scrapbook/api-contract": "workspace:*",
     "@scrapbook/config": "workspace:*",
+    "@scrapbook/domain": "workspace:*",
+    "better-sqlite3": "^12.10.0",
+    "drizzle-orm": "^0.45.2",
     "hono": "4.12.19"
+  },
+  "devDependencies": {
+    "@scrapbook/test-utils": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13"
   }
 }

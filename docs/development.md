@@ -20,6 +20,7 @@ Copy `.env.example` to `.env` if local settings need to differ from the defaults
 pnpm dev
 pnpm dev:api
 pnpm dev:web
+pnpm --filter @scrapbook/api db:migrate
 pnpm format:check
 pnpm lint
 pnpm typecheck
@@ -30,6 +31,8 @@ pnpm release:dry-run
 
 The API health endpoint is available at `http://127.0.0.1:4000/api/v1/health` when the API dev server is running. The web client runs at `http://127.0.0.1:5173`.
 
+The API applies SQLite migrations on startup. To apply migrations without starting the server, run `pnpm --filter @scrapbook/api db:migrate`.
+
 ## Docker
 
 Run the local API container with persistent application data:
@@ -39,6 +42,8 @@ docker compose up --build
 ```
 
 The Compose service exposes the API on `http://127.0.0.1:4000` and mounts the `scrapbook-data` Docker volume at `/data/scrapbook` inside the container. That path is the container value for `SCRAPBOOK_DATA_DIR` and will hold future SQLite files, uploads, variants, previews, and exports.
+
+See [Local Data](local-data.md) for backup, restore, and cleanup notes for the SQLite database and disk storage directories.
 
 ## Release Dry Runs
 

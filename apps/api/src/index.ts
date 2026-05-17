@@ -2,8 +2,16 @@ import { serve } from "@hono/node-server";
 import { loadConfig } from "@scrapbook/config";
 
 import { createApp } from "./app.js";
+import { createDatabaseConnection } from "./persistence/database.js";
+import { createDiskStorage } from "./storage/disk.js";
 
 const config = loadConfig();
+const databaseConnection = createDatabaseConnection({
+  dataDir: config.SCRAPBOOK_DATA_DIR,
+  migrate: true,
+});
+await createDiskStorage({ rootDir: config.SCRAPBOOK_DATA_DIR }).ensureReady();
+
 const app = createApp();
 
 const server = serve(
@@ -20,6 +28,7 @@ const server = serve(
 const shutdown = (signal: NodeJS.Signals) => {
   console.log(`Received ${signal}; shutting down API server`);
   server.close(() => {
+    databaseConnection.close();
     process.exit(0);
   });
 };

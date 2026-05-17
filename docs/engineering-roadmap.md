@@ -13,7 +13,7 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, config package, API contract package, domain package, test utilities, and web shell exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, config package, API contract package, domain package, test utilities, and web shell exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
 | Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
@@ -167,12 +167,12 @@ Goal: make durable account-owned data possible with SQLite and safe local file s
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E05.1 | Add SQLite and migrations | `Not started` | E01.3, E04.6 | Migration tooling and initial schema | Migrations apply from an empty database in tests. |
-| E05.2 | Add core schema | `Not started` | E05.1 | Accounts, auth identities, sessions, assets, variants, pages, books, exports | Tables use opaque IDs, timestamps, and ownership relationships. |
-| E05.3 | Add repository layer | `Not started` | E05.2 | Typed repositories | Route handlers do not query tables directly. |
-| E05.4 | Test account isolation | `Not started` | E05.3 | Repository/API tests | Cross-account access is rejected. |
-| E05.5 | Add disk storage adapter | `Not started` | E03.4 | Storage module rooted at configured directory | Paths are opaque and safe from traversal. |
-| E05.6 | Add local data docs | `Not started` | E05.1, E05.5 | `docs/local-data.md` or deployment section | Backup, restore, and cleanup basics are documented. |
+| E05.1 | Add SQLite and migrations | `Done` | E01.3, E04.6 | Migration tooling and initial schema | Migrations apply from an empty database in tests; API startup and `db:migrate` run them. |
+| E05.2 | Add core schema | `Done` | E05.1 | Accounts, auth identities, sessions, assets, variants, pages, books, exports | Tables use opaque IDs, timestamps, indexes, constraints, and ownership relationships. |
+| E05.3 | Add repository layer | `Done` | E05.2 | Typed repositories | Repository classes wrap table access for accounts, auth identities, sessions, assets, pages, books, and exports. |
+| E05.4 | Test account isolation | `Done` | E05.3 | Repository/API tests | Repository tests reject cross-account asset variants, book pages, and exports. |
+| E05.5 | Add disk storage adapter | `Done` | E03.4 | Storage module rooted at configured directory | Storage keys are generated as opaque relative paths and traversal/absolute keys are rejected. |
+| E05.6 | Add local data docs | `Done` | E05.1, E05.5 | `docs/local-data.md` | Backup, restore, migration, layout, and cleanup basics are documented. |
 
 Suggested commits:
 

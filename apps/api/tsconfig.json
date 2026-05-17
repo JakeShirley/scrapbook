@@ -7,6 +7,11 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../../packages/api-contract" }, { "path": "../../packages/config" }],
+  "references": [
+    { "path": "../../packages/api-contract" },
+    { "path": "../../packages/config" },
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/test-utils" }
+  ],
   "include": ["src/**/*.ts"]
 }
