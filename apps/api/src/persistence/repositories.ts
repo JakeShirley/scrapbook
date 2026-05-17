@@ -1,5 +1,5 @@
 import { createTimestamp, type ISODateTime } from "@scrapbook/domain";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 
 import type { AppDatabase } from "./database.js";
 import { createEntityId, createInternalId } from "./ids.js";
@@ -288,8 +288,62 @@ export class AssetRepository {
     );
   }
 
+  findVariantByKindForAccount(
+    accountId: string,
+    assetId: string,
+    kind: AssetVariantKind,
+  ): AssetVariantRecord | null {
+    return (
+      this.db
+        .select()
+        .from(assetVariants)
+        .where(
+          and(
+            eq(assetVariants.accountId, accountId),
+            eq(assetVariants.assetId, assetId),
+            eq(assetVariants.kind, kind),
+          ),
+        )
+        .get() ?? null
+    );
+  }
+
+  findVariantByIdForAccount(
+    accountId: string,
+    assetId: string,
+    variantId: string,
+  ): AssetVariantRecord | null {
+    return (
+      this.db
+        .select()
+        .from(assetVariants)
+        .where(
+          and(
+            eq(assetVariants.accountId, accountId),
+            eq(assetVariants.assetId, assetId),
+            eq(assetVariants.id, variantId),
+          ),
+        )
+        .get() ?? null
+    );
+  }
+
+  listVariantsForAsset(accountId: string, assetId: string): AssetVariantRecord[] {
+    return this.db
+      .select()
+      .from(assetVariants)
+      .where(and(eq(assetVariants.accountId, accountId), eq(assetVariants.assetId, assetId)))
+      .orderBy(assetVariants.kind)
+      .all();
+  }
+
   listForAccount(accountId: string): AssetRecord[] {
-    return this.db.select().from(assets).where(eq(assets.accountId, accountId)).all();
+    return this.db
+      .select()
+      .from(assets)
+      .where(eq(assets.accountId, accountId))
+      .orderBy(desc(assets.createdAt))
+      .all();
   }
 }
 

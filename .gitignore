@@ -16,5 +16,6 @@ coverage/
 storage/*
 !storage/.gitkeep
 !storage/README.md
+apps/*/storage/*
 
 .DS_Store

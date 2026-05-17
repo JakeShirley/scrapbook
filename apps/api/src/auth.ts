@@ -1,8 +1,8 @@
 import {
   createHash,
   randomBytes,
-  scrypt as scryptCallback,
   type ScryptOptions,
+  scrypt as scryptCallback,
   timingSafeEqual,
 } from "node:crypto";
 

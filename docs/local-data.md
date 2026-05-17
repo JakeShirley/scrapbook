@@ -17,6 +17,12 @@ SCRAPBOOK_DATA_DIR/
 
 SQLite owns the `scrapbook.sqlite*` files. The storage adapter owns the other directories and returns opaque storage keys such as `uploads/ab/<uuid>.jpg`. Application code should store those keys, not absolute paths.
 
+## Assets
+
+Uploaded images are owned by the authenticated account that created them. The API stores original files under `uploads/`, generated thumbnails under `variants/`, and metadata plus checksums in SQLite. Asset listing, detail, original content, and variant content routes all resolve records by the current browser session account before reading from disk.
+
+The upload endpoint accepts JPEG, PNG, and WebP images up to 20 MB. Originals are preserved as uploaded; thumbnail derivatives are generated as separate variant files and records.
+
 ## Migrations
 
 The API runs migrations during startup before accepting requests. To migrate without starting the server, run:

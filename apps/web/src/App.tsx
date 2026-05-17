@@ -1,9 +1,17 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import {
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router";
 
-import { apiClient, ApiClientError } from "./apiClient";
+import { ApiClientError, apiClient } from "./apiClient";
 
 type AuthSession = Awaited<ReturnType<typeof apiClient.getCurrentSession>>;
+type Asset = Awaited<ReturnType<typeof apiClient.listAssets>>["assets"][number];
 
 type SessionState =
   | { status: "loading" }
@@ -19,7 +27,6 @@ const navItems = [
   { to: "/settings", label: "Settings" },
 ];
 
-const libraryItems = ["Family prints", "May weekend", "Garden"];
 const pageItems = ["Cover", "Page 01", "Page 02"];
 const bookItems = ["Spring album", "Travel notes"];
 
@@ -33,6 +40,26 @@ const getErrorMessage = (error: unknown): string => {
   }
 
   return "Something went wrong";
+};
+
+const formatBytes = (byteSize: number): string => {
+  if (byteSize < 1024) {
+    return `${byteSize} B`;
+  }
+
+  if (byteSize < 1024 * 1024) {
+    return `${(byteSize / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(byteSize / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const formatDimensions = (asset: Asset): string => {
+  if (!asset.width || !asset.height) {
+    return "Unknown size";
+  }
+
+  return `${asset.width} x ${asset.height}`;
 };
 
 export function App() {
@@ -325,10 +352,79 @@ function Panel({ title, count, children }: { title: string; count?: string; chil
 }
 
 function LibraryView() {
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    apiClient
+      .listAssets()
+      .then((response) => {
+        if (isMounted) {
+          setAssets(response.assets);
+          setError(null);
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted) {
+          setError(getErrorMessage(loadError));
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const uploadAsset = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setError(null);
+    setUploadProgress(0);
+
+    try {
+      const asset = await apiClient.uploadAsset(file, setUploadProgress);
+      setAssets((currentAssets) => [
+        asset,
+        ...currentAssets.filter((item) => item.id !== asset.id),
+      ]);
+    } catch (uploadError: unknown) {
+      setError(getErrorMessage(uploadError));
+    } finally {
+      setUploadProgress(null);
+    }
+  };
+
   return (
     <>
       <WorkspaceHeader title="Library">
-        <button type="button" className="secondary-button">
+        <input
+          ref={fileInputRef}
+          accept="image/jpeg,image/png,image/webp"
+          className="visually-hidden"
+          type="file"
+          onChange={uploadAsset}
+        />
+        <button
+          type="button"
+          className="secondary-button"
+          disabled={uploadProgress !== null}
+          onClick={() => fileInputRef.current?.click()}
+        >
           Upload
         </button>
         <button type="button" className="primary-button">
@@ -337,19 +433,35 @@ function LibraryView() {
       </WorkspaceHeader>
 
       <div className="workspace-grid library-grid">
-        <Panel title="Assets" count={String(libraryItems.length)}>
-          <div className="asset-grid">
-            {libraryItems.map((item, index) => (
-              <button className="asset-tile" type="button" key={item}>
-                <span className={`asset-swatch swatch-${index + 1}`} aria-hidden="true" />
-                <span>{item}</span>
-              </button>
-            ))}
-          </div>
-        </Panel>
-
-        <Panel title="Page draft" count="8.5 x 11">
-          <PagePreview />
+        <Panel title="Assets" count={String(assets.length)}>
+          {error ? (
+            <p className="panel-alert" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {uploadProgress !== null ? (
+            <div className="upload-progress" aria-live="polite">
+              <span>Uploading</span>
+              <progress value={uploadProgress ?? undefined} max={1} />
+            </div>
+          ) : null}
+          {isLoading ? <p className="empty-state">Loading assets</p> : null}
+          {!isLoading && assets.length === 0 ? <p className="empty-state">No assets yet</p> : null}
+          {assets.length > 0 ? (
+            <div className="asset-grid">
+              {assets.map((asset) => (
+                <button className="asset-tile" type="button" key={asset.id}>
+                  <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
+                  <span className="asset-tile-copy">
+                    <span>{asset.originalFilename}</span>
+                    <span>
+                      {formatDimensions(asset)} / {formatBytes(asset.byteSize)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </Panel>
 
         <Panel title="Pages" count={String(pageItems.length)}>

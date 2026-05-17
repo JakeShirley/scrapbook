@@ -13,7 +13,7 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, and authenticated web shell exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, and asset upload/library flow exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
 | Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
@@ -230,13 +230,13 @@ Goal: authenticated users can upload photos, preserve originals, and browse thei
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E08.1 | Add asset API schemas | `Not started` | E04.5, E05.2 | Asset DTOs and route schemas | Asset API ownership is documented. |
-| E08.2 | Add upload endpoint | `Not started` | E08.1, E05.5, E06.3 | `POST /api/v1/assets/uploads` | Valid images upload; invalid type/size/dimensions return documented errors. |
-| E08.3 | Add metadata extraction | `Not started` | E08.2 | Sharp-backed metadata pipeline | Width, height, MIME, size, and checksum are stored. |
-| E08.4 | Add thumbnail generation | `Not started` | E08.3 | Asset variant files and records | Derivatives are generated without mutating originals. |
-| E08.5 | Add asset list/detail/content routes | `Not started` | E08.4 | Library and streaming endpoints | Users can only access their own assets. |
-| E08.6 | Add upload UI | `Not started` | E07.5, E08.2 | Upload flow with progress and errors | User can upload an image from the web app. |
-| E08.7 | Add asset library UI | `Not started` | E08.5, E08.6 | Library grid/list | User sees thumbnails and metadata. |
+| E08.1 | Add asset API schemas | `Done` | E04.5, E05.2 | Asset DTOs and route schemas | Asset API ownership is documented in `docs/local-data.md`. |
+| E08.2 | Add upload endpoint | `Done` | E08.1, E05.5, E06.3 | `POST /api/v1/assets/uploads` | JPEG, PNG, and WebP uploads succeed; invalid files and oversized images return documented errors. |
+| E08.3 | Add metadata extraction | `Done` | E08.2 | Sharp-backed metadata pipeline | Width, height, MIME, size, and checksum are stored. |
+| E08.4 | Add thumbnail generation | `Done` | E08.3 | Asset variant files and records | Thumbnail derivatives are generated without mutating originals. |
+| E08.5 | Add asset list/detail/content routes | `Done` | E08.4 | Library and streaming endpoints | Users can only access their own assets. |
+| E08.6 | Add upload UI | `Done` | E07.5, E08.2 | Upload flow with progress and errors | User can upload an image from the web app. |
+| E08.7 | Add asset library UI | `Done` | E08.5, E08.6 | Library grid/list | User sees thumbnails and metadata. |
 
 Suggested commits:
 

@@ -11,11 +11,13 @@ const databaseConnection = createDatabaseConnection({
   dataDir: config.SCRAPBOOK_DATA_DIR,
   migrate: true,
 });
-await createDiskStorage({ rootDir: config.SCRAPBOOK_DATA_DIR }).ensureReady();
+const storage = createDiskStorage({ rootDir: config.SCRAPBOOK_DATA_DIR });
+await storage.ensureReady();
 
 const app = createApp({
   repositories: createRepositories(databaseConnection.db),
   sessionCookieSecure: config.NODE_ENV === "production",
+  storage,
 });
 
 const server = serve(

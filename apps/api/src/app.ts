@@ -1,20 +1,28 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   type AccountResponse,
+  type AssetResponse,
   type AuthSessionResponse,
-  type ErrorResponse,
-  type SessionResponse,
+  assetDetailRoute,
+  assetListResponseSchema,
+  assetListRoute,
+  assetOriginalContentRoute,
+  assetResponseSchema,
+  assetUploadRoute,
+  assetVariantContentRoute,
   authSessionResponseSchema,
   currentSessionRoute,
+  type ErrorResponse,
   healthResponseSchema,
   healthRoute,
   loginRoute,
   logoutRoute,
   registerRoute,
+  type SessionResponse,
 } from "@scrapbook/api-contract";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-
+import { type AssetStorage, AssetUploadError, createAssetFromUpload } from "./assets.js";
 import {
   createSessionCookieValue,
   createSessionSecret,
@@ -26,8 +34,13 @@ import {
   sessionCookieName,
   verifyPassword,
 } from "./auth.js";
-import type { RepositoryClock, Repositories } from "./persistence/repositories.js";
-import type { AccountRecord, SessionRecord } from "./persistence/schema.js";
+import type { Repositories, RepositoryClock } from "./persistence/repositories.js";
+import type {
+  AccountRecord,
+  AssetRecord,
+  AssetVariantRecord,
+  SessionRecord,
+} from "./persistence/schema.js";
 
 type ApiBindings = {
   Variables: {
@@ -39,6 +52,7 @@ const packageVersion = "0.0.0-development";
 
 export type CreateAppOptions = {
   repositories?: Repositories;
+  storage?: AssetStorage;
   clock?: RepositoryClock;
   sessionCookieSecure?: boolean;
   sessionTtlMs?: number;
@@ -82,6 +96,46 @@ const toAuthSessionResponse = (authSession: AuthenticatedSession): AuthSessionRe
     account: toAccountResponse(authSession.account),
     session: toSessionResponse(authSession.session),
   });
+
+const toArrayBuffer = (buffer: Buffer): ArrayBuffer =>
+  buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+
+const buildAssetOriginalContentUrl = (assetId: string): string =>
+  `/api/v1/assets/${assetId}/content`;
+
+const buildAssetVariantContentUrl = (assetId: string, variantId: string): string =>
+  `/api/v1/assets/${assetId}/variants/${variantId}`;
+
+const toAssetResponse = (asset: AssetRecord, variants: AssetVariantRecord[]): AssetResponse => {
+  const thumbnail = variants.find((variant) => variant.kind === "thumbnail");
+
+  return assetResponseSchema.parse({
+    id: asset.id,
+    byteSize: asset.byteSize,
+    checksumSha256: asset.checksumSha256,
+    createdAt: asset.createdAt,
+    height: asset.height,
+    mimeType: asset.mimeType,
+    originalContentUrl: buildAssetOriginalContentUrl(asset.id),
+    originalFilename: asset.originalFilename,
+    thumbnailUrl: thumbnail ? buildAssetVariantContentUrl(asset.id, thumbnail.id) : null,
+    updatedAt: asset.updatedAt,
+    variants: variants.map((variant) => ({
+      id: variant.id,
+      assetId: variant.assetId,
+      byteSize: variant.byteSize,
+      checksumSha256: variant.checksumSha256,
+      contentUrl: buildAssetVariantContentUrl(asset.id, variant.id),
+      createdAt: variant.createdAt,
+      height: variant.height,
+      kind: variant.kind,
+      mimeType: variant.mimeType,
+      updatedAt: variant.updatedAt,
+      width: variant.width,
+    })),
+    width: asset.width,
+  });
+};
 
 const readClientIp = (context: ApiContext): string | null => {
   const forwardedFor = context.req.header("x-forwarded-for");
@@ -158,6 +212,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     repositories: createOptions.repositories,
     sessionCookieSecure: createOptions.sessionCookieSecure ?? false,
     sessionTtlMs: createOptions.sessionTtlMs ?? defaultSessionTtlMs,
+    storage: createOptions.storage,
   };
 
   app.use("*", async (context, next) => {
@@ -291,6 +346,187 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     deleteCookie(context, sessionCookieName, { path: "/" });
 
     return context.body(null, 204);
+  });
+
+  app.openapi(assetUploadRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "assets_unavailable", "Asset storage is unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    let body: Record<string, unknown>;
+
+    try {
+      body = await context.req.parseBody();
+    } catch {
+      return context.json(
+        createErrorResponse(context, "invalid_upload", "Upload must be multipart form data"),
+        400,
+      );
+    }
+
+    try {
+      const result = await createAssetFromUpload({
+        accountId: authSession.account.id,
+        file: body.file,
+        repositories: options.repositories,
+        storage: options.storage,
+      });
+
+      return context.json(toAssetResponse(result.asset, result.variants), 201);
+    } catch (error) {
+      if (error instanceof AssetUploadError) {
+        return context.json(createErrorResponse(context, error.code, error.message), error.status);
+      }
+
+      throw error;
+    }
+  });
+
+  app.openapi(assetListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "assets_unavailable", "Asset storage is unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const assets = options.repositories.assets
+      .listForAccount(authSession.account.id)
+      .map((asset) =>
+        toAssetResponse(
+          asset,
+          options.repositories?.assets.listVariantsForAsset(authSession.account.id, asset.id) ?? [],
+        ),
+      );
+
+    return context.json(assetListResponseSchema.parse({ assets }), 200);
+  });
+
+  app.openapi(assetDetailRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "assets_unavailable", "Asset storage is unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { assetId } = context.req.valid("param");
+    const asset = options.repositories.assets.findByIdForAccount(authSession.account.id, assetId);
+
+    if (!asset) {
+      return context.json(createErrorResponse(context, "asset_not_found", "Asset not found"), 404);
+    }
+
+    return context.json(
+      toAssetResponse(
+        asset,
+        options.repositories.assets.listVariantsForAsset(authSession.account.id, asset.id),
+      ),
+      200,
+    );
+  });
+
+  app.openapi(assetOriginalContentRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "assets_unavailable", "Asset storage is unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { assetId } = context.req.valid("param");
+    const asset = options.repositories.assets.findByIdForAccount(authSession.account.id, assetId);
+
+    if (!asset) {
+      return context.json(createErrorResponse(context, "asset_not_found", "Asset not found"), 404);
+    }
+
+    const buffer = await options.storage.read(asset.originalStorageKey);
+
+    return context.body(toArrayBuffer(buffer), 200, {
+      "cache-control": "private, max-age=86400",
+      "content-length": String(buffer.byteLength),
+      "content-type": asset.mimeType,
+    });
+  });
+
+  app.openapi(assetVariantContentRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "assets_unavailable", "Asset storage is unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { assetId, variantId } = context.req.valid("param");
+    const asset = options.repositories.assets.findByIdForAccount(authSession.account.id, assetId);
+    const variant = asset
+      ? options.repositories.assets.findVariantByIdForAccount(
+          authSession.account.id,
+          asset.id,
+          variantId,
+        )
+      : null;
+
+    if (!asset || !variant) {
+      return context.json(createErrorResponse(context, "asset_not_found", "Asset not found"), 404);
+    }
+
+    const buffer = await options.storage.read(variant.storageKey);
+
+    return context.body(toArrayBuffer(buffer), 200, {
+      "cache-control": "private, max-age=86400",
+      "content-length": String(buffer.byteLength),
+      "content-type": variant.mimeType,
+    });
   });
 
   app.doc("/api/v1/openapi.json", {

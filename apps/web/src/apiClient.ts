@@ -1,9 +1,13 @@
 import {
+  type AssetListResponse,
+  type AssetResponse,
+  type AuthSessionResponse,
+  assetListResponseSchema,
+  assetResponseSchema,
   authSessionResponseSchema,
   errorResponseSchema,
-  healthResponseSchema,
-  type AuthSessionResponse,
   type HealthResponse,
+  healthResponseSchema,
   type LoginRequest,
   type RegisterRequest,
 } from "@scrapbook/api-contract";
@@ -27,19 +31,21 @@ type ResponseSchema<Output> = {
 
 const buildUrl = (baseUrl: string, path: string): string => `${baseUrl}${path}`;
 
+const parseErrorPayload = (payload: unknown, status: number): ApiClientError => {
+  const parsed = errorResponseSchema.safeParse(payload);
+
+  if (!parsed.success) {
+    return new ApiClientError("The API request failed", status, "request_failed");
+  }
+
+  return new ApiClientError(parsed.data.error.message, status, parsed.data.error.code);
+};
+
 const parseError = async (response: Response): Promise<ApiClientError> => {
-  const fallback = new ApiClientError("The API request failed", response.status, "request_failed");
-
   try {
-    const parsed = errorResponseSchema.safeParse(await response.json());
-
-    if (!parsed.success) {
-      return fallback;
-    }
-
-    return new ApiClientError(parsed.data.error.message, response.status, parsed.data.error.code);
+    return parseErrorPayload(await response.json(), response.status);
   } catch {
-    return fallback;
+    return new ApiClientError("The API request failed", response.status, "request_failed");
   }
 };
 
@@ -74,6 +80,9 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
   getCurrentSession: (): Promise<AuthSessionResponse> =>
     requestJson(baseUrl, authSessionResponseSchema, "/api/v1/auth/session"),
 
+  listAssets: (): Promise<AssetListResponse> =>
+    requestJson(baseUrl, assetListResponseSchema, "/api/v1/assets"),
+
   login: (input: LoginRequest): Promise<AuthSessionResponse> =>
     requestJson(baseUrl, authSessionResponseSchema, "/api/v1/auth/login", {
       body: JSON.stringify(input),
@@ -95,6 +104,44 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
     requestJson(baseUrl, authSessionResponseSchema, "/api/v1/auth/register", {
       body: JSON.stringify(input),
       method: "POST",
+    }),
+
+  uploadAsset: (
+    file: File,
+    onProgress?: (progress: number | null) => void,
+  ): Promise<AssetResponse> =>
+    new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      const form = new FormData();
+
+      form.append("file", file);
+      request.open("POST", buildUrl(baseUrl, "/api/v1/assets/uploads"));
+      request.withCredentials = true;
+
+      request.upload.onprogress = (event) => {
+        onProgress?.(event.lengthComputable ? event.loaded / event.total : null);
+      };
+      request.onerror = () => {
+        reject(new ApiClientError("The API request failed", 0, "network_error"));
+      };
+      request.onload = () => {
+        if (request.status < 200 || request.status >= 300) {
+          try {
+            reject(parseErrorPayload(JSON.parse(request.responseText), request.status));
+          } catch {
+            reject(new ApiClientError("The API request failed", request.status, "request_failed"));
+          }
+          return;
+        }
+
+        try {
+          onProgress?.(1);
+          resolve(assetResponseSchema.parse(JSON.parse(request.responseText)));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      request.send(form);
     }),
 });
 

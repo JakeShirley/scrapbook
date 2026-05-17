@@ -40,6 +40,16 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .loading-screen,
 .auth-page {
   display: grid;
@@ -276,7 +286,7 @@ input:focus-visible {
 }
 
 .library-grid {
-  grid-template-columns: minmax(220px, 320px) minmax(320px, 1fr) minmax(220px, 300px);
+  grid-template-columns: minmax(360px, 1fr) minmax(220px, 300px);
 }
 
 .split-grid,
@@ -306,20 +316,53 @@ input:focus-visible {
 
 .asset-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 10px;
   padding: 14px;
 }
 
 .asset-tile {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: stretch;
   min-height: 72px;
   gap: 12px;
   padding: 8px;
   color: #1e2528;
   text-align: left;
   background: #fbfbf8;
+}
+
+.asset-tile img {
+  width: 78px;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: #edf0ed;
+  object-fit: cover;
+}
+
+.asset-tile-copy {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 4px;
+}
+
+.asset-tile-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-tile-copy span:first-child {
+  color: #202426;
+  font-weight: 700;
+}
+
+.asset-tile-copy span:last-child,
+.empty-state {
+  color: #687174;
+  font-size: 0.82rem;
 }
 
 .asset-tile:hover,
@@ -343,6 +386,34 @@ input:focus-visible {
 
 .swatch-3 {
   background: #79a9a4;
+}
+
+.empty-state,
+.panel-alert,
+.upload-progress {
+  margin: 14px;
+}
+
+.panel-alert {
+  border: 1px solid #e5b29d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #763c2b;
+  background: #fff1ec;
+  font-size: 0.9rem;
+}
+
+.upload-progress {
+  display: grid;
+  gap: 8px;
+  color: #4f595c;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.upload-progress progress {
+  width: 100%;
+  accent-color: #24766e;
 }
 
 .canvas-surface {
