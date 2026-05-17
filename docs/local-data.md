@@ -23,6 +23,12 @@ Uploaded images are owned by the authenticated account that created them. The AP
 
 The upload endpoint accepts JPEG, PNG, and WebP images up to 20 MB. Originals are preserved as uploaded; thumbnail derivatives are generated as separate variant files and records.
 
+## Pages
+
+Scrapbook pages are owned by the authenticated account that created them. The API stores page title, canvas dimensions, timestamps, and a versioned page document JSON blob in SQLite. Page documents contain canvas settings plus ordered text and photo layers; photo layers may only reference assets owned by the same account.
+
+Page create, list, detail, patch, duplicate, and delete routes all resolve records by the current browser session account before reading or writing page data.
+
 ## Migrations
 
 The API runs migrations during startup before accepting requests. To migrate without starting the server, run:

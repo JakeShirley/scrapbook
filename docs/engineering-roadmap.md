@@ -13,7 +13,7 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, and asset upload/library flow exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, and basic editor flow exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
 | Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
@@ -251,14 +251,14 @@ Goal: users can create, edit, save, and reopen scrapbook pages.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E09.1 | Run editor engine spike | `Not started` | E01.6, E07.1 | Decision comparing canvas engines | Selection, transforms, text, images, crop, export, and performance are evaluated. |
-| E09.2 | Add page document schema | `Not started` | E09.1 | Versioned page JSON schema | Supports canvas settings, ordered layers, photo layers, text layers, and transforms. |
-| E09.3 | Add editor-core package | `Not started` | E09.2 | Pure document helpers | Add/update/delete/reorder operations have unit tests. |
-| E09.4 | Add page CRUD API | `Not started` | E09.2, E05.3, E06.3 | Page create/list/detail/patch/duplicate/delete routes | Page writes validate and are account-scoped. |
-| E09.5 | Add editor route shell | `Not started` | E07.5, E09.3, E09.4 | Toolbar, canvas, asset rail, inspector, layer list | Editor opens a page and displays its document. |
-| E09.6 | Add photo and text layers | `Not started` | E08.7, E09.5 | Insert/edit photo and text elements | User can compose a simple page. |
-| E09.7 | Add layer manipulation | `Not started` | E09.6 | Select, move, resize, rotate, reorder, duplicate, delete | Saved page reopens with the same layout. |
-| E09.8 | Add save state | `Not started` | E09.7 | Manual save or autosave flow | UI clearly shows unsaved, saving, saved, and error states. |
+| E09.1 | Run editor engine spike | `Done` | E01.6, E07.1 | Decision comparing canvas engines | ADR 0002 compares tldraw, Konva, Fabric.js, and the DOM/CSS shell used for E09. |
+| E09.2 | Add page document schema | `Done` | E09.1 | Versioned page JSON schema | Supports canvas settings, ordered layers, photo layers, text layers, and transforms. |
+| E09.3 | Add editor-core package | `Done` | E09.2 | Pure document helpers | Add/update/delete/reorder operations have unit tests. |
+| E09.4 | Add page CRUD API | `Done` | E09.2, E05.3, E06.3 | Page create/list/detail/patch/duplicate/delete routes | Page writes validate and are account-scoped, including photo layer asset ownership. |
+| E09.5 | Add editor route shell | `Done` | E07.5, E09.3, E09.4 | Toolbar, canvas, asset rail, inspector, layer list | Editor opens a page and displays its document. |
+| E09.6 | Add photo and text layers | `Done` | E08.7, E09.5 | Insert/edit photo and text elements | User can compose a simple page. |
+| E09.7 | Add layer manipulation | `Done` | E09.6 | Select, move, resize, rotate, reorder, duplicate, delete | Saved page reopens with the same layout. |
+| E09.8 | Add save state | `Done` | E09.7 | Manual save or autosave flow | UI clearly shows unsaved, saving, saved, and error states. |
 
 Suggested commits:
 
@@ -384,7 +384,7 @@ Keep this table current as scripts are added.
 
 ## Current Next Actions
 
-1. `E01.1`: Choose initial API framework.
-2. `E01.2`: Choose schema and OpenAPI tooling.
-3. `E01.3`: Choose SQLite query layer.
-4. `E02.1`: Initialize the pnpm workspace after the initial decisions are recorded.
+1. `E06.4`: Add CSRF protection for cookie-authenticated writes.
+2. `E06.5`: Add session list and revocation endpoints.
+3. `E10.1`: Add non-destructive photo edit metadata after the E09 editor foundation.
+4. `E11.1`: Add book API schemas when the books phase resumes.

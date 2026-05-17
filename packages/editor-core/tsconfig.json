@@ -7,6 +7,5 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../editor-core" }],
   "include": ["src/**/*.ts"]
 }

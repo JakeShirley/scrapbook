@@ -1,5 +1,5 @@
 {
-  "name": "@scrapbook/api-contract",
+  "name": "@scrapbook/editor-core",
   "version": "0.0.0-development",
   "private": true,
   "type": "module",
@@ -9,12 +9,10 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run src --passWithNoTests",
+    "test": "vitest run src",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@hono/zod-openapi": "1.4.0",
-    "@scrapbook/editor-core": "workspace:*",
     "zod": "4.4.3"
   }
 }

@@ -6,6 +6,7 @@
     { "path": "./packages/api-contract" },
     { "path": "./packages/config" },
     { "path": "./packages/domain" },
+    { "path": "./packages/editor-core" },
     { "path": "./packages/test-utils" }
   ]
 }

@@ -1,17 +1,42 @@
 import {
+  type CSSProperties,
   type ChangeEvent,
   type FormEvent,
   type ReactNode,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router";
+import {
+  BrowserRouter,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+} from "react-router";
+import {
+  addLayer,
+  createPageDocument,
+  createPhotoLayer,
+  createTextLayer,
+  deleteLayer,
+  duplicateLayer,
+  reorderLayer,
+  type PageDocument,
+  type PageLayer,
+  updateCanvas,
+  updateLayer,
+} from "@scrapbook/editor-core";
 
 import { ApiClientError, apiClient } from "./apiClient";
 
 type AuthSession = Awaited<ReturnType<typeof apiClient.getCurrentSession>>;
 type Asset = Awaited<ReturnType<typeof apiClient.listAssets>>["assets"][number];
+type PageSummary = Awaited<ReturnType<typeof apiClient.listPages>>["pages"][number];
+type PageDetail = Awaited<ReturnType<typeof apiClient.getPage>>;
 
 type SessionState =
   | { status: "loading" }
@@ -27,7 +52,6 @@ const navItems = [
   { to: "/settings", label: "Settings" },
 ];
 
-const pageItems = ["Cover", "Page 01", "Page 02"];
 const bookItems = ["Spring album", "Travel notes"];
 
 const getErrorMessage = (error: unknown): string => {
@@ -318,6 +342,7 @@ function ProtectedShell({
           <Route index element={<Navigate to="/library" replace />} />
           <Route path="library" element={<LibraryView />} />
           <Route path="pages" element={<PagesView />} />
+          <Route path="pages/:pageId" element={<EditorView />} />
           <Route path="books" element={<BooksView />} />
           <Route path="settings" element={<SettingsView session={session} />} />
           <Route path="*" element={<Navigate to="/library" replace />} />
@@ -357,6 +382,7 @@ function LibraryView() {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -427,7 +453,7 @@ function LibraryView() {
         >
           Upload
         </button>
-        <button type="button" className="primary-button">
+        <button type="button" className="primary-button" onClick={() => navigate("/pages")}>
           New page
         </button>
       </WorkspaceHeader>
@@ -464,8 +490,8 @@ function LibraryView() {
           ) : null}
         </Panel>
 
-        <Panel title="Pages" count={String(pageItems.length)}>
-          <List items={pageItems} />
+        <Panel title="Pages">
+          <p className="empty-state">Create and edit pages from the Pages workspace.</p>
         </Panel>
       </div>
     </>
@@ -473,20 +499,338 @@ function LibraryView() {
 }
 
 function PagesView() {
+  const [pages, setPages] = useState<PageSummary[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    apiClient
+      .listPages()
+      .then((response) => {
+        if (isMounted) {
+          setPages(response.pages);
+          setError(null);
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted) {
+          setError(getErrorMessage(loadError));
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const createPage = async () => {
+    setError(null);
+    setIsCreating(true);
+
+    try {
+      const page = await apiClient.createPage({ document: createPageDocument() });
+      navigate(`/pages/${page.id}`);
+    } catch (createError: unknown) {
+      setError(getErrorMessage(createError));
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <>
       <WorkspaceHeader title="Pages">
-        <button type="button" className="primary-button">
+        <button type="button" className="primary-button" disabled={isCreating} onClick={createPage}>
           New page
         </button>
       </WorkspaceHeader>
       <div className="workspace-grid split-grid">
-        <Panel title="Pages" count={String(pageItems.length)}>
-          <List items={pageItems} />
+        <Panel title="Pages" count={String(pages.length)}>
+          {error ? (
+            <p className="panel-alert" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {isLoading ? <p className="empty-state">Loading pages</p> : null}
+          {!isLoading && pages.length === 0 ? <p className="empty-state">No pages yet</p> : null}
+          {pages.length > 0 ? <PageList pages={pages} /> : null}
         </Panel>
-        <Panel title="Selected page" count="8.5 x 11">
-          <PagePreview />
+        <Panel title="Preview">
+          <p className="empty-state">Select a page to open the editor.</p>
         </Panel>
+      </div>
+    </>
+  );
+}
+
+function EditorView() {
+  const { pageId } = useParams();
+  const navigate = useNavigate();
+  const [page, setPage] = useState<PageDetail | null>(null);
+  const [document, setDocument] = useState<PageDocument | null>(null);
+  const [title, setTitle] = useState("Untitled page");
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [status, setStatus] = useState<"loading" | "saved" | "unsaved" | "saving" | "error">(
+    "loading",
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!pageId) {
+      navigate("/pages", { replace: true });
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    Promise.all([apiClient.getPage(pageId), apiClient.listAssets()])
+      .then(([loadedPage, assetResponse]) => {
+        if (isMounted) {
+          setPage(loadedPage);
+          setDocument(loadedPage.document);
+          setTitle(loadedPage.title);
+          setAssets(assetResponse.assets);
+          setSelectedLayerId(loadedPage.document.layers[0]?.id ?? null);
+          setStatus("saved");
+          setError(null);
+        }
+      })
+      .catch((loadError: unknown) => {
+        if (isMounted) {
+          setError(getErrorMessage(loadError));
+          setStatus("error");
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate, pageId]);
+
+  const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
+  const selectedLayer = useMemo(
+    () => document?.layers.find((layer) => layer.id === selectedLayerId) ?? null,
+    [document, selectedLayerId],
+  );
+
+  const editDocument = (nextDocument: PageDocument) => {
+    setDocument(nextDocument);
+    setStatus("unsaved");
+  };
+
+  const updateSelectedLayer = (update: Partial<PageLayer>) => {
+    if (!document || !selectedLayerId) {
+      return;
+    }
+
+    editDocument(updateLayer(document, selectedLayerId, update));
+  };
+
+  const addText = () => {
+    if (!document) {
+      return;
+    }
+
+    const layer = createTextLayer({ text: "New text", name: "Text" });
+    editDocument(addLayer(document, layer));
+    setSelectedLayerId(layer.id);
+  };
+
+  const addPhoto = (asset: Asset) => {
+    if (!document) {
+      return;
+    }
+
+    const layer = createPhotoLayer({
+      assetId: asset.id,
+      name: asset.originalFilename,
+      width: Math.min(document.canvas.width * 0.5, 1000),
+      height: Math.min(document.canvas.height * 0.34, 760),
+    });
+    editDocument(addLayer(document, layer));
+    setSelectedLayerId(layer.id);
+  };
+
+  const savePage = async () => {
+    if (!page || !document) {
+      return;
+    }
+
+    setStatus("saving");
+    setError(null);
+
+    try {
+      const savedPage = await apiClient.updatePage(page.id, { title, document });
+      setPage(savedPage);
+      setDocument(savedPage.document);
+      setTitle(savedPage.title);
+      setStatus("saved");
+    } catch (saveError: unknown) {
+      setError(getErrorMessage(saveError));
+      setStatus("error");
+    }
+  };
+
+  const duplicatePage = async () => {
+    if (!page) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const duplicated = await apiClient.duplicatePage(page.id, { title: `${title} copy` });
+      navigate(`/pages/${duplicated.id}`);
+    } catch (duplicateError: unknown) {
+      setError(getErrorMessage(duplicateError));
+    }
+  };
+
+  const deletePage = async () => {
+    if (!page) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      await apiClient.deletePage(page.id);
+      navigate("/pages", { replace: true });
+    } catch (deleteError: unknown) {
+      setError(getErrorMessage(deleteError));
+    }
+  };
+
+  if (status === "loading" || !document || !page) {
+    return (
+      <>
+        <WorkspaceHeader title="Editor" />
+        {error ? (
+          <p className="panel-alert" role="alert">
+            {error}
+          </p>
+        ) : (
+          <p className="empty-state">Loading page</p>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <WorkspaceHeader title="Editor">
+        <button type="button" className="secondary-button" onClick={() => navigate("/pages")}>
+          Back
+        </button>
+        <button type="button" className="secondary-button" onClick={duplicatePage}>
+          Duplicate
+        </button>
+        <button type="button" className="secondary-button" onClick={deletePage}>
+          Delete
+        </button>
+        <button
+          type="button"
+          className="primary-button"
+          disabled={status === "saving"}
+          onClick={savePage}
+        >
+          {status === "saving" ? "Saving" : "Save"}
+        </button>
+      </WorkspaceHeader>
+
+      {error ? (
+        <p className="panel-alert" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="editor-shell">
+        <aside className="editor-panel editor-asset-rail" aria-label="Assets">
+          <div className="panel-heading compact-heading">
+            <h3>Assets</h3>
+            <span>{assets.length}</span>
+          </div>
+          <div className="asset-rail-list">
+            {assets.length === 0 ? <p className="empty-state">No assets yet</p> : null}
+            {assets.map((asset) => (
+              <button
+                type="button"
+                key={asset.id}
+                className="asset-rail-item"
+                onClick={() => addPhoto(asset)}
+              >
+                <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
+                <span>{asset.originalFilename}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="editor-stage" aria-label="Page canvas">
+          <fieldset className="editor-toolbar">
+            <legend className="visually-hidden">Editor tools</legend>
+            <label>
+              <span>Title</span>
+              <input
+                value={title}
+                maxLength={120}
+                onChange={(event) => {
+                  setTitle(event.currentTarget.value);
+                  setStatus("unsaved");
+                }}
+              />
+            </label>
+            <label>
+              <span>Background</span>
+              <input
+                type="color"
+                value={document.canvas.backgroundColor}
+                onChange={(event) =>
+                  editDocument(
+                    updateCanvas(document, { backgroundColor: event.currentTarget.value }),
+                  )
+                }
+              />
+            </label>
+            <button type="button" className="secondary-button" onClick={addText}>
+              T
+            </button>
+            <span className={`save-badge ${status}`}>{status}</span>
+          </fieldset>
+
+          <PageCanvas
+            assetById={assetById}
+            document={document}
+            selectedLayerId={selectedLayerId}
+            onSelectLayer={setSelectedLayerId}
+          />
+        </section>
+
+        <aside className="editor-panel" aria-label="Layer controls">
+          <div className="panel-heading compact-heading">
+            <h3>Layers</h3>
+            <span>{document.layers.length}</span>
+          </div>
+          <LayerList
+            document={document}
+            selectedLayerId={selectedLayerId}
+            onSelectLayer={setSelectedLayerId}
+            onChange={editDocument}
+          />
+          <LayerInspector layer={selectedLayer} onChange={updateSelectedLayer} />
+        </aside>
       </div>
     </>
   );
@@ -504,11 +848,279 @@ function BooksView() {
         <Panel title="Books" count={String(bookItems.length)}>
           <List items={bookItems} />
         </Panel>
-        <Panel title="Book pages" count={String(pageItems.length)}>
-          <List items={pageItems} />
+        <Panel title="Book pages" count="0">
+          <p className="empty-state">Book page ordering arrives in the books phase.</p>
         </Panel>
       </div>
     </>
+  );
+}
+
+function PageList({ pages }: { pages: PageSummary[] }) {
+  const navigate = useNavigate();
+
+  return (
+    <ol className="item-list page-list">
+      {pages.map((page) => (
+        <li key={page.id}>
+          <button type="button" onClick={() => navigate(`/pages/${page.id}`)}>
+            <span>{page.title}</span>
+            <span>
+              {page.layerCount} layers / {page.width} x {page.height}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PageCanvas({
+  assetById,
+  document,
+  selectedLayerId,
+  onSelectLayer,
+}: {
+  assetById: Map<string, Asset>;
+  document: PageDocument;
+  selectedLayerId: string | null;
+  onSelectLayer: (layerId: string) => void;
+}) {
+  return (
+    <div
+      className="editor-canvas"
+      style={{
+        aspectRatio: `${document.canvas.width} / ${document.canvas.height}`,
+        background: document.canvas.backgroundColor,
+      }}
+    >
+      {document.layers.map((layer) => {
+        const layerStyle: CSSProperties = {
+          left: `${(layer.x / document.canvas.width) * 100}%`,
+          top: `${(layer.y / document.canvas.height) * 100}%`,
+          width: `${(layer.width / document.canvas.width) * 100}%`,
+          height: `${(layer.height / document.canvas.height) * 100}%`,
+          opacity: layer.opacity,
+          transform: `rotate(${layer.rotation}deg)`,
+        };
+
+        return (
+          <button
+            type="button"
+            key={layer.id}
+            className="canvas-layer"
+            data-selected={layer.id === selectedLayerId}
+            style={layerStyle}
+            onClick={() => onSelectLayer(layer.id)}
+          >
+            {layer.kind === "photo" ? (
+              <img
+                src={
+                  assetById.get(layer.assetId)?.thumbnailUrl ??
+                  assetById.get(layer.assetId)?.originalContentUrl
+                }
+                alt=""
+                style={{ objectFit: layer.fit }}
+              />
+            ) : (
+              <span
+                style={{
+                  color: layer.color,
+                  fontFamily: layer.fontFamily,
+                  fontSize: `${Math.max(10, Math.min(42, layer.fontSize / 3))}px`,
+                  textAlign: layer.align,
+                }}
+              >
+                {layer.text}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function LayerList({
+  document,
+  selectedLayerId,
+  onSelectLayer,
+  onChange,
+}: {
+  document: PageDocument;
+  selectedLayerId: string | null;
+  onSelectLayer: (layerId: string | null) => void;
+  onChange: (document: PageDocument) => void;
+}) {
+  return (
+    <ol className="layer-list">
+      {document.layers.map((layer, layerIndex) => (
+        <li key={layer.id} data-selected={layer.id === selectedLayerId}>
+          <button type="button" className="layer-select" onClick={() => onSelectLayer(layer.id)}>
+            <span>{layer.name}</span>
+            <span>{layer.kind}</span>
+          </button>
+          <div className="layer-actions">
+            <button
+              type="button"
+              disabled={layerIndex === 0}
+              onClick={() => onChange(reorderLayer(document, layer.id, layerIndex - 1))}
+            >
+              Up
+            </button>
+            <button
+              type="button"
+              disabled={layerIndex === document.layers.length - 1}
+              onClick={() => onChange(reorderLayer(document, layer.id, layerIndex + 1))}
+            >
+              Down
+            </button>
+            <button type="button" onClick={() => onChange(duplicateLayer(document, layer.id))}>
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onChange(deleteLayer(document, layer.id));
+                onSelectLayer(null);
+              }}
+            >
+              Del
+            </button>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function LayerInspector({
+  layer,
+  onChange,
+}: {
+  layer: PageLayer | null;
+  onChange: (update: Partial<PageLayer>) => void;
+}) {
+  if (!layer) {
+    return <p className="empty-state">Select a layer to edit it.</p>;
+  }
+
+  const updateNumber =
+    (key: "height" | "opacity" | "rotation" | "width" | "x" | "y") =>
+    (event: ChangeEvent<HTMLInputElement>) =>
+      onChange({ [key]: Number(event.currentTarget.value) } as Partial<PageLayer>);
+
+  return (
+    <form className="inspector-form">
+      <label>
+        <span>Name</span>
+        <input
+          value={layer.name}
+          maxLength={120}
+          onChange={(event) => onChange({ name: event.currentTarget.value })}
+        />
+      </label>
+      <div className="inspector-grid">
+        <label>
+          <span>X</span>
+          <input type="number" value={layer.x} onChange={updateNumber("x")} />
+        </label>
+        <label>
+          <span>Y</span>
+          <input type="number" value={layer.y} onChange={updateNumber("y")} />
+        </label>
+        <label>
+          <span>W</span>
+          <input min={1} type="number" value={layer.width} onChange={updateNumber("width")} />
+        </label>
+        <label>
+          <span>H</span>
+          <input min={1} type="number" value={layer.height} onChange={updateNumber("height")} />
+        </label>
+      </div>
+      <label>
+        <span>Rotation</span>
+        <input type="number" value={layer.rotation} onChange={updateNumber("rotation")} />
+      </label>
+      <label>
+        <span>Opacity</span>
+        <input
+          max={1}
+          min={0}
+          step={0.05}
+          type="range"
+          value={layer.opacity}
+          onChange={updateNumber("opacity")}
+        />
+      </label>
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={layer.locked}
+          onChange={(event) => onChange({ locked: event.currentTarget.checked })}
+        />
+        <span>Locked</span>
+      </label>
+      {layer.kind === "text" ? (
+        <>
+          <label>
+            <span>Text</span>
+            <textarea
+              value={layer.text}
+              onChange={(event) =>
+                onChange({ text: event.currentTarget.value } as Partial<PageLayer>)
+              }
+            />
+          </label>
+          <label>
+            <span>Font size</span>
+            <input
+              max={240}
+              min={6}
+              type="number"
+              value={layer.fontSize}
+              onChange={(event) =>
+                onChange({ fontSize: Number(event.currentTarget.value) } as Partial<PageLayer>)
+              }
+            />
+          </label>
+          <label>
+            <span>Color</span>
+            <input
+              type="color"
+              value={layer.color}
+              onChange={(event) =>
+                onChange({ color: event.currentTarget.value } as Partial<PageLayer>)
+              }
+            />
+          </label>
+          <label>
+            <span>Align</span>
+            <select
+              value={layer.align}
+              onChange={(event) =>
+                onChange({ align: event.currentTarget.value } as Partial<PageLayer>)
+              }
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+        </>
+      ) : (
+        <label>
+          <span>Fit</span>
+          <select
+            value={layer.fit}
+            onChange={(event) => onChange({ fit: event.currentTarget.value } as Partial<PageLayer>)}
+          >
+            <option value="cover">Cover</option>
+            <option value="contain">Contain</option>
+          </select>
+        </label>
+      )}
+    </form>
   );
 }
 
@@ -555,15 +1167,5 @@ function List({ items }: { items: string[] }) {
         </li>
       ))}
     </ol>
-  );
-}
-
-function PagePreview() {
-  return (
-    <div className="canvas-surface" role="img" aria-label="Page preview">
-      <div className="photo-slot large-slot" />
-      <div className="photo-slot small-slot" />
-      <div className="text-strip" />
-    </div>
   );
 }

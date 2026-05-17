@@ -17,9 +17,21 @@ import {
   healthRoute,
   loginRoute,
   logoutRoute,
+  pageCreateRoute,
+  pageDeleteRoute,
+  pageDetailRoute,
+  pageDuplicateRoute,
+  pageListResponseSchema,
+  pageListRoute,
+  pagePatchRoute,
+  type PageResponse,
+  pageResponseSchema,
+  type PageSummaryResponse,
+  pageSummaryResponseSchema,
   registerRoute,
   type SessionResponse,
 } from "@scrapbook/api-contract";
+import { createPageDocument, type PageDocument, pageDocumentSchema } from "@scrapbook/editor-core";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { type AssetStorage, AssetUploadError, createAssetFromUpload } from "./assets.js";
@@ -39,6 +51,7 @@ import type {
   AccountRecord,
   AssetRecord,
   AssetVariantRecord,
+  PageRecord,
   SessionRecord,
 } from "./persistence/schema.js";
 
@@ -135,6 +148,55 @@ const toAssetResponse = (asset: AssetRecord, variants: AssetVariantRecord[]): As
     })),
     width: asset.width,
   });
+};
+
+const parseStoredPageDocument = (page: PageRecord): PageDocument => {
+  try {
+    return pageDocumentSchema.parse(JSON.parse(page.documentJson));
+  } catch {
+    return createPageDocument({ canvas: { width: page.width, height: page.height } });
+  }
+};
+
+const toPageSummaryResponse = (page: PageRecord): PageSummaryResponse => {
+  const document = parseStoredPageDocument(page);
+
+  return pageSummaryResponseSchema.parse({
+    id: page.id,
+    title: page.title,
+    width: page.width,
+    height: page.height,
+    layerCount: document.layers.length,
+    createdAt: page.createdAt,
+    updatedAt: page.updatedAt,
+  });
+};
+
+const toPageResponse = (page: PageRecord): PageResponse => {
+  const document = parseStoredPageDocument(page);
+
+  return pageResponseSchema.parse({
+    ...toPageSummaryResponse(page),
+    document,
+  });
+};
+
+const validatePageDocumentAssets = (
+  accountId: string,
+  document: PageDocument,
+  repositories: Repositories,
+): boolean => {
+  const assetIds = new Set(
+    document.layers.filter((layer) => layer.kind === "photo").map((layer) => layer.assetId),
+  );
+
+  for (const assetId of assetIds) {
+    if (!repositories.assets.findByIdForAccount(accountId, assetId)) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 const readClientIp = (context: ApiContext): string | null => {
@@ -527,6 +589,227 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
       "content-length": String(buffer.byteLength),
       "content-type": variant.mimeType,
     });
+  });
+
+  app.openapi(pageCreateRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "pages_unavailable", "Pages are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const input = context.req.valid("json");
+    const document = input.document ?? createPageDocument();
+
+    if (!validatePageDocumentAssets(authSession.account.id, document, options.repositories)) {
+      return context.json(
+        createErrorResponse(
+          context,
+          "page_asset_not_found",
+          "Photo layers must reference assets owned by the account",
+        ),
+        400,
+      );
+    }
+
+    const page = options.repositories.pages.create({
+      accountId: authSession.account.id,
+      title: input.title?.trim() || "Untitled page",
+      width: document.canvas.width,
+      height: document.canvas.height,
+      documentJson: JSON.stringify(document),
+    });
+
+    return context.json(toPageResponse(page), 201);
+  });
+
+  app.openapi(pageListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "pages_unavailable", "Pages are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const pages = options.repositories.pages
+      .listForAccount(authSession.account.id)
+      .map((page) => toPageSummaryResponse(page));
+
+    return context.json(pageListResponseSchema.parse({ pages }), 200);
+  });
+
+  app.openapi(pageDetailRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "pages_unavailable", "Pages are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { pageId } = context.req.valid("param");
+    const page = options.repositories.pages.findByIdForAccount(authSession.account.id, pageId);
+
+    if (!page) {
+      return context.json(createErrorResponse(context, "page_not_found", "Page not found"), 404);
+    }
+
+    return context.json(toPageResponse(page), 200);
+  });
+
+  app.openapi(pagePatchRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "pages_unavailable", "Pages are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { pageId } = context.req.valid("param");
+    const input = context.req.valid("json");
+    const existing = options.repositories.pages.findByIdForAccount(authSession.account.id, pageId);
+
+    if (!existing) {
+      return context.json(createErrorResponse(context, "page_not_found", "Page not found"), 404);
+    }
+
+    if (
+      input.document &&
+      !validatePageDocumentAssets(authSession.account.id, input.document, options.repositories)
+    ) {
+      return context.json(
+        createErrorResponse(
+          context,
+          "page_asset_not_found",
+          "Photo layers must reference assets owned by the account",
+        ),
+        400,
+      );
+    }
+
+    const pageUpdate: Partial<Pick<PageRecord, "documentJson" | "height" | "title" | "width">> = {};
+
+    if (input.title !== undefined) {
+      pageUpdate.title = input.title.trim();
+    }
+
+    if (input.document) {
+      pageUpdate.width = input.document.canvas.width;
+      pageUpdate.height = input.document.canvas.height;
+      pageUpdate.documentJson = JSON.stringify(input.document);
+    }
+
+    const page = options.repositories.pages.updateForAccount(
+      authSession.account.id,
+      pageId,
+      pageUpdate,
+    );
+
+    if (!page) {
+      return context.json(createErrorResponse(context, "page_not_found", "Page not found"), 404);
+    }
+
+    return context.json(toPageResponse(page), 200);
+  });
+
+  app.openapi(pageDuplicateRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "pages_unavailable", "Pages are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { pageId } = context.req.valid("param");
+    const input = context.req.valid("json");
+    const existing = options.repositories.pages.findByIdForAccount(authSession.account.id, pageId);
+
+    if (!existing) {
+      return context.json(createErrorResponse(context, "page_not_found", "Page not found"), 404);
+    }
+
+    const document = parseStoredPageDocument(existing);
+    const page = options.repositories.pages.create({
+      accountId: authSession.account.id,
+      title: input.title?.trim() || `${existing.title} copy`,
+      width: document.canvas.width,
+      height: document.canvas.height,
+      documentJson: JSON.stringify(document),
+    });
+
+    return context.json(toPageResponse(page), 201);
+  });
+
+  app.openapi(pageDeleteRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "pages_unavailable", "Pages are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { pageId } = context.req.valid("param");
+    const deleted = options.repositories.pages.deleteByIdForAccount(authSession.account.id, pageId);
+
+    if (!deleted) {
+      return context.json(createErrorResponse(context, "page_not_found", "Page not found"), 404);
+    }
+
+    return context.body(null, 204);
   });
 
   app.doc("/api/v1/openapi.json", {

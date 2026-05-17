@@ -53,6 +53,9 @@ importers:
       '@scrapbook/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@scrapbook/editor-core':
+        specifier: workspace:*
+        version: link:../../packages/editor-core
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.10.0
@@ -78,6 +81,9 @@ importers:
       '@scrapbook/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
+      '@scrapbook/editor-core':
+        specifier: workspace:*
+        version: link:../../packages/editor-core
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -106,6 +112,9 @@ importers:
       '@hono/zod-openapi':
         specifier: 1.4.0
         version: 1.4.0(hono@4.12.19)(zod@4.4.3)
+      '@scrapbook/editor-core':
+        specifier: workspace:*
+        version: link:../editor-core
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -117,6 +126,12 @@ importers:
         version: 4.4.3
 
   packages/domain: {}
+
+  packages/editor-core:
+    dependencies:
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
   packages/test-utils: {}
 

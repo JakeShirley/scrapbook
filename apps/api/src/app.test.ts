@@ -2,7 +2,12 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { authSessionResponseSchema, healthResponseSchema } from "@scrapbook/api-contract";
+import {
+  authSessionResponseSchema,
+  healthResponseSchema,
+  pageResponseSchema,
+} from "@scrapbook/api-contract";
+import { createPageDocument, createPhotoLayer, createTextLayer } from "@scrapbook/editor-core";
 import { makeFixedClock } from "@scrapbook/test-utils";
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
@@ -309,5 +314,136 @@ describe("api app", () => {
     expect((await secondListResponse.json()).assets).toEqual([]);
     expect(secondDetailResponse.status).toBe(404);
     expect(secondContentResponse.status).toBe(404);
+  });
+
+  it("creates, updates, duplicates, deletes, and reopens page documents", async () => {
+    const app = createTestApp();
+    const cookie = await registerAccount(app, {
+      displayName: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+    const document = createPageDocument({
+      layers: [createTextLayer({ id: "text_1", text: "First page" })],
+    });
+
+    const createResponse = await postJson(
+      app,
+      "/api/v1/pages",
+      {
+        title: "Summer cover",
+        document,
+      },
+      cookie,
+    );
+
+    expect(createResponse.status).toBe(201);
+
+    const created = pageResponseSchema.parse(await createResponse.json());
+    const patchedDocument = createPageDocument({
+      canvas: { width: 1800, height: 1800, backgroundColor: "#ffffff" },
+      layers: [createTextLayer({ id: "text_2", text: "Updated caption", x: 320 })],
+    });
+    const patchResponse = await app.request(`/api/v1/pages/${created.id}`, {
+      body: JSON.stringify({ title: "Updated cover", document: patchedDocument }),
+      headers: { cookie, "content-type": "application/json" },
+      method: "PATCH",
+    });
+    const listResponse = await app.request("/api/v1/pages", { headers: { cookie } });
+    const detailResponse = await app.request(`/api/v1/pages/${created.id}`, {
+      headers: { cookie },
+    });
+    const duplicateResponse = await postJson(
+      app,
+      `/api/v1/pages/${created.id}/duplicate`,
+      { title: "Updated cover copy" },
+      cookie,
+    );
+    const deleteResponse = await app.request(`/api/v1/pages/${created.id}`, {
+      headers: { cookie },
+      method: "DELETE",
+    });
+    const deletedDetailResponse = await app.request(`/api/v1/pages/${created.id}`, {
+      headers: { cookie },
+    });
+
+    expect(patchResponse.status).toBe(200);
+    expect(pageResponseSchema.parse(await patchResponse.json())).toMatchObject({
+      title: "Updated cover",
+      width: 1800,
+      height: 1800,
+      document: {
+        canvas: { backgroundColor: "#ffffff" },
+        layers: [{ id: "text_2", text: "Updated caption" }],
+      },
+    });
+    expect(listResponse.status).toBe(200);
+    expect((await listResponse.json()).pages).toHaveLength(1);
+    expect(detailResponse.status).toBe(200);
+    expect(pageResponseSchema.parse(await detailResponse.json()).document.layers[0]?.id).toBe(
+      "text_2",
+    );
+    expect(duplicateResponse.status).toBe(201);
+    expect(pageResponseSchema.parse(await duplicateResponse.json()).title).toBe(
+      "Updated cover copy",
+    );
+    expect(deleteResponse.status).toBe(204);
+    expect(deletedDetailResponse.status).toBe(404);
+  });
+
+  it("keeps page routes and photo layer references scoped to the authenticated account", async () => {
+    const app = await createTestAppWithStorage();
+    const firstCookie = await registerAccount(app, {
+      displayName: "First",
+      email: "first-pages@example.com",
+    });
+    const secondCookie = await registerAccount(app, {
+      displayName: "Second",
+      email: "second-pages@example.com",
+    });
+    const image = await createPng();
+    const uploadResponse = await uploadImage(
+      app,
+      firstCookie,
+      new File([toArrayBuffer(image)], "first.png", { type: "image/png" }),
+    );
+    const uploaded = await uploadResponse.json();
+    const firstPageResponse = await postJson(
+      app,
+      "/api/v1/pages",
+      {
+        title: "First page",
+        document: createPageDocument({
+          layers: [createPhotoLayer({ id: "photo_1", assetId: uploaded.id })],
+        }),
+      },
+      firstCookie,
+    );
+    const firstPage = pageResponseSchema.parse(await firstPageResponse.json());
+
+    const secondListResponse = await app.request("/api/v1/pages", {
+      headers: { cookie: secondCookie },
+    });
+    const secondDetailResponse = await app.request(`/api/v1/pages/${firstPage.id}`, {
+      headers: { cookie: secondCookie },
+    });
+    const crossAccountAssetResponse = await postJson(
+      app,
+      "/api/v1/pages",
+      {
+        title: "Cross account page",
+        document: createPageDocument({
+          layers: [createPhotoLayer({ id: "photo_2", assetId: uploaded.id })],
+        }),
+      },
+      secondCookie,
+    );
+
+    expect(secondListResponse.status).toBe(200);
+    expect((await secondListResponse.json()).pages).toEqual([]);
+    expect(secondDetailResponse.status).toBe(404);
+    expect(crossAccountAssetResponse.status).toBe(400);
+    expect(await crossAccountAssetResponse.json()).toMatchObject({
+      error: { code: "page_asset_not_found" },
+    });
   });
 });

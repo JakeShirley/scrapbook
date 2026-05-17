@@ -8,5 +8,9 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
+  "references": [
+    { "path": "../../packages/api-contract" },
+    { "path": "../../packages/editor-core" }
+  ],
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
 }

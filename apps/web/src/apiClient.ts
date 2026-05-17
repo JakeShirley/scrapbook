@@ -9,6 +9,13 @@ import {
   type HealthResponse,
   healthResponseSchema,
   type LoginRequest,
+  type PageCreateRequest,
+  type PageDuplicateRequest,
+  type PageListResponse,
+  pageListResponseSchema,
+  type PagePatchRequest,
+  type PageResponse,
+  pageResponseSchema,
   type RegisterRequest,
 } from "@scrapbook/api-contract";
 
@@ -82,6 +89,41 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
 
   listAssets: (): Promise<AssetListResponse> =>
     requestJson(baseUrl, assetListResponseSchema, "/api/v1/assets"),
+
+  listPages: (): Promise<PageListResponse> =>
+    requestJson(baseUrl, pageListResponseSchema, "/api/v1/pages"),
+
+  createPage: (input: PageCreateRequest): Promise<PageResponse> =>
+    requestJson(baseUrl, pageResponseSchema, "/api/v1/pages", {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  getPage: (pageId: string): Promise<PageResponse> =>
+    requestJson(baseUrl, pageResponseSchema, `/api/v1/pages/${pageId}`),
+
+  updatePage: (pageId: string, input: PagePatchRequest): Promise<PageResponse> =>
+    requestJson(baseUrl, pageResponseSchema, `/api/v1/pages/${pageId}`, {
+      body: JSON.stringify(input),
+      method: "PATCH",
+    }),
+
+  duplicatePage: (pageId: string, input: PageDuplicateRequest): Promise<PageResponse> =>
+    requestJson(baseUrl, pageResponseSchema, `/api/v1/pages/${pageId}/duplicate`, {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  deletePage: async (pageId: string): Promise<void> => {
+    const response = await fetch(buildUrl(baseUrl, `/api/v1/pages/${pageId}`), {
+      credentials: "include",
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+  },
 
   login: (input: LoginRequest): Promise<AuthSessionResponse> =>
     requestJson(baseUrl, authSessionResponseSchema, "/api/v1/auth/login", {

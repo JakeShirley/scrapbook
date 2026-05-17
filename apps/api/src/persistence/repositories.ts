@@ -1,4 +1,5 @@
 import { createTimestamp, type ISODateTime } from "@scrapbook/domain";
+import { createPageDocument } from "@scrapbook/editor-core";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 
 import type { AppDatabase } from "./database.js";
@@ -368,7 +369,11 @@ export class PageRepository {
       title: input.title,
       width: input.width,
       height: input.height,
-      documentJson: input.documentJson ?? "{}",
+      documentJson:
+        input.documentJson ??
+        JSON.stringify(
+          createPageDocument({ canvas: { width: input.width, height: input.height } }),
+        ),
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -386,6 +391,53 @@ export class PageRepository {
         .where(and(eq(pages.accountId, accountId), eq(pages.id, pageId)))
         .get() ?? null
     );
+  }
+
+  listForAccount(accountId: string): PageRecord[] {
+    return this.db
+      .select()
+      .from(pages)
+      .where(eq(pages.accountId, accountId))
+      .orderBy(desc(pages.updatedAt))
+      .all();
+  }
+
+  updateForAccount(
+    accountId: string,
+    pageId: string,
+    input: Partial<Pick<PageRecord, "documentJson" | "height" | "title" | "width">>,
+  ): PageRecord | null {
+    const existing = this.findByIdForAccount(accountId, pageId);
+
+    if (!existing) {
+      return null;
+    }
+
+    const timestamp = now(this.clock);
+    const nextRecord = {
+      title: input.title ?? existing.title,
+      width: input.width ?? existing.width,
+      height: input.height ?? existing.height,
+      documentJson: input.documentJson ?? existing.documentJson,
+      updatedAt: timestamp,
+    };
+
+    this.db
+      .update(pages)
+      .set(nextRecord)
+      .where(and(eq(pages.accountId, accountId), eq(pages.id, pageId)))
+      .run();
+
+    return this.findByIdForAccount(accountId, pageId);
+  }
+
+  deleteByIdForAccount(accountId: string, pageId: string): boolean {
+    const result = this.db
+      .delete(pages)
+      .where(and(eq(pages.accountId, accountId), eq(pages.id, pageId)))
+      .run();
+
+    return result.changes > 0;
   }
 }
 
