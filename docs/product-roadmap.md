@@ -13,12 +13,21 @@ This plan intentionally avoids implementation. It documents the architecture, pr
 The first functional product should let users:
 
 - Upload photos into a local media library.
-- Create scrapbook pages containing photos, text, shapes, and visual styles.
-- Apply light non-destructive edits such as cropping, borders, shadows, filters, masks, and frame effects.
-- Create books as ordered collections of pages.
-- Reopen, revise, duplicate, and export work.
+- Create scrapbook pages containing photos, text, shapes, embellishments, frames, stickers, patterned backgrounds, and visual styles.
+- Apply light non-destructive edits such as cropping, borders, shadows, filters, masks, cutouts, and frame effects.
+- Create books as ordered collections of pages, with clear page order and facing two-page spread design.
+- Reopen, revise, duplicate, print, and export work digitally.
 
 Longer term, the product should support native iOS and/or other native clients without rewriting the backend contract.
+
+## Product Experience Requirements
+
+The app should feel like a scrapbook tool, not only a modern layout editor:
+
+- Book workflows must make page order obvious and allow users to design facing left/right pages together as a two-page spread while preserving the underlying ordered page model.
+- Editor tools should support playful scrapbook composition: overlapping photos, non-square image frames, rotated or layered elements, decorative frames, stickers, embellishments, patterned paper, and themed reusable elements.
+- Photo treatments should remain flexible and non-destructive, including crops, masks, cutouts, frame effects, and repositioning within a frame without mutating the uploaded original.
+- Output should support both print-oriented workflows and digital sharing/export, especially for full books where page and spread order matter.
 
 ## Technical Principles
 
@@ -124,8 +133,8 @@ Notes:
 - `Asset`: original uploaded file plus metadata.
 - `AssetVariant`: generated thumbnail, preview, cropped render, or export-time derivative.
 - `Page`: canvas-sized document containing ordered elements and page-level settings.
-- `PageElement`: photo, text, shape, sticker, background, or group.
-- `PhotoEdit`: non-destructive edit stack attached to a photo element or reusable asset placement, including crop, visual effects, and general transformations such as scale and flip.
+- `PageElement`: photo, text, shape, sticker, embellishment, decorative frame, patterned background, or group.
+- `PhotoEdit`: non-destructive edit stack attached to a photo element or reusable asset placement, including crop, mask/cutout, visual effects, and general transformations such as scale and flip.
 - `Book`: named collection of ordered pages.
 - `BookPage`: join/order record connecting books and pages.
 - `ExportJob`: requested render/export task and output metadata.
@@ -427,6 +436,7 @@ Deliverables:
 - Build editor shell with toolbar, canvas, side panels, inspector, and page list.
 - Support adding photo elements from the asset library.
 - Support text elements with font size, color, alignment, and basic style controls.
+- Support overlapping elements, non-square element bounds, and explicit layer order from the first editor schema.
 - Support select, move, resize, rotate, reorder, duplicate, and delete.
 - Add autosave or explicit save with visible save state.
 
@@ -442,10 +452,11 @@ Goal: users can apply light photo edits without changing originals.
 
 Deliverables:
 
-- Add edit stack schema for general transforms, crop, border, corner radius, shadow, opacity, and simple filters.
+- Add edit stack schema for general transforms, crop, mask/cutout, border, corner radius, shadow, opacity, and simple filters.
 - Add transform controls for scaling, rotation, flipping, and repositioning photos inside frames.
 - Add crop UI with aspect ratio presets and free crop.
-- Add border/frame controls.
+- Add border/frame controls, including decorative scrapbook frame styles and non-square photo frames.
+- Add mask/cutout controls so photos can be clipped to shapes or reusable cutout presets without mutating originals.
 - Add preview rendering in the editor.
 - Add server-side preview/render logic using the same edit stack.
 - Add tests proving originals are not mutated.
@@ -458,7 +469,7 @@ Acceptance criteria:
 
 ### Milestone 5: Books
 
-Goal: users can organize pages into books.
+Goal: users can organize pages into books and design facing spreads in the proper order.
 
 Deliverables:
 
@@ -466,31 +477,35 @@ Deliverables:
 - Add book-page ordering endpoint.
 - Build book list and book detail views.
 - Support adding/removing/reordering pages in a book.
+- Add a spread-aware book view that shows adjacent left/right pages and makes cover/single-page cases explicit.
+- Add a two-page spread editor mode that lets users design facing pages together while saving each page in book order.
 - Add page duplication for quick layout reuse.
 
 Acceptance criteria:
 
 - User can create a book, add pages, reorder them, and reopen the book later.
+- User can open a facing two-page spread, design across the pair, and return to the book with page order preserved.
 - Page order persists.
 - Removing a page from a book does not delete the page unless explicitly requested.
 
 ### Milestone 6: Export And Print-Oriented Output
 
-Goal: users can export pages and books.
+Goal: users can export pages and books for print and digital sharing.
 
 Deliverables:
 
 - Add export job model and endpoints.
 - Render single pages to PNG or JPEG.
-- Render books to a zipped collection of images or PDF, depending on the chosen library.
+- Render books to a zipped collection of images or PDF, depending on the chosen library, preserving page and spread order.
 - Add export progress/status UI.
-- Add basic print-size presets and DPI metadata where practical.
+- Add print-size presets, DPI metadata, bleed/margin settings where practical, and digital-friendly export presets.
 
 Acceptance criteria:
 
 - User can export a single page.
 - User can export a full book.
 - Exported output reflects saved page state.
+- Exported books preserve proper page order and produce useful print-oriented and digital formats.
 - Export failures are visible and recoverable.
 
 ### Milestone 7: Product Polish

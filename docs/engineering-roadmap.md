@@ -54,8 +54,8 @@ When task status changes, update its `Status`, `Updated`, and `Notes` fields.
 6. Build photo upload and the asset library.
 7. Build the page document model and basic editor.
 8. Add non-destructive photo editing.
-9. Add books.
-10. Add exports.
+9. Add books and facing spread workflow.
+10. Add print and digital exports.
 11. Harden the product with tests, accessibility, maintenance, and reliability.
 12. Publish through GitHub Releases and GHCR.
 
@@ -268,66 +268,74 @@ feat(api): add page crud endpoints
 feat(web): add basic page editor
 ```
 
-## Phase E10: Non-Destructive Photo Editing
+## Phase E10: Non-Destructive Photo Editing And Scrapbook Elements
 
-Goal: add crop, transform, border, frame, and visual effects without changing originals.
+Goal: add crop, transform, border, frame, mask/cutout, scrapbook embellishment, and visual effects without changing originals.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E10.1 | Add photo edit metadata | `Not started` | E09.2 | Transform, crop, border, shadow, opacity, filter schema | Transform metadata is separate from crop metadata. |
+| E10.1 | Add photo edit metadata | `Not started` | E09.2 | Transform, crop, mask/cutout, border, shadow, opacity, filter schema | Transform metadata is separate from crop and mask metadata. |
 | E10.2 | Add transform controls | `Not started` | E10.1, E09.7 | Scale, rotate, flip, offset/reposition controls | User can transform a photo inside its frame. |
 | E10.3 | Add crop controls | `Not started` | E10.1, E09.7 | Free crop and aspect ratio presets | Crop is editable after save/reopen. |
-| E10.4 | Add border/frame controls | `Not started` | E10.1, E09.7 | Border width, color, radius, style, shadow | Styling persists in page JSON. |
+| E10.4 | Add border/frame controls | `Not started` | E10.1, E09.7 | Border width, color, radius, style, shadow, frame presets | Styling persists in page JSON and photos are not limited to square frames. |
 | E10.5 | Add preview generation | `Not started` | E10.1-E10.4 | Preview route or browser/server preview path | Previews reflect edit metadata and can be regenerated. |
 | E10.6 | Add non-destructive tests | `Not started` | E10.5 | API/editor tests | Original assets remain unchanged; reset returns to original view. |
+| E10.7 | Add mask and cutout controls | `Not started` | E10.1, E10.3 | Shape masks, reusable cutout presets, and clipping controls | User can cut a photo into a non-rectangular shape without mutating the original. |
+| E10.8 | Add embellishment element library | `Not started` | E09.2, E09.7 | Sticker, embellishment, decorative frame, and patterned-paper elements | User can place playful scrapbook elements, not only modern photo/text layouts. |
 
 Suggested commits:
 
 ```text
 feat(editor): add photo transform controls
 feat(editor): add non destructive crop controls
+feat(editor): add scrapbook masks and embellishments
 feat(api): add page preview generation
 ```
 
 ## Phase E11: Books
 
-Goal: organize pages into ordered scrapbook books.
+Goal: organize pages into ordered scrapbook books and facing two-page spreads.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E11.1 | Add book API schemas | `Not started` | E04.5, E05.2 | Book and book-page DTOs | Ordering behavior is documented. |
+| E11.1 | Add book API schemas | `Not started` | E04.5, E05.2 | Book and book-page DTOs | Ordering and facing-spread behavior are documented. |
 | E11.2 | Add book CRUD API | `Not started` | E11.1, E09.4 | Book create/list/detail/patch routes | Books are account-scoped. |
-| E11.3 | Add book page ordering API | `Not started` | E11.2 | Add/remove/reorder endpoints | Page order persists and cross-account pages are rejected. |
+| E11.3 | Add book page ordering API | `Not started` | E11.2 | Add/remove/reorder endpoints | Page and spread order persists and cross-account pages are rejected. |
 | E11.4 | Add book list/detail UI | `Not started` | E07.5, E11.2 | Book management screens | User can create and open books. |
 | E11.5 | Add page ordering UI | `Not started` | E11.3, E11.4 | Add/remove/reorder interactions | User can add existing pages and reorder them. |
+| E11.6 | Add spread-aware book helpers | `Not started` | E11.3 | Helpers for adjacent page pairs, cover/single-page cases, and page-order navigation | Book order computes correct left/right page pairs without changing page IDs. |
+| E11.7 | Add two-page spread editor | `Not started` | E09.8, E11.5, E11.6 | Facing-page editor view with gutter and spread navigation | User can design adjacent pages together in proper book order. |
 
 Suggested commits:
 
 ```text
 feat(api): add book management endpoints
 feat(web): add book management views
+feat(editor): add two page spread editing
 ```
 
 ## Phase E12: Exports And Product Hardening
 
-Goal: generate user-visible output and make the core journey reliable.
+Goal: generate print-ready and digital user-visible output and make the core journey reliable.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E12.1 | Decide export rendering strategy | `Not started` | E10.5, E11.3 | ADR for server/browser/hybrid rendering | Decision covers PNG/JPEG/PDF feasibility and render parity. |
+| E12.1 | Decide export rendering strategy | `Not started` | E10.5, E11.7 | ADR for server/browser/hybrid rendering | Decision covers PNG/JPEG/PDF feasibility, render parity, and spread-aware book output. |
 | E12.2 | Add export job model | `Not started` | E12.1, E05.2 | Export job table and routes | Jobs track status, format, output path, and errors. |
 | E12.3 | Add page image export | `Not started` | E12.2 | Single-page PNG/JPEG export | Export reflects saved page state. |
-| E12.4 | Add book export | `Not started` | E12.3, E11.5 | Image bundle or PDF export | Book exports in page order. |
+| E12.4 | Add book export | `Not started` | E12.3, E11.7 | Image bundle or PDF export | Book exports in page and spread order. |
 | E12.5 | Add export UI | `Not started` | E12.3, E12.4 | Export actions and progress/status UI | User can request and retrieve exports. |
-| E12.6 | Add core E2E flow | `Not started` | E08.7, E09.8, E11.5 | Playwright happy-path test | Register/login, upload, edit page, create book, and export/preview are covered. |
+| E12.6 | Add core E2E flow | `Not started` | E08.7, E09.8, E11.7 | Playwright happy-path test | Register/login, upload, edit page/spread, create book, and export/preview are covered. |
 | E12.7 | Add editor polish | `Not started` | E09.7, E10.4 | Undo/redo, shortcuts, snapping, guides | Common editing operations are predictable and recoverable. |
 | E12.8 | Add data maintenance tools | `Not started` | E08.4, E12.2 | Cleanup and verification commands | Orphaned derivatives can be detected or cleaned safely. |
+| E12.9 | Add print and digital export presets | `Not started` | E12.4, E12.5 | Print-size/DPI/bleed settings and digital-friendly PNG/JPEG/PDF presets | User can choose output suitable for printing or digital sharing. |
 
 Suggested commits:
 
 ```text
 feat(exports): add export jobs
 feat(exports): add page image export
+feat(exports): add print and digital presets
 test: add core scrapbook flow coverage
 feat(editor): improve editing ergonomics
 ```
@@ -386,5 +394,5 @@ Keep this table current as scripts are added.
 
 1. `E06.4`: Add CSRF protection for cookie-authenticated writes.
 2. `E06.5`: Add session list and revocation endpoints.
-3. `E10.1`: Add non-destructive photo edit metadata after the E09 editor foundation.
-4. `E11.1`: Add book API schemas when the books phase resumes.
+3. `E10.1`: Add non-destructive photo edit metadata, including mask/cutout support, after the E09 editor foundation.
+4. `E11.1`: Add book and facing-spread API schemas when the books phase resumes.
