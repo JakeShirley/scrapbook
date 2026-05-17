@@ -446,4 +446,83 @@ describe("api app", () => {
       error: { code: "page_asset_not_found" },
     });
   });
+
+  it("persists non-destructive photo edits without mutating original assets", async () => {
+    const app = await createTestAppWithStorage();
+    const cookie = await registerAccount(app, {
+      displayName: "Ada Lovelace",
+      email: "ada-edits@example.com",
+    });
+    const image = await createPng();
+    const uploadResponse = await uploadImage(
+      app,
+      cookie,
+      new File([toArrayBuffer(image)], "editable.png", { type: "image/png" }),
+    );
+    const uploaded = await uploadResponse.json();
+    const editedPhoto = createPhotoLayer({
+      id: "photo_edit_1",
+      assetId: uploaded.id,
+      crop: { x: 0.1, y: 0.1, width: 0.8, height: 0.8, aspectRatioPreset: "square" },
+      photoTransform: {
+        scale: 1.4,
+        rotation: 12,
+        flipX: true,
+        flipY: false,
+        offsetX: 0.15,
+        offsetY: -0.1,
+      },
+      border: {
+        width: 18,
+        color: "#ffffff",
+        radius: 28,
+        style: "solid",
+        framePreset: "mat",
+      },
+      mask: { shape: "diamond", inset: 0.02, feather: 4 },
+      filter: { preset: "sepia", brightness: 1.05, contrast: 1.1, saturation: 0.8 },
+      shadow: {
+        enabled: true,
+        color: "#202426",
+        opacity: 0.22,
+        offsetX: 0,
+        offsetY: 20,
+        blur: 36,
+        spread: 0,
+      },
+    });
+    const createResponse = await postJson(
+      app,
+      "/api/v1/pages",
+      {
+        title: "Edited photo",
+        document: createPageDocument({ layers: [editedPhoto] }),
+      },
+      cookie,
+    );
+    const created = pageResponseSchema.parse(await createResponse.json());
+    const detailResponse = await app.request(`/api/v1/pages/${created.id}`, {
+      headers: { cookie },
+    });
+    const originalResponse = await app.request(`/api/v1/assets/${uploaded.id}/content`, {
+      headers: { cookie },
+    });
+    const detail = pageResponseSchema.parse(await detailResponse.json());
+    const layer = detail.document.layers[0];
+
+    expect(createResponse.status).toBe(201);
+    expect(detailResponse.status).toBe(200);
+    expect(layer?.kind).toBe("photo");
+
+    if (layer?.kind !== "photo") {
+      throw new Error("Expected a photo layer");
+    }
+
+    expect(layer.assetId).toBe(uploaded.id);
+    expect(layer.crop).toMatchObject({ aspectRatioPreset: "square", width: 0.8 });
+    expect(layer.photoTransform).toMatchObject({ scale: 1.4, flipX: true });
+    expect(layer.mask.shape).toBe("diamond");
+    expect(originalResponse.status).toBe(200);
+    expect(Buffer.from(await originalResponse.arrayBuffer())).toEqual(image);
+  });
 });

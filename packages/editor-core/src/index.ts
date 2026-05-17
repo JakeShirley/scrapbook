@@ -7,6 +7,56 @@ const coordinateSchema = z.number().finite();
 const positiveSizeSchema = z.number().finite().positive();
 const opacitySchema = z.number().finite().min(0).max(1);
 const rotationSchema = z.number().finite().min(-360).max(360);
+const cropCoordinateSchema = z.number().finite().min(0).max(1);
+const cropSizeSchema = z.number().finite().min(0.05).max(1);
+
+const defaultPhotoTransform = {
+  scale: 1,
+  rotation: 0,
+  flipX: false,
+  flipY: false,
+  offsetX: 0,
+  offsetY: 0,
+};
+
+const defaultPhotoCrop = {
+  x: 0,
+  y: 0,
+  width: 1,
+  height: 1,
+  aspectRatioPreset: "free" as const,
+};
+
+const defaultPhotoBorder = {
+  width: 0,
+  color: "#ffffff",
+  radius: 0,
+  style: "solid" as const,
+  framePreset: "none" as const,
+};
+
+const defaultPhotoShadow = {
+  enabled: false,
+  color: "#202426",
+  opacity: 0.2,
+  offsetX: 0,
+  offsetY: 12,
+  blur: 24,
+  spread: 0,
+};
+
+const defaultPhotoMask = {
+  shape: "rectangle" as const,
+  inset: 0,
+  feather: 0,
+};
+
+const defaultPhotoFilter = {
+  preset: "none" as const,
+  brightness: 1,
+  contrast: 1,
+  saturation: 1,
+};
 
 const pageLayerBaseSchema = z.object({
   id: layerIdSchema,
@@ -24,6 +74,63 @@ export const photoLayerSchema = pageLayerBaseSchema.extend({
   kind: z.literal("photo"),
   assetId: z.string().min(1),
   fit: z.enum(["cover", "contain"]),
+  photoTransform: z
+    .object({
+      scale: z.number().finite().min(0.1).max(5),
+      rotation: rotationSchema,
+      flipX: z.boolean(),
+      flipY: z.boolean(),
+      offsetX: z.number().finite().min(-1).max(1),
+      offsetY: z.number().finite().min(-1).max(1),
+    })
+    .default(defaultPhotoTransform),
+  crop: z
+    .object({
+      x: cropCoordinateSchema,
+      y: cropCoordinateSchema,
+      width: cropSizeSchema,
+      height: cropSizeSchema,
+      aspectRatioPreset: z.enum(["free", "original", "square", "portrait", "landscape"]),
+    })
+    .refine((crop) => crop.x + crop.width <= 1 && crop.y + crop.height <= 1, {
+      message: "Crop must stay within the original photo bounds",
+    })
+    .default(defaultPhotoCrop),
+  border: z
+    .object({
+      width: z.number().finite().min(0).max(160),
+      color: colorSchema,
+      radius: z.number().finite().min(0).max(1000),
+      style: z.enum(["solid", "dashed", "dotted"]),
+      framePreset: z.enum(["none", "mat", "polaroid", "film", "paper"]),
+    })
+    .default(defaultPhotoBorder),
+  shadow: z
+    .object({
+      enabled: z.boolean(),
+      color: colorSchema,
+      opacity: opacitySchema,
+      offsetX: z.number().finite().min(-400).max(400),
+      offsetY: z.number().finite().min(-400).max(400),
+      blur: z.number().finite().min(0).max(400),
+      spread: z.number().finite().min(-120).max(160),
+    })
+    .default(defaultPhotoShadow),
+  mask: z
+    .object({
+      shape: z.enum(["rectangle", "ellipse", "arch", "diamond", "ticket"]),
+      inset: z.number().finite().min(0).max(0.45),
+      feather: z.number().finite().min(0).max(80),
+    })
+    .default(defaultPhotoMask),
+  filter: z
+    .object({
+      preset: z.enum(["none", "warm", "cool", "mono", "fade", "sepia"]),
+      brightness: z.number().finite().min(0.2).max(2),
+      contrast: z.number().finite().min(0.2).max(2),
+      saturation: z.number().finite().min(0).max(3),
+    })
+    .default(defaultPhotoFilter),
 });
 
 export const textLayerSchema = pageLayerBaseSchema.extend({
@@ -35,7 +142,19 @@ export const textLayerSchema = pageLayerBaseSchema.extend({
   align: z.enum(["left", "center", "right"]),
 });
 
-export const pageLayerSchema = z.discriminatedUnion("kind", [photoLayerSchema, textLayerSchema]);
+export const embellishmentLayerSchema = pageLayerBaseSchema.extend({
+  kind: z.literal("embellishment"),
+  element: z.enum(["sticker-star", "paper-label", "washi-tape", "photo-corner", "pattern-paper"]),
+  color: colorSchema,
+  accentColor: colorSchema,
+  label: z.string().max(80),
+});
+
+export const pageLayerSchema = z.discriminatedUnion("kind", [
+  photoLayerSchema,
+  textLayerSchema,
+  embellishmentLayerSchema,
+]);
 
 export const pageDocumentSchema = z.object({
   version: z.literal(1),
@@ -51,6 +170,7 @@ export type PageDocument = z.infer<typeof pageDocumentSchema>;
 export type PageLayer = z.infer<typeof pageLayerSchema>;
 export type PhotoLayer = z.infer<typeof photoLayerSchema>;
 export type TextLayer = z.infer<typeof textLayerSchema>;
+export type EmbellishmentLayer = z.infer<typeof embellishmentLayerSchema>;
 export type PageLayerKind = PageLayer["kind"];
 
 export type CreatePageDocumentInput = {
@@ -61,7 +181,22 @@ export type CreatePageDocumentInput = {
 export type CreatePhotoLayerInput = Partial<
   Pick<
     PhotoLayer,
-    "fit" | "height" | "id" | "locked" | "name" | "opacity" | "rotation" | "width" | "x" | "y"
+    | "border"
+    | "crop"
+    | "filter"
+    | "fit"
+    | "height"
+    | "id"
+    | "locked"
+    | "mask"
+    | "name"
+    | "opacity"
+    | "photoTransform"
+    | "rotation"
+    | "shadow"
+    | "width"
+    | "x"
+    | "y"
   >
 > & {
   assetId: string;
@@ -87,6 +222,25 @@ export type CreateTextLayerInput = Partial<
 > & {
   text: string;
 };
+
+export type CreateEmbellishmentLayerInput = Partial<
+  Pick<
+    EmbellishmentLayer,
+    | "accentColor"
+    | "color"
+    | "element"
+    | "height"
+    | "id"
+    | "label"
+    | "locked"
+    | "name"
+    | "opacity"
+    | "rotation"
+    | "width"
+    | "x"
+    | "y"
+  >
+>;
 
 const createLayerId = (): string => `layer_${crypto.randomUUID()}`;
 
@@ -117,6 +271,12 @@ export const createPhotoLayer = (input: CreatePhotoLayerInput): PhotoLayer =>
     opacity: input.opacity ?? 1,
     locked: input.locked ?? false,
     fit: input.fit ?? "cover",
+    photoTransform: input.photoTransform ?? defaultPhotoTransform,
+    crop: input.crop ?? defaultPhotoCrop,
+    border: input.border ?? defaultPhotoBorder,
+    shadow: input.shadow ?? defaultPhotoShadow,
+    mask: input.mask ?? defaultPhotoMask,
+    filter: input.filter ?? defaultPhotoFilter,
   });
 
 export const createTextLayer = (input: CreateTextLayerInput): TextLayer =>
@@ -136,6 +296,38 @@ export const createTextLayer = (input: CreateTextLayerInput): TextLayer =>
     fontSize: input.fontSize ?? 72,
     color: input.color ?? "#202426",
     align: input.align ?? "left",
+  });
+
+export const createEmbellishmentLayer = (
+  input: CreateEmbellishmentLayerInput = {},
+): EmbellishmentLayer =>
+  embellishmentLayerSchema.parse({
+    id: input.id ?? createLayerId(),
+    kind: "embellishment",
+    name: input.name ?? "Embellishment",
+    x: input.x ?? 320,
+    y: input.y ?? 320,
+    width: input.width ?? 420,
+    height: input.height ?? 220,
+    rotation: input.rotation ?? -4,
+    opacity: input.opacity ?? 1,
+    locked: input.locked ?? false,
+    element: input.element ?? "sticker-star",
+    color: input.color ?? "#d6a537",
+    accentColor: input.accentColor ?? "#24766e",
+    label: input.label ?? "",
+  });
+
+export const resetPhotoLayerEdits = (layer: PhotoLayer): PhotoLayer =>
+  photoLayerSchema.parse({
+    ...layer,
+    fit: "cover",
+    photoTransform: defaultPhotoTransform,
+    crop: defaultPhotoCrop,
+    border: defaultPhotoBorder,
+    shadow: defaultPhotoShadow,
+    mask: defaultPhotoMask,
+    filter: defaultPhotoFilter,
   });
 
 export const addLayer = (

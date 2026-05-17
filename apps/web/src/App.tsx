@@ -19,14 +19,18 @@ import {
 } from "react-router";
 import {
   addLayer,
+  createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
   createTextLayer,
   deleteLayer,
   duplicateLayer,
+  type EmbellishmentLayer,
   reorderLayer,
   type PageDocument,
   type PageLayer,
+  type PhotoLayer,
+  resetPhotoLayerEdits,
   updateCanvas,
   updateLayer,
 } from "@scrapbook/editor-core";
@@ -53,6 +57,46 @@ const navItems = [
 ];
 
 const bookItems = ["Spring album", "Travel notes"];
+
+const embellishmentPresets: Array<
+  Pick<EmbellishmentLayer, "accentColor" | "color" | "element" | "label" | "name">
+> = [
+  {
+    accentColor: "#24766e",
+    color: "#d6a537",
+    element: "sticker-star",
+    label: "",
+    name: "Star sticker",
+  },
+  {
+    accentColor: "#d56d46",
+    color: "#fffdf7",
+    element: "paper-label",
+    label: "Memory",
+    name: "Paper label",
+  },
+  {
+    accentColor: "#ffffff",
+    color: "#79a9a4",
+    element: "washi-tape",
+    label: "",
+    name: "Washi tape",
+  },
+  {
+    accentColor: "#202426",
+    color: "#fffdf7",
+    element: "photo-corner",
+    label: "",
+    name: "Photo corner",
+  },
+  {
+    accentColor: "#d6a537",
+    color: "#f2d7c9",
+    element: "pattern-paper",
+    label: "",
+    name: "Pattern paper",
+  },
+];
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof ApiClientError) {
@@ -663,6 +707,24 @@ function EditorView() {
     setSelectedLayerId(layer.id);
   };
 
+  const addEmbellishment = (
+    preset: Pick<EmbellishmentLayer, "accentColor" | "color" | "element" | "label" | "name">,
+  ) => {
+    if (!document) {
+      return;
+    }
+
+    const layer = createEmbellishmentLayer({
+      ...preset,
+      width: Math.min(document.canvas.width * 0.28, 620),
+      height: Math.min(document.canvas.height * 0.12, 320),
+      x: document.canvas.width * 0.12,
+      y: document.canvas.height * 0.12,
+    });
+    editDocument(addLayer(document, layer));
+    setSelectedLayerId(layer.id);
+  };
+
   const savePage = async () => {
     if (!page || !document) {
       return;
@@ -776,6 +838,32 @@ function EditorView() {
               </button>
             ))}
           </div>
+          <div className="panel-heading compact-heading nested-heading">
+            <h3>Elements</h3>
+            <span>{embellishmentPresets.length}</span>
+          </div>
+          <div className="asset-rail-list">
+            {embellishmentPresets.map((preset) => (
+              <button
+                type="button"
+                key={preset.element}
+                className="element-rail-item"
+                onClick={() => addEmbellishment(preset)}
+              >
+                <span
+                  className="element-preview"
+                  data-element={preset.element}
+                  style={
+                    {
+                      "--element-accent": preset.accentColor,
+                      "--element-color": preset.color,
+                    } as CSSProperties
+                  }
+                />
+                <span>{preset.name}</span>
+              </button>
+            ))}
+          </div>
         </aside>
 
         <section className="editor-stage" aria-label="Page canvas">
@@ -875,6 +963,73 @@ function PageList({ pages }: { pages: PageSummary[] }) {
   );
 }
 
+const toRgba = (hexColor: string, opacity: number): string => {
+  const red = Number.parseInt(hexColor.slice(1, 3), 16);
+  const green = Number.parseInt(hexColor.slice(3, 5), 16);
+  const blue = Number.parseInt(hexColor.slice(5, 7), 16);
+
+  return `rgb(${red} ${green} ${blue} / ${opacity})`;
+};
+
+const buildMaskClipPath = (layer: PhotoLayer): string | undefined => {
+  const inset = layer.mask.inset * 100;
+
+  switch (layer.mask.shape) {
+    case "rectangle":
+      return inset > 0 ? `inset(${inset}% round ${layer.border.radius}px)` : undefined;
+    case "ellipse":
+      return `ellipse(${50 - inset}% ${50 - inset}% at 50% 50%)`;
+    case "arch":
+      return `polygon(${inset}% 100%, ${inset}% 36%, 18% 8%, 50% 0%, 82% 8%, ${100 - inset}% 36%, ${100 - inset}% 100%)`;
+    case "diamond":
+      return `polygon(50% ${inset}%, ${100 - inset}% 50%, 50% ${100 - inset}%, ${inset}% 50%)`;
+    case "ticket":
+      return `polygon(${inset}% ${inset}%, 42% ${inset}%, 50% 10%, 58% ${inset}%, ${100 - inset}% ${inset}%, ${100 - inset}% 42%, 90% 50%, ${100 - inset}% 58%, ${100 - inset}% ${100 - inset}%, 58% ${100 - inset}%, 50% 90%, 42% ${100 - inset}%, ${inset}% ${100 - inset}%, ${inset}% 58%, 10% 50%, ${inset}% 42%)`;
+  }
+};
+
+const buildFilter = (layer: PhotoLayer): string => {
+  const presetFilters: Record<PhotoLayer["filter"]["preset"], string> = {
+    none: "",
+    warm: "sepia(0.18) saturate(1.14)",
+    cool: "saturate(0.95) hue-rotate(8deg)",
+    mono: "grayscale(1)",
+    fade: "contrast(0.86) saturate(0.72) brightness(1.08)",
+    sepia: "sepia(0.72)",
+  };
+  const adjustments = `brightness(${layer.filter.brightness}) contrast(${layer.filter.contrast}) saturate(${layer.filter.saturation})`;
+
+  return `${presetFilters[layer.filter.preset]} ${adjustments}`.trim();
+};
+
+const buildPhotoFrameStyle = (layer: PhotoLayer): CSSProperties => ({
+  borderColor: layer.border.color,
+  borderRadius: `${layer.border.radius}px`,
+  borderStyle: layer.border.style,
+  borderWidth: `${layer.border.width}px`,
+  boxShadow: layer.shadow.enabled
+    ? `${layer.shadow.offsetX}px ${layer.shadow.offsetY}px ${layer.shadow.blur}px ${layer.shadow.spread}px ${toRgba(layer.shadow.color, layer.shadow.opacity)}`
+    : undefined,
+  clipPath: buildMaskClipPath(layer),
+  filter:
+    layer.mask.feather > 0
+      ? `drop-shadow(0 0 ${layer.mask.feather}px rgb(255 255 255 / 60%))`
+      : undefined,
+});
+
+const buildPhotoImageStyle = (layer: PhotoLayer): CSSProperties => ({
+  filter: buildFilter(layer),
+  height: `${100 / layer.crop.height}%`,
+  left: `${(-layer.crop.x / layer.crop.width) * 100}%`,
+  objectFit: layer.fit,
+  top: `${(-layer.crop.y / layer.crop.height) * 100}%`,
+  transform: `translate(${layer.photoTransform.offsetX * 50}%, ${layer.photoTransform.offsetY * 50}%) scale(${layer.photoTransform.flipX ? -layer.photoTransform.scale : layer.photoTransform.scale}, ${layer.photoTransform.flipY ? -layer.photoTransform.scale : layer.photoTransform.scale}) rotate(${layer.photoTransform.rotation}deg)`,
+  width: `${100 / layer.crop.width}%`,
+});
+
+const getFrameLabel = (layer: PhotoLayer): string =>
+  layer.border.framePreset === "none" ? "" : layer.border.framePreset.replace("-", " ");
+
 function PageCanvas({
   assetById,
   document,
@@ -909,20 +1064,30 @@ function PageCanvas({
             type="button"
             key={layer.id}
             className="canvas-layer"
+            data-kind={layer.kind}
             data-selected={layer.id === selectedLayerId}
             style={layerStyle}
             onClick={() => onSelectLayer(layer.id)}
           >
             {layer.kind === "photo" ? (
-              <img
-                src={
-                  assetById.get(layer.assetId)?.thumbnailUrl ??
-                  assetById.get(layer.assetId)?.originalContentUrl
-                }
-                alt=""
-                style={{ objectFit: layer.fit }}
-              />
-            ) : (
+              <span
+                className="photo-frame-preview"
+                data-frame={layer.border.framePreset}
+                style={buildPhotoFrameStyle(layer)}
+              >
+                <img
+                  src={
+                    assetById.get(layer.assetId)?.thumbnailUrl ??
+                    assetById.get(layer.assetId)?.originalContentUrl
+                  }
+                  alt=""
+                  style={buildPhotoImageStyle(layer)}
+                />
+                {getFrameLabel(layer) ? (
+                  <span className="frame-label">{getFrameLabel(layer)}</span>
+                ) : null}
+              </span>
+            ) : layer.kind === "text" ? (
               <span
                 style={{
                   color: layer.color,
@@ -932,6 +1097,19 @@ function PageCanvas({
                 }}
               >
                 {layer.text}
+              </span>
+            ) : (
+              <span
+                className="embellishment-preview"
+                data-element={layer.element}
+                style={
+                  {
+                    "--element-accent": layer.accentColor,
+                    "--element-color": layer.color,
+                  } as CSSProperties
+                }
+              >
+                {layer.label}
               </span>
             )}
           </button>
@@ -1009,6 +1187,72 @@ function LayerInspector({
     (key: "height" | "opacity" | "rotation" | "width" | "x" | "y") =>
     (event: ChangeEvent<HTMLInputElement>) =>
       onChange({ [key]: Number(event.currentTarget.value) } as Partial<PageLayer>);
+
+  const updatePhotoLayer = (update: Partial<PhotoLayer>) => onChange(update as Partial<PageLayer>);
+
+  const updatePhotoTransform = (update: Partial<PhotoLayer["photoTransform"]>) => {
+    if (layer.kind !== "photo") {
+      return;
+    }
+
+    updatePhotoLayer({ photoTransform: { ...layer.photoTransform, ...update } });
+  };
+
+  const updateCrop = (update: Partial<PhotoLayer["crop"]>) => {
+    if (layer.kind !== "photo") {
+      return;
+    }
+
+    updatePhotoLayer({ crop: { ...layer.crop, ...update } });
+  };
+
+  const updateBorder = (update: Partial<PhotoLayer["border"]>) => {
+    if (layer.kind !== "photo") {
+      return;
+    }
+
+    updatePhotoLayer({ border: { ...layer.border, ...update } });
+  };
+
+  const updateShadow = (update: Partial<PhotoLayer["shadow"]>) => {
+    if (layer.kind !== "photo") {
+      return;
+    }
+
+    updatePhotoLayer({ shadow: { ...layer.shadow, ...update } });
+  };
+
+  const updateMask = (update: Partial<PhotoLayer["mask"]>) => {
+    if (layer.kind !== "photo") {
+      return;
+    }
+
+    updatePhotoLayer({ mask: { ...layer.mask, ...update } });
+  };
+
+  const updateFilter = (update: Partial<PhotoLayer["filter"]>) => {
+    if (layer.kind !== "photo") {
+      return;
+    }
+
+    updatePhotoLayer({ filter: { ...layer.filter, ...update } });
+  };
+
+  const applyCropPreset = (preset: PhotoLayer["crop"]["aspectRatioPreset"]) => {
+    if (layer.kind !== "photo") {
+      return;
+    }
+
+    const cropPresets: Record<PhotoLayer["crop"]["aspectRatioPreset"], PhotoLayer["crop"]> = {
+      free: { ...layer.crop, aspectRatioPreset: "free" },
+      original: { x: 0, y: 0, width: 1, height: 1, aspectRatioPreset: "original" },
+      square: { x: 0.1, y: 0.1, width: 0.8, height: 0.8, aspectRatioPreset: "square" },
+      portrait: { x: 0.125, y: 0, width: 0.75, height: 1, aspectRatioPreset: "portrait" },
+      landscape: { x: 0, y: 0.125, width: 1, height: 0.75, aspectRatioPreset: "landscape" },
+    };
+
+    updatePhotoLayer({ crop: cropPresets[preset] });
+  };
 
   return (
     <form className="inspector-form">
@@ -1108,18 +1352,444 @@ function LayerInspector({
             </select>
           </label>
         </>
-      ) : (
-        <label>
-          <span>Fit</span>
-          <select
-            value={layer.fit}
-            onChange={(event) => onChange({ fit: event.currentTarget.value } as Partial<PageLayer>)}
+      ) : null}
+      {layer.kind === "photo" ? (
+        <>
+          <fieldset className="inspector-section">
+            <legend>Photo</legend>
+            <label>
+              <span>Fit</span>
+              <select
+                value={layer.fit}
+                onChange={(event) =>
+                  updatePhotoLayer({ fit: event.currentTarget.value as PhotoLayer["fit"] })
+                }
+              >
+                <option value="cover">Cover</option>
+                <option value="contain">Contain</option>
+              </select>
+            </label>
+            <label>
+              <span>Filter</span>
+              <select
+                value={layer.filter.preset}
+                onChange={(event) =>
+                  updateFilter({
+                    preset: event.currentTarget.value as PhotoLayer["filter"]["preset"],
+                  })
+                }
+              >
+                <option value="none">None</option>
+                <option value="warm">Warm</option>
+                <option value="cool">Cool</option>
+                <option value="mono">Mono</option>
+                <option value="fade">Fade</option>
+                <option value="sepia">Sepia</option>
+              </select>
+            </label>
+            <div className="inspector-grid">
+              <label>
+                <span>Bright</span>
+                <input
+                  max={2}
+                  min={0.2}
+                  step={0.05}
+                  type="number"
+                  value={layer.filter.brightness}
+                  onChange={(event) =>
+                    updateFilter({ brightness: Number(event.currentTarget.value) })
+                  }
+                />
+              </label>
+              <label>
+                <span>Contrast</span>
+                <input
+                  max={2}
+                  min={0.2}
+                  step={0.05}
+                  type="number"
+                  value={layer.filter.contrast}
+                  onChange={(event) =>
+                    updateFilter({ contrast: Number(event.currentTarget.value) })
+                  }
+                />
+              </label>
+            </div>
+            <label>
+              <span>Saturation</span>
+              <input
+                max={3}
+                min={0}
+                step={0.05}
+                type="range"
+                value={layer.filter.saturation}
+                onChange={(event) =>
+                  updateFilter({ saturation: Number(event.currentTarget.value) })
+                }
+              />
+            </label>
+          </fieldset>
+
+          <fieldset className="inspector-section">
+            <legend>Transform</legend>
+            <label>
+              <span>Scale</span>
+              <input
+                max={5}
+                min={0.1}
+                step={0.05}
+                type="range"
+                value={layer.photoTransform.scale}
+                onChange={(event) =>
+                  updatePhotoTransform({ scale: Number(event.currentTarget.value) })
+                }
+              />
+            </label>
+            <div className="inspector-grid">
+              <label>
+                <span>Offset X</span>
+                <input
+                  max={1}
+                  min={-1}
+                  step={0.01}
+                  type="number"
+                  value={layer.photoTransform.offsetX}
+                  onChange={(event) =>
+                    updatePhotoTransform({ offsetX: Number(event.currentTarget.value) })
+                  }
+                />
+              </label>
+              <label>
+                <span>Offset Y</span>
+                <input
+                  max={1}
+                  min={-1}
+                  step={0.01}
+                  type="number"
+                  value={layer.photoTransform.offsetY}
+                  onChange={(event) =>
+                    updatePhotoTransform({ offsetY: Number(event.currentTarget.value) })
+                  }
+                />
+              </label>
+              <label>
+                <span>Photo rot.</span>
+                <input
+                  max={360}
+                  min={-360}
+                  step={1}
+                  type="number"
+                  value={layer.photoTransform.rotation}
+                  onChange={(event) =>
+                    updatePhotoTransform({ rotation: Number(event.currentTarget.value) })
+                  }
+                />
+              </label>
+              <label className="checkbox-label compact-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.photoTransform.flipX}
+                  onChange={(event) => updatePhotoTransform({ flipX: event.currentTarget.checked })}
+                />
+                <span>Flip X</span>
+              </label>
+              <label className="checkbox-label compact-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.photoTransform.flipY}
+                  onChange={(event) => updatePhotoTransform({ flipY: event.currentTarget.checked })}
+                />
+                <span>Flip Y</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="inspector-section">
+            <legend>Crop</legend>
+            <label>
+              <span>Preset</span>
+              <select
+                value={layer.crop.aspectRatioPreset}
+                onChange={(event) =>
+                  applyCropPreset(
+                    event.currentTarget.value as PhotoLayer["crop"]["aspectRatioPreset"],
+                  )
+                }
+              >
+                <option value="free">Free</option>
+                <option value="original">Original</option>
+                <option value="square">Square</option>
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </label>
+            <div className="inspector-grid">
+              <label>
+                <span>Crop X</span>
+                <input
+                  max={1 - layer.crop.width}
+                  min={0}
+                  step={0.01}
+                  type="number"
+                  value={layer.crop.x}
+                  onChange={(event) => updateCrop({ x: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Crop Y</span>
+                <input
+                  max={1 - layer.crop.height}
+                  min={0}
+                  step={0.01}
+                  type="number"
+                  value={layer.crop.y}
+                  onChange={(event) => updateCrop({ y: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Crop W</span>
+                <input
+                  max={1 - layer.crop.x}
+                  min={0.05}
+                  step={0.01}
+                  type="number"
+                  value={layer.crop.width}
+                  onChange={(event) => updateCrop({ width: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Crop H</span>
+                <input
+                  max={1 - layer.crop.y}
+                  min={0.05}
+                  step={0.01}
+                  type="number"
+                  value={layer.crop.height}
+                  onChange={(event) => updateCrop({ height: Number(event.currentTarget.value) })}
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="inspector-section">
+            <legend>Frame</legend>
+            <div className="inspector-grid">
+              <label>
+                <span>Frame</span>
+                <select
+                  value={layer.border.framePreset}
+                  onChange={(event) =>
+                    updateBorder({
+                      framePreset: event.currentTarget.value as PhotoLayer["border"]["framePreset"],
+                    })
+                  }
+                >
+                  <option value="none">None</option>
+                  <option value="mat">Mat</option>
+                  <option value="polaroid">Polaroid</option>
+                  <option value="film">Film</option>
+                  <option value="paper">Paper</option>
+                </select>
+              </label>
+              <label>
+                <span>Style</span>
+                <select
+                  value={layer.border.style}
+                  onChange={(event) =>
+                    updateBorder({
+                      style: event.currentTarget.value as PhotoLayer["border"]["style"],
+                    })
+                  }
+                >
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                  <option value="dotted">Dotted</option>
+                </select>
+              </label>
+              <label>
+                <span>Border</span>
+                <input
+                  max={160}
+                  min={0}
+                  type="number"
+                  value={layer.border.width}
+                  onChange={(event) => updateBorder({ width: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Radius</span>
+                <input
+                  max={1000}
+                  min={0}
+                  type="number"
+                  value={layer.border.radius}
+                  onChange={(event) => updateBorder({ radius: Number(event.currentTarget.value) })}
+                />
+              </label>
+            </div>
+            <label>
+              <span>Border color</span>
+              <input
+                type="color"
+                value={layer.border.color}
+                onChange={(event) => updateBorder({ color: event.currentTarget.value })}
+              />
+            </label>
+            <label className="checkbox-label compact-checkbox">
+              <input
+                type="checkbox"
+                checked={layer.shadow.enabled}
+                onChange={(event) => updateShadow({ enabled: event.currentTarget.checked })}
+              />
+              <span>Shadow</span>
+            </label>
+            <div className="inspector-grid">
+              <label>
+                <span>Shadow X</span>
+                <input
+                  max={400}
+                  min={-400}
+                  type="number"
+                  value={layer.shadow.offsetX}
+                  onChange={(event) => updateShadow({ offsetX: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Shadow Y</span>
+                <input
+                  max={400}
+                  min={-400}
+                  type="number"
+                  value={layer.shadow.offsetY}
+                  onChange={(event) => updateShadow({ offsetY: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Blur</span>
+                <input
+                  max={400}
+                  min={0}
+                  type="number"
+                  value={layer.shadow.blur}
+                  onChange={(event) => updateShadow({ blur: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Shadow op.</span>
+                <input
+                  max={1}
+                  min={0}
+                  step={0.05}
+                  type="number"
+                  value={layer.shadow.opacity}
+                  onChange={(event) => updateShadow({ opacity: Number(event.currentTarget.value) })}
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="inspector-section">
+            <legend>Mask</legend>
+            <label>
+              <span>Shape</span>
+              <select
+                value={layer.mask.shape}
+                onChange={(event) =>
+                  updateMask({ shape: event.currentTarget.value as PhotoLayer["mask"]["shape"] })
+                }
+              >
+                <option value="rectangle">Rectangle</option>
+                <option value="ellipse">Ellipse</option>
+                <option value="arch">Arch</option>
+                <option value="diamond">Diamond</option>
+                <option value="ticket">Ticket</option>
+              </select>
+            </label>
+            <div className="inspector-grid">
+              <label>
+                <span>Inset</span>
+                <input
+                  max={0.45}
+                  min={0}
+                  step={0.01}
+                  type="number"
+                  value={layer.mask.inset}
+                  onChange={(event) => updateMask({ inset: Number(event.currentTarget.value) })}
+                />
+              </label>
+              <label>
+                <span>Feather</span>
+                <input
+                  max={80}
+                  min={0}
+                  type="number"
+                  value={layer.mask.feather}
+                  onChange={(event) => updateMask({ feather: Number(event.currentTarget.value) })}
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <button
+            type="button"
+            className="secondary-button full-width-button"
+            onClick={() => updatePhotoLayer(resetPhotoLayerEdits(layer))}
           >
-            <option value="cover">Cover</option>
-            <option value="contain">Contain</option>
-          </select>
-        </label>
-      )}
+            Reset photo edits
+          </button>
+        </>
+      ) : null}
+      {layer.kind === "embellishment" ? (
+        <>
+          <label>
+            <span>Element</span>
+            <select
+              value={layer.element}
+              onChange={(event) =>
+                onChange({ element: event.currentTarget.value } as Partial<PageLayer>)
+              }
+            >
+              <option value="sticker-star">Sticker star</option>
+              <option value="paper-label">Paper label</option>
+              <option value="washi-tape">Washi tape</option>
+              <option value="photo-corner">Photo corner</option>
+              <option value="pattern-paper">Pattern paper</option>
+            </select>
+          </label>
+          <label>
+            <span>Label</span>
+            <input
+              maxLength={80}
+              value={layer.label}
+              onChange={(event) =>
+                onChange({ label: event.currentTarget.value } as Partial<PageLayer>)
+              }
+            />
+          </label>
+          <div className="inspector-grid">
+            <label>
+              <span>Color</span>
+              <input
+                type="color"
+                value={layer.color}
+                onChange={(event) =>
+                  onChange({ color: event.currentTarget.value } as Partial<PageLayer>)
+                }
+              />
+            </label>
+            <label>
+              <span>Accent</span>
+              <input
+                type="color"
+                value={layer.accentColor}
+                onChange={(event) =>
+                  onChange({ accentColor: event.currentTarget.value } as Partial<PageLayer>)
+                }
+              />
+            </label>
+          </div>
+        </>
+      ) : null}
     </form>
   );
 }

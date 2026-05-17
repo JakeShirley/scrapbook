@@ -13,7 +13,7 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, and basic editor flow exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, and scrapbook embellishment layers exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
 | Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
@@ -274,14 +274,14 @@ Goal: add crop, transform, border, frame, mask/cutout, scrapbook embellishment, 
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E10.1 | Add photo edit metadata | `Not started` | E09.2 | Transform, crop, mask/cutout, border, shadow, opacity, filter schema | Transform metadata is separate from crop and mask metadata. |
-| E10.2 | Add transform controls | `Not started` | E10.1, E09.7 | Scale, rotate, flip, offset/reposition controls | User can transform a photo inside its frame. |
-| E10.3 | Add crop controls | `Not started` | E10.1, E09.7 | Free crop and aspect ratio presets | Crop is editable after save/reopen. |
-| E10.4 | Add border/frame controls | `Not started` | E10.1, E09.7 | Border width, color, radius, style, shadow, frame presets | Styling persists in page JSON and photos are not limited to square frames. |
-| E10.5 | Add preview generation | `Not started` | E10.1-E10.4 | Preview route or browser/server preview path | Previews reflect edit metadata and can be regenerated. |
-| E10.6 | Add non-destructive tests | `Not started` | E10.5 | API/editor tests | Original assets remain unchanged; reset returns to original view. |
-| E10.7 | Add mask and cutout controls | `Not started` | E10.1, E10.3 | Shape masks, reusable cutout presets, and clipping controls | User can cut a photo into a non-rectangular shape without mutating the original. |
-| E10.8 | Add embellishment element library | `Not started` | E09.2, E09.7 | Sticker, embellishment, decorative frame, and patterned-paper elements | User can place playful scrapbook elements, not only modern photo/text layouts. |
+| E10.1 | Add photo edit metadata | `Done` | E09.2 | Transform, crop, mask/cutout, border, shadow, opacity, filter schema | Transform metadata is separate from crop and mask metadata. |
+| E10.2 | Add transform controls | `Done` | E10.1, E09.7 | Scale, rotate, flip, offset/reposition controls | User can transform a photo inside its frame. |
+| E10.3 | Add crop controls | `Done` | E10.1, E09.7 | Free crop and aspect ratio presets | Crop is editable after save/reopen. |
+| E10.4 | Add border/frame controls | `Done` | E10.1, E09.7 | Border width, color, radius, style, shadow, frame presets | Styling persists in page JSON and photos are not limited to square frames. |
+| E10.5 | Add preview generation | `Done` | E10.1-E10.4 | Browser editor preview path | Previews reflect edit metadata and can be regenerated from saved page JSON. |
+| E10.6 | Add non-destructive tests | `Done` | E10.5 | API/editor tests | Original assets remain unchanged; reset returns to original view. |
+| E10.7 | Add mask and cutout controls | `Done` | E10.1, E10.3 | Shape masks, reusable cutout presets, and clipping controls | User can cut a photo into a non-rectangular shape without mutating the original. |
+| E10.8 | Add embellishment element library | `Done` | E09.2, E09.7 | Sticker, embellishment, decorative frame, and patterned-paper elements | User can place playful scrapbook elements, not only modern photo/text layouts. |
 
 Suggested commits:
 
@@ -370,12 +370,12 @@ Keep this table current as scripts are added.
 | Command | Status | Purpose |
 | --- | --- | --- |
 | `pnpm install` | `Not started` | Install workspace dependencies. |
-| `pnpm format:check` | `Not started` | Verify formatting. |
-| `pnpm lint` | `Not started` | Run static checks. |
-| `pnpm typecheck` | `Not started` | Typecheck all apps/packages. |
-| `pnpm test` | `Not started` | Run unit and integration tests. |
-| `pnpm build` | `Not started` | Build all apps/packages. |
-| `pnpm openapi:check` | `Not started` | Validate OpenAPI output. |
+| `pnpm format:check` | `Done` | Verify formatting. |
+| `pnpm lint` | `Done` | Run static checks. |
+| `pnpm typecheck` | `Done` | Typecheck all apps/packages. |
+| `pnpm test` | `Done` | Run unit and integration tests. |
+| `pnpm build` | `Done` | Build all apps/packages. |
+| `pnpm openapi:check` | `Done` | Validate OpenAPI output. |
 | `pnpm e2e` | `Not started` | Run Playwright browser tests. |
 | `docker build .` | `Not started` | Build production container image. |
 | `docker compose up` | `Not started` | Start local containerized app with persistent volumes. |
@@ -394,5 +394,4 @@ Keep this table current as scripts are added.
 
 1. `E06.4`: Add CSRF protection for cookie-authenticated writes.
 2. `E06.5`: Add session list and revocation endpoints.
-3. `E10.1`: Add non-destructive photo edit metadata, including mask/cutout support, after the E09 editor foundation.
-4. `E11.1`: Add book and facing-spread API schemas when the books phase resumes.
+3. `E11.1`: Add book and facing-spread API schemas when the books phase resumes.

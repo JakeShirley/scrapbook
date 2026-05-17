@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   addLayer,
+  createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
   createTextLayer,
@@ -9,6 +10,7 @@ import {
   duplicateLayer,
   pageDocumentSchema,
   reorderLayer,
+  resetPhotoLayerEdits,
   updateCanvas,
   updateLayer,
 } from "./index.js";
@@ -47,5 +49,107 @@ describe("page document helpers", () => {
 
     expect(updated.canvas.backgroundColor).toBe("#ffffff");
     expect(updated.layers).toEqual(document.layers);
+  });
+
+  it("adds non-destructive photo edit metadata without changing the asset reference", () => {
+    const photo = createPhotoLayer({
+      assetId: "asset_1",
+      id: "photo_1",
+      crop: { x: 0.1, y: 0.2, width: 0.7, height: 0.6, aspectRatioPreset: "free" },
+      photoTransform: {
+        scale: 1.25,
+        rotation: 8,
+        flipX: true,
+        flipY: false,
+        offsetX: 0.12,
+        offsetY: -0.08,
+      },
+      border: {
+        width: 24,
+        color: "#ffffff",
+        radius: 36,
+        style: "solid",
+        framePreset: "polaroid",
+      },
+      mask: { shape: "ellipse", inset: 0.04, feather: 6 },
+      filter: { preset: "warm", brightness: 1.05, contrast: 0.95, saturation: 1.2 },
+      shadow: {
+        enabled: true,
+        color: "#202426",
+        opacity: 0.3,
+        offsetX: 0,
+        offsetY: 18,
+        blur: 32,
+        spread: 0,
+      },
+    });
+
+    expect(photo.assetId).toBe("asset_1");
+    expect(photo.photoTransform).toMatchObject({ scale: 1.25, flipX: true });
+    expect(photo.crop).toMatchObject({ x: 0.1, width: 0.7 });
+    expect(photo.mask.shape).toBe("ellipse");
+    expect(photo.border.framePreset).toBe("polaroid");
+  });
+
+  it("keeps old photo documents compatible and can reset edits to the original view", () => {
+    const parsed = pageDocumentSchema.parse({
+      version: 1,
+      canvas: { width: 1200, height: 900, backgroundColor: "#ffffff" },
+      layers: [
+        {
+          id: "photo_legacy",
+          kind: "photo",
+          name: "Legacy photo",
+          assetId: "asset_1",
+          x: 10,
+          y: 20,
+          width: 400,
+          height: 300,
+          rotation: 0,
+          opacity: 1,
+          locked: false,
+          fit: "cover",
+        },
+      ],
+    });
+    const layer = parsed.layers[0];
+
+    expect(layer?.kind).toBe("photo");
+
+    if (layer?.kind !== "photo") {
+      throw new Error("Expected a photo layer");
+    }
+
+    const edited = createPhotoLayer({
+      ...layer,
+      crop: { x: 0.2, y: 0.1, width: 0.6, height: 0.6, aspectRatioPreset: "square" },
+      photoTransform: { ...layer.photoTransform, scale: 1.8, offsetX: 0.2 },
+    });
+    const reset = resetPhotoLayerEdits(edited);
+
+    expect(layer.photoTransform).toMatchObject({ scale: 1, offsetX: 0 });
+    expect(layer.crop).toMatchObject({ x: 0, y: 0, width: 1, height: 1 });
+    expect(reset.assetId).toBe("asset_1");
+    expect(reset.photoTransform).toMatchObject({ scale: 1, offsetX: 0 });
+    expect(reset.crop).toMatchObject({ x: 0, y: 0, width: 1, height: 1 });
+    expect(reset.mask.shape).toBe("rectangle");
+  });
+
+  it("creates scrapbook embellishment layers", () => {
+    const embellishment = createEmbellishmentLayer({
+      id: "sticker_1",
+      element: "paper-label",
+      color: "#fffdf7",
+      accentColor: "#d56d46",
+      label: "Picnic",
+    });
+    const document = addLayer(createPageDocument(), embellishment);
+
+    expect(document.layers[0]).toMatchObject({
+      id: "sticker_1",
+      kind: "embellishment",
+      element: "paper-label",
+      label: "Picnic",
+    });
   });
 });
