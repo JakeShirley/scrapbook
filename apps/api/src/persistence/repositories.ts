@@ -1,5 +1,5 @@
 import { createTimestamp, type ISODateTime } from "@scrapbook/domain";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
 import type { AppDatabase } from "./database.js";
 import { createEntityId, createInternalId } from "./ids.js";
@@ -63,6 +63,12 @@ export class AccountRepository {
 
   findById(id: string): AccountRecord | null {
     return this.db.select().from(accounts).where(eq(accounts.id, id)).get() ?? null;
+  }
+
+  findByPrimaryEmail(primaryEmail: string): AccountRecord | null {
+    return (
+      this.db.select().from(accounts).where(eq(accounts.primaryEmail, primaryEmail)).get() ?? null
+    );
   }
 }
 
@@ -156,10 +162,43 @@ export class SessionRepository {
             eq(sessions.accountId, accountId),
             eq(sessions.id, sessionId),
             isNull(sessions.revokedAt),
+            gt(sessions.expiresAt, now(this.clock)),
           ),
         )
         .get() ?? null
     );
+  }
+
+  findActiveById(sessionId: string): SessionRecord | null {
+    return (
+      this.db
+        .select()
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.id, sessionId),
+            isNull(sessions.revokedAt),
+            gt(sessions.expiresAt, now(this.clock)),
+          ),
+        )
+        .get() ?? null
+    );
+  }
+
+  revokeByIdForAccount(accountId: string, sessionId: string): void {
+    const timestamp = now(this.clock);
+
+    this.db
+      .update(sessions)
+      .set({ revokedAt: timestamp, updatedAt: timestamp })
+      .where(
+        and(
+          eq(sessions.accountId, accountId),
+          eq(sessions.id, sessionId),
+          isNull(sessions.revokedAt),
+        ),
+      )
+      .run();
   }
 }
 
@@ -440,3 +479,5 @@ export const createRepositories = (db: AppDatabase, options: { clock?: Repositor
     exports: new ExportJobRepository(db, clock),
   };
 };
+
+export type Repositories = ReturnType<typeof createRepositories>;

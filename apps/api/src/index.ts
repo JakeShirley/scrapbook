@@ -3,6 +3,7 @@ import { loadConfig } from "@scrapbook/config";
 
 import { createApp } from "./app.js";
 import { createDatabaseConnection } from "./persistence/database.js";
+import { createRepositories } from "./persistence/repositories.js";
 import { createDiskStorage } from "./storage/disk.js";
 
 const config = loadConfig();
@@ -12,7 +13,10 @@ const databaseConnection = createDatabaseConnection({
 });
 await createDiskStorage({ rootDir: config.SCRAPBOOK_DATA_DIR }).ensureReady();
 
-const app = createApp();
+const app = createApp({
+  repositories: createRepositories(databaseConnection.db),
+  sessionCookieSecure: config.NODE_ENV === "production",
+});
 
 const server = serve(
   {

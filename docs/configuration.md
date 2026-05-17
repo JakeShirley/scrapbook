@@ -12,4 +12,6 @@ Runtime configuration is parsed by `@scrapbook/config` at process startup. Local
 
 The Docker Compose API service overrides `API_HOST` to `0.0.0.0` and `SCRAPBOOK_DATA_DIR` to `/data/scrapbook`. That container path is backed by the `scrapbook-data` Docker volume so future SQLite files, uploads, variants, previews, and exports persist across container restarts.
 
-Future production-only secrets for sessions, CSRF, password reset tokens, and native refresh tokens should be added here in the same change that introduces the behavior.
+Browser sessions use an HTTP-only cookie and store only a hashed per-session secret in SQLite. The cookie is marked `Secure` when `NODE_ENV=production`.
+
+Future production-only secrets for CSRF, password reset tokens, and native refresh tokens should be added here in the same change that introduces the behavior.

@@ -13,7 +13,7 @@ Related context: [docs/product-roadmap.md](product-roadmap.md)
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, config package, API contract package, domain package, test utilities, and web shell exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, and authenticated web shell exist. |
 | GitHub remote | `Not started` | Local repo exists; remote setup has not been completed here. |
 | CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
 | Release automation | `In progress` | semantic-release dry-run skeleton exists; publishing and GitHub Releases remain deferred. |
@@ -84,7 +84,7 @@ Goal: settle enough decisions to scaffold without over-designing.
 | E01.6 | Choose editor spike candidates | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | `tldraw`, Konva, and Fabric.js are initial spike candidates. |
 | E01.7 | Add repository operating docs | `Done` | E01.1-E01.6 | `docs/development.md` draft | Branch, commit, validation, and roadmap-update rules are documented. |
 
-Next task: `E04.2`.
+Next task: `E06.4`.
 
 Suggested commits:
 
@@ -188,9 +188,9 @@ Goal: ship real accounts before product data so all later features are account-s
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E06.1 | Add account registration | `Not started` | E05.3 | `POST /api/v1/auth/register` | Account can be created; password hashes use the selected memory-hard algorithm. |
-| E06.2 | Add login and web session | `Not started` | E06.1 | `POST /api/v1/auth/login` | Secure HTTP-only session cookie is issued and stored session secret is hashed. |
-| E06.3 | Add current session and logout | `Not started` | E06.2 | `GET /auth/session`, `POST /auth/logout` | User can identify and terminate the current session. |
+| E06.1 | Add account registration | `Done` | E05.3 | `POST /api/v1/auth/register` | Account can be created; password hashes use Node scrypt. |
+| E06.2 | Add login and web session | `Done` | E06.1 | `POST /api/v1/auth/login` | HTTP-only browser session cookie is issued and stored session secret is hashed. |
+| E06.3 | Add current session and logout | `Done` | E06.2 | `GET /api/v1/auth/session`, `POST /api/v1/auth/logout` | User can identify and terminate the current session. |
 | E06.4 | Add CSRF protection | `Not started` | E06.2 | CSRF mechanism for cookie-auth writes | Mutating requests reject missing or invalid CSRF tokens. |
 | E06.5 | Add session list and revocation | `Not started` | E06.3 | Session listing and delete endpoints | Users can revoke other sessions. |
 | E06.6 | Add native token foundation | `Not started` | E06.3 | PKCE/token design and refresh endpoint | Refresh tokens rotate and reuse can revoke a token family. |
@@ -212,10 +212,10 @@ Goal: create authenticated browser navigation before asset and editor workflows.
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
 | E07.1 | Create web app scaffold | `Done` | E01.4, E02.6 | `apps/web` React app | Web app shell builds locally. |
-| E07.2 | Add API client layer | `Not started` | E04.5, E07.1 | Generated or typed client | Client calls use the documented API contract. |
-| E07.3 | Add base UI system | `Not started` | E07.1 | Layout, tokens, common states | Controls are accessible and consistent. |
-| E07.4 | Add auth UI | `Not started` | E06.3, E07.2 | Register, login, logout, session loading | User can sign in and out through the browser. |
-| E07.5 | Add protected app shell | `Not started` | E07.4 | Routes for library, pages, books, settings | Protected routes require authentication. |
+| E07.2 | Add API client layer | `Done` | E04.5, E07.1 | Typed fetch client | Client calls use the documented API contract and parse shared schemas. |
+| E07.3 | Add base UI system | `Done` | E07.1 | Layout, tokens, common states | Controls are accessible and consistent. |
+| E07.4 | Add auth UI | `Done` | E06.3, E07.2 | Register, login, logout, session loading | User can sign in and out through the browser. |
+| E07.5 | Add protected app shell | `Done` | E07.4 | Routes for library, pages, books, settings | Protected routes require authentication. |
 
 Suggested commits:
 
