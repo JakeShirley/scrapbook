@@ -580,23 +580,32 @@ describe("api app", () => {
       method: "PUT",
     });
 
-    const bookExportResponse = await postJson(
+    const bookPngExportResponse = await postJson(
       app,
       "/api/v1/exports",
-      { bookId: book.id, format: "jpeg", preset: "print" },
+      { bookId: book.id, format: "png", preset: "print" },
       firstCookie,
     );
-    const bookExport = exportJobResponseSchema.parse(await bookExportResponse.json());
-    const pdfExportResponse = await postJson(
+    const bookPngExport = exportJobResponseSchema.parse(await bookPngExportResponse.json());
+    const bookPngContentResponse = await app.request(
+      `/api/v1/exports/${bookPngExport.id}/content`,
+      {
+        headers: { cookie: firstCookie },
+      },
+    );
+    const bookPdfExportResponse = await postJson(
       app,
       "/api/v1/exports",
-      { pageId: page.id, format: "pdf", preset: "print" },
+      { bookId: book.id, format: "pdf", preset: "print" },
       firstCookie,
     );
-    const pdfExport = exportJobResponseSchema.parse(await pdfExportResponse.json());
-    const pdfContentResponse = await app.request(`/api/v1/exports/${pdfExport.id}/content`, {
-      headers: { cookie: firstCookie },
-    });
+    const bookPdfExport = exportJobResponseSchema.parse(await bookPdfExportResponse.json());
+    const bookPdfContentResponse = await app.request(
+      `/api/v1/exports/${bookPdfExport.id}/content`,
+      {
+        headers: { cookie: firstCookie },
+      },
+    );
 
     expect(pageExportResponse.status).toBe(201);
     expect(pageExport).toMatchObject({ status: "completed", targetKind: "page" });
@@ -606,14 +615,17 @@ describe("api app", () => {
     expect(Buffer.from(await contentResponse.arrayBuffer()).byteLength).toBeGreaterThan(100);
     expect(secondContentResponse.status).toBe(404);
     expect(crossAccountExportResponse.status).toBe(404);
-    expect(bookExportResponse.status).toBe(201);
-    expect(bookExport).toMatchObject({ format: "jpeg", preset: "print", targetKind: "book" });
-    expect(pdfExportResponse.status).toBe(201);
-    expect(pdfExport).toMatchObject({ format: "pdf", preset: "print", targetKind: "page" });
-    expect(pdfContentResponse.status).toBe(200);
-    expect(pdfContentResponse.headers.get("content-type")).toBe("application/pdf");
+    expect(bookPngExportResponse.status).toBe(201);
+    expect(bookPngExport).toMatchObject({ format: "png", preset: "print", targetKind: "book" });
+    expect(bookPngContentResponse.status).toBe(200);
+    expect(bookPngContentResponse.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await bookPngContentResponse.arrayBuffer()).byteLength).toBeGreaterThan(100);
+    expect(bookPdfExportResponse.status).toBe(201);
+    expect(bookPdfExport).toMatchObject({ format: "pdf", preset: "print", targetKind: "book" });
+    expect(bookPdfContentResponse.status).toBe(200);
+    expect(bookPdfContentResponse.headers.get("content-type")).toBe("application/pdf");
     expect(
-      Buffer.from(await pdfContentResponse.arrayBuffer())
+      Buffer.from(await bookPdfContentResponse.arrayBuffer())
         .subarray(0, 5)
         .toString(),
     ).toBe("%PDF-");

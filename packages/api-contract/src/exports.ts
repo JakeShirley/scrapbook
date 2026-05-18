@@ -100,7 +100,7 @@ export const exportCreateRoute = createRoute({
   },
   responses: {
     201: {
-      description: "Creates and runs a page or book image export for the current account.",
+      description: "Creates and runs a page or book image/PDF export for the current account.",
       content: {
         "application/json": {
           schema: exportJobResponseSchema,

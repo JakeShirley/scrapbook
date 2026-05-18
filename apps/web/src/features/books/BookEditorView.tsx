@@ -975,6 +975,15 @@ export function BookEditorView() {
           type="button"
           className="secondary-button"
           disabled={isWorking || book.pages.length === 0}
+          icon={<ArrowDownloadRegular />}
+          onClick={() => exportBook("png")}
+        >
+          Export book PNG
+        </Button>
+        <Button
+          type="button"
+          className="secondary-button"
+          disabled={isWorking || book.pages.length === 0}
           icon={<DocumentPdfRegular />}
           onClick={() => exportBook("pdf")}
         >
