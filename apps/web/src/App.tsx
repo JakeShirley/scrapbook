@@ -4,18 +4,16 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "re
 import { ApiClientError, apiClient } from "./apiClient";
 import { LoadingScreen } from "./components/layout";
 import { AuthPage } from "./features/auth/AuthPage";
+import { BookEditorView } from "./features/books/BookEditorView";
 import { BooksView } from "./features/books/BooksView";
-import { EditorView } from "./features/editor/EditorView";
 import { LibraryView } from "./features/library/LibraryView";
-import { PagesView } from "./features/pages/PagesView";
 import { SettingsView } from "./features/settings/SettingsView";
 import { getErrorMessage } from "./lib/errors";
 import type { AuthMode, AuthSession, SessionState } from "./types";
 
 const navItems = [
-  { to: "/library", label: "Library" },
-  { to: "/pages", label: "Pages" },
   { to: "/books", label: "Books" },
+  { to: "/library", label: "Photos" },
   { to: "/settings", label: "Settings" },
 ];
 
@@ -88,7 +86,7 @@ function AppRoutes() {
         path="/auth"
         element={
           sessionState.status === "authenticated" ? (
-            <Navigate to="/library" replace />
+            <Navigate to="/books" replace />
           ) : (
             <AuthPage initialMessage={sessionState.message} onAuthenticate={authenticate} />
           )
@@ -165,14 +163,13 @@ function ProtectedShell({
 
       <section className="workspace" aria-label="Scrapbook workspace">
         <Routes>
-          <Route index element={<Navigate to="/library" replace />} />
+          <Route index element={<Navigate to="/books" replace />} />
           <Route path="library" element={<LibraryView />} />
-          <Route path="pages" element={<PagesView />} />
-          <Route path="pages/:pageId" element={<EditorView />} />
           <Route path="books" element={<BooksView />} />
-          <Route path="books/:bookId" element={<BooksView />} />
+          <Route path="books/:bookId" element={<BookEditorView />} />
+          <Route path="pages/*" element={<Navigate to="/books" replace />} />
           <Route path="settings" element={<SettingsView session={session} />} />
-          <Route path="*" element={<Navigate to="/library" replace />} />
+          <Route path="*" element={<Navigate to="/books" replace />} />
         </Routes>
       </section>
     </main>
