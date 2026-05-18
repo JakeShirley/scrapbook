@@ -489,7 +489,7 @@ Deliverables:
 - Build book list and book detail views.
 - Add page-level and book-level exact-date/date-range fields.
 - Support adding/removing/reordering pages in a book.
-- Add a spread-aware book view that shows adjacent left/right pages and makes cover/single-page cases explicit.
+- Add a spread-aware book view that shows adjacent left/right pages and makes single-page cases explicit.
 - Add a two-page spread editor mode that lets users design facing pages together while saving each page in book order.
 - Add page duplication for quick layout reuse.
 

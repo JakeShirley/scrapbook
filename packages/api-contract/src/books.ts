@@ -18,7 +18,7 @@ export const bookPageResponseSchema = z
 export const bookSpreadResponseSchema = z
   .object({
     spreadIndex: z.number().int().nonnegative().openapi({ example: 1 }),
-    kind: z.enum(["cover", "facing", "single"]).openapi({ example: "facing" }),
+    kind: z.enum(["facing", "single"]).openapi({ example: "facing" }),
     leftPageId: z.string().nullable().openapi({ example: "page_left" }),
     rightPageId: z.string().nullable().openapi({ example: "page_right" }),
     pageIds: z.array(z.string()).openapi({ example: ["page_left", "page_right"] }),
@@ -243,7 +243,7 @@ export const bookSetPagesRoute = createRoute({
   responses: {
     200: {
       description:
-        "Replaces the ordered page list for a book. The first page is treated as a single cover; subsequent pages are grouped into left/right facing spreads in order.",
+        "Replaces the ordered page list for a book. Pages are grouped into left/right facing spreads in order, with an unpaired final page represented as a single spread.",
       content: {
         "application/json": {
           schema: bookResponseSchema,

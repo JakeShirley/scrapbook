@@ -502,6 +502,11 @@ textarea:focus-visible {
   background: #fbfbf8;
 }
 
+.item-list button[aria-current="page"] {
+  border-color: #24766e;
+  background: #eef8f4;
+}
+
 .metadata-list {
   display: grid;
   gap: 14px;
@@ -549,7 +554,7 @@ textarea:focus-visible {
 
 .compact-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 10px;
   align-items: end;
   padding: 14px;
@@ -589,8 +594,39 @@ textarea:focus-visible {
 }
 
 .book-page-row > button {
+  display: grid;
+  gap: 2px;
   border: 0;
   background: transparent;
+}
+
+.book-page-row > button span:first-child {
+  color: #687174;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.book-page-row > button span:last-child {
+  overflow: hidden;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-page-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.book-page-actions button {
+  min-height: 28px;
+  border: 1px solid #ccd7d2;
+  border-radius: 6px;
+  color: #202426;
+  background: #ffffff;
+  font-size: 0.76rem;
 }
 
 .spread-list {
@@ -621,7 +657,6 @@ textarea:focus-visible {
   font-weight: 750;
 }
 
-.spread-preview-row[data-kind="cover"],
 .spread-preview-row[data-kind="single"] {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1144,6 +1179,11 @@ textarea:focus-visible {
 @media (max-width: 560px) {
   .workspace {
     padding: 16px;
+  }
+
+  .compact-form,
+  .book-page-row {
+    grid-template-columns: 1fr;
   }
 
   .topbar,

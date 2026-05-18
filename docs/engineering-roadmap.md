@@ -308,7 +308,7 @@ Goal: organize pages into ordered scrapbook books and facing two-page spreads.
 | E11.3 | Add book page ordering API | `Done` | E11.2 | Replace ordered page endpoint | Page and spread order persists and cross-account pages are rejected. Updated 2026-05-17. |
 | E11.4 | Add book list/detail UI | `Done` | E07.5, E11.2 | Book management screens | User can create and open books. Updated 2026-05-17. |
 | E11.5 | Add page ordering UI | `Done` | E11.3, E11.4 | Add/remove/reorder interactions | User can add existing pages and reorder them. Updated 2026-05-17. |
-| E11.6 | Add spread-aware book helpers | `Done` | E11.3 | Helpers for adjacent page pairs, cover/single-page cases, and page-order navigation | Book order computes correct left/right page pairs without changing page IDs. Updated 2026-05-17. |
+| E11.6 | Add spread-aware book helpers | `Done` | E11.3 | Helpers for adjacent page pairs, single-page cases, and page-order navigation | Book order computes correct left/right page pairs without changing page IDs or injecting cover/end pages. Updated 2026-05-17. |
 | E11.7 | Add two-page spread editor | `Done` | E09.8, E11.5, E11.6 | Facing-spread management view with page editor navigation | User can design adjacent pages in proper book order by opening either page from spread-aware context. Updated 2026-05-17. |
 | E11.8 | Add page and book date metadata | `Not started` | E09.4, E11.2 | Exact-date/date-range schemas, persistence, API fields, and UI controls | User can set dates or date ranges on pages and books; values round-trip through API, editor/book views, and export metadata where applicable. Updated 2026-05-17. |
 

@@ -164,7 +164,7 @@ export function BooksView() {
   };
 
   const exportBook = async (format: "pdf" | "png") => {
-    if (!selectedBook) {
+    if (!selectedBook || selectedBook.pages.length === 0) {
       return;
     }
 
@@ -209,7 +209,7 @@ export function BooksView() {
         <Panel title="Books" count={String(books.length)}>
           {isLoading ? <p className="empty-state">Loading books</p> : null}
           {!isLoading && books.length === 0 ? <p className="empty-state">No books yet</p> : null}
-          {books.length > 0 ? <BookList books={books} /> : null}
+          {books.length > 0 ? <BookList books={books} selectedBookId={selectedBook?.id} /> : null}
         </Panel>
         {selectedBook ? (
           <section className="book-detail-stack" aria-label="Selected book">
@@ -229,7 +229,7 @@ export function BooksView() {
                 <button
                   className="secondary-button"
                   type="button"
-                  disabled={isWorking}
+                  disabled={isWorking || selectedBook.pages.length === 0}
                   onClick={() => exportBook("png")}
                 >
                   Export PNG
@@ -237,7 +237,7 @@ export function BooksView() {
                 <button
                   className="secondary-button"
                   type="button"
-                  disabled={isWorking}
+                  disabled={isWorking || selectedBook.pages.length === 0}
                   onClick={() => exportBook("pdf")}
                 >
                   Export PDF
@@ -251,10 +251,10 @@ export function BooksView() {
                     <li key={bookPage.id}>
                       <div className="book-page-row">
                         <button type="button" onClick={() => navigate(`/pages/${bookPage.pageId}`)}>
-                          <span>{index === 0 ? "Cover" : `Page ${index + 1}`}</span>
+                          <span>{`Page ${index + 1}`}</span>
                           <span>{bookPage.page.title}</span>
                         </button>
-                        <div className="layer-actions">
+                        <div className="book-page-actions">
                           <button
                             type="button"
                             disabled={index === 0 || isWorking}
@@ -313,16 +313,9 @@ export function BooksView() {
                   {selectedBook.spreads.map((spread) => (
                     <li key={spread.spreadIndex}>
                       <div className="spread-preview-row" data-kind={spread.kind}>
-                        <span>
-                          {spread.leftPageId
-                            ? pageTitleForBookPage(selectedBook, spread.leftPageId)
-                            : "Cover"}
-                        </span>
-                        <span>
-                          {spread.rightPageId
-                            ? pageTitleForBookPage(selectedBook, spread.rightPageId)
-                            : "End"}
-                        </span>
+                        {spread.pageIds.map((pageId) => (
+                          <span key={pageId}>{pageTitleForBookPage(selectedBook, pageId)}</span>
+                        ))}
                       </div>
                     </li>
                   ))}
@@ -340,14 +333,24 @@ export function BooksView() {
   );
 }
 
-function BookList({ books }: { books: BookSummary[] }) {
+function BookList({
+  books,
+  selectedBookId,
+}: {
+  books: BookSummary[];
+  selectedBookId: string | undefined;
+}) {
   const navigate = useNavigate();
 
   return (
     <ol className="item-list page-list">
       {books.map((book) => (
         <li key={book.id}>
-          <button type="button" onClick={() => navigate(`/books/${book.id}`)}>
+          <button
+            type="button"
+            aria-current={book.id === selectedBookId ? "page" : undefined}
+            onClick={() => navigate(`/books/${book.id}`)}
+          >
             <span>{book.title}</span>
             <span>
               {book.pageCount} pages / {book.spreadCount} spreads

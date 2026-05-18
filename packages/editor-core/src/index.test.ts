@@ -179,7 +179,7 @@ describe("page document helpers", () => {
     expect(svg).toContain('stroke-opacity="0.34"');
   });
 
-  it("groups ordered book pages into cover and facing spreads", () => {
+  it("groups ordered book pages into facing spreads without synthetic pages", () => {
     const spreads = createBookSpreads([
       { pageId: "page_3", sortOrder: 3 },
       { pageId: "page_0", sortOrder: 0 },
@@ -190,24 +190,42 @@ describe("page document helpers", () => {
     expect(spreads).toEqual([
       {
         spreadIndex: 0,
-        kind: "cover",
-        leftPageId: null,
-        rightPageId: "page_0",
-        pageIds: ["page_0"],
+        kind: "facing",
+        leftPageId: "page_0",
+        rightPageId: "page_1",
+        pageIds: ["page_0", "page_1"],
       },
       {
         spreadIndex: 1,
         kind: "facing",
-        leftPageId: "page_1",
-        rightPageId: "page_2",
-        pageIds: ["page_1", "page_2"],
+        leftPageId: "page_2",
+        rightPageId: "page_3",
+        pageIds: ["page_2", "page_3"],
+      },
+    ]);
+  });
+
+  it("keeps an unpaired final book page as a single real page", () => {
+    const spreads = createBookSpreads([
+      { pageId: "page_2", sortOrder: 2 },
+      { pageId: "page_0", sortOrder: 0 },
+      { pageId: "page_1", sortOrder: 1 },
+    ]);
+
+    expect(spreads).toEqual([
+      {
+        spreadIndex: 0,
+        kind: "facing",
+        leftPageId: "page_0",
+        rightPageId: "page_1",
+        pageIds: ["page_0", "page_1"],
       },
       {
-        spreadIndex: 2,
+        spreadIndex: 1,
         kind: "single",
-        leftPageId: "page_3",
+        leftPageId: "page_2",
         rightPageId: null,
-        pageIds: ["page_3"],
+        pageIds: ["page_2"],
       },
     ]);
   });

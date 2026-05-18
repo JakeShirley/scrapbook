@@ -460,7 +460,7 @@ describe("api app", () => {
       email: "second-books@example.com",
     });
     const pageResponses = await Promise.all(
-      ["Cover", "Left", "Right"].map((title) =>
+      ["First", "Second", "Third"].map((title) =>
         postJson(app, "/api/v1/pages", { title }, firstCookie),
       ),
     );
@@ -504,13 +504,13 @@ describe("api app", () => {
 
     expect(orderedResponse.status).toBe(200);
     expect(orderedBook.pages.map((bookPage) => bookPage.page.title)).toEqual([
-      "Cover",
-      "Left",
-      "Right",
+      "First",
+      "Second",
+      "Third",
     ]);
     expect(orderedBook.spreads).toMatchObject([
-      { kind: "cover", rightPageId: pages[0]?.id },
-      { kind: "facing", leftPageId: pages[1]?.id, rightPageId: pages[2]?.id },
+      { kind: "facing", leftPageId: pages[0]?.id, rightPageId: pages[1]?.id },
+      { kind: "single", leftPageId: pages[2]?.id, rightPageId: null },
     ]);
     expect(detailResponse.status).toBe(200);
     expect(bookResponseSchema.parse(await detailResponse.json()).pageCount).toBe(3);

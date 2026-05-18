@@ -184,7 +184,7 @@ export type OrderedBookPage = {
 
 export type BookSpread = {
   spreadIndex: number;
-  kind: "cover" | "facing" | "single";
+  kind: "facing" | "single";
   leftPageId: string | null;
   rightPageId: string | null;
   pageIds: string[];
@@ -656,20 +656,8 @@ export const createBookSpreads = (pages: OrderedBookPage[]): BookSpread[] => {
   const sortedPages = [...pages].sort((first, second) => first.sortOrder - second.sortOrder);
 
   return sortedPages.reduce<BookSpread[]>((spreads, page, index) => {
-    if (index === 0) {
-      spreads.push({
-        spreadIndex: 0,
-        kind: "cover",
-        leftPageId: null,
-        rightPageId: page.pageId,
-        pageIds: [page.pageId],
-      });
-
-      return spreads;
-    }
-
-    const spreadIndex = Math.floor((index + 1) / 2);
-    const isLeftPage = index % 2 === 1;
+    const spreadIndex = Math.floor(index / 2);
+    const isLeftPage = index % 2 === 0;
 
     if (isLeftPage) {
       spreads.push({
