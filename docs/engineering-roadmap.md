@@ -6,6 +6,8 @@ This document turns the product roadmap into an execution tracker for engineers 
 
 Related context: [docs/product-roadmap.md](product-roadmap.md)
 
+Current product reference set: Canva, MyMemories Suite, Shutterfly, and Forever Artisan. Use these as comparison points for scrapbook editing, photo-book ordering, gallery/library behavior, and print-oriented workflows without assuming any single product defines the whole target experience.
+
 ## Current Snapshot
 
 | Area | Status | Notes |
@@ -237,6 +239,7 @@ Goal: authenticated users can upload photos, preserve originals, and browse thei
 | E08.5 | Add asset list/detail/content routes | `Done` | E08.4 | Library and streaming endpoints | Users can only access their own assets. |
 | E08.6 | Add upload UI | `Done` | E07.5, E08.2 | Upload flow with progress and errors | User can upload an image from the web app. |
 | E08.7 | Add asset library UI | `Done` | E08.5, E08.6 | Library grid/list | User sees thumbnails and metadata. |
+| E08.8 | Add multi-photo upload flow | `Not started` | E08.2, E08.6 | Batch upload API/client handling and multi-file picker UI | User can select multiple supported photos, see per-file progress/errors, and keep successful uploads when some files fail. Updated 2026-05-17. |
 
 Suggested commits:
 
@@ -259,6 +262,7 @@ Goal: users can create, edit, save, and reopen scrapbook pages.
 | E09.6 | Add photo and text layers | `Done` | E08.7, E09.5 | Insert/edit photo and text elements | User can compose a simple page. |
 | E09.7 | Add layer manipulation | `Done` | E09.6 | Select, move, resize, rotate, reorder, duplicate, delete | Saved page reopens with the same layout. |
 | E09.8 | Add save state | `Done` | E09.7 | Manual save or autosave flow | UI clearly shows unsaved, saving, saved, and error states. |
+| E09.9 | Add placed photo replacement | `Not started` | E08.7, E09.6, E10.1 | Replace-photo action from the asset library or inspector | User can swap a photo layer's asset while preserving bounds, frame styling, opacity, crop intent, and layer order where practical. Updated 2026-05-17. |
 
 Suggested commits:
 
@@ -282,6 +286,7 @@ Goal: add crop, transform, border, frame, mask/cutout, scrapbook embellishment, 
 | E10.6 | Add non-destructive tests | `Done` | E10.5 | API/editor tests | Original assets remain unchanged; reset returns to original view. |
 | E10.7 | Add mask and cutout controls | `Done` | E10.1, E10.3 | Shape masks, reusable cutout presets, and clipping controls | User can cut a photo into a non-rectangular shape without mutating the original. |
 | E10.8 | Add embellishment element library | `Done` | E09.2, E09.7 | Sticker, embellishment, decorative frame, and patterned-paper elements | User can place playful scrapbook elements, not only modern photo/text layouts. |
+| E10.9 | Refine photo opacity and crop UX | `Not started` | E10.1-E10.5 | Inspector controls for opacity, crop size, crop shape, and in-frame pan/zoom | User can adjust opacity, crop dimensions, frame shape, and photo position inside the visible frame; save/reopen/export preserve the result. Updated 2026-05-17. |
 
 Suggested commits:
 
@@ -305,6 +310,7 @@ Goal: organize pages into ordered scrapbook books and facing two-page spreads.
 | E11.5 | Add page ordering UI | `Done` | E11.3, E11.4 | Add/remove/reorder interactions | User can add existing pages and reorder them. Updated 2026-05-17. |
 | E11.6 | Add spread-aware book helpers | `Done` | E11.3 | Helpers for adjacent page pairs, cover/single-page cases, and page-order navigation | Book order computes correct left/right page pairs without changing page IDs. Updated 2026-05-17. |
 | E11.7 | Add two-page spread editor | `Done` | E09.8, E11.5, E11.6 | Facing-spread management view with page editor navigation | User can design adjacent pages in proper book order by opening either page from spread-aware context. Updated 2026-05-17. |
+| E11.8 | Add page and book date metadata | `Not started` | E09.4, E11.2 | Exact-date/date-range schemas, persistence, API fields, and UI controls | User can set dates or date ranges on pages and books; values round-trip through API, editor/book views, and export metadata where applicable. Updated 2026-05-17. |
 
 Suggested commits:
 
@@ -361,6 +367,26 @@ build: add production docker image
 ci: add container build workflow
 ci(release): publish github releases and ghcr images
 docs: document container deployment
+```
+
+## Phase E14: Gallery Mode And Metadata
+
+Goal: make uploaded photos easier to browse, tag, filter, sort, and reuse in scrapbook workflows.
+
+| ID | Task | Status | Depends on | Deliverable | Acceptance |
+| --- | --- | --- | --- | --- | --- |
+| E14.1 | Add asset tag metadata | `Not started` | E08.5 | Tag schema, persistence, API fields, and validation | Users can assign, remove, and list tags on their own assets; cross-account tags are isolated. Updated 2026-05-17. |
+| E14.2 | Add captured-date metadata | `Not started` | E08.3 | Captured-date field from image metadata plus manual override | Gallery and asset detail surfaces can distinguish upload date from captured date. Updated 2026-05-17. |
+| E14.3 | Add Gallery Mode view | `Not started` | E14.1, E14.2 | Dedicated gallery browsing surface for uploaded photos | User can browse the photo pool outside a specific page editor and select photos for use. Updated 2026-05-17. |
+| E14.4 | Add gallery filters and sorts | `Not started` | E14.3 | Tag filters and sort controls | User can filter to one or more tags and sort by upload date, captured date, title, or manual order. Updated 2026-05-17. |
+| E14.5 | Review reference product gaps | `Not started` | E14.3, E10.9, E11.8 | Comparison notes against Canva, MyMemories Suite, Shutterfly, and Forever Artisan | The roadmap captures any high-value gaps found in scrapbook editing, photo replacement, gallery browsing, book dates, and export workflows. Updated 2026-05-17. |
+
+Suggested commits:
+
+```text
+feat(assets): add photo gallery metadata
+feat(web): add gallery mode filters
+docs(product): compare scrapbook reference tools
 ```
 
 ## Validation Matrix

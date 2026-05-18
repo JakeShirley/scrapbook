@@ -6,16 +6,20 @@ _Last updated: 2026-05-17_
 
 Build a functional digital scrapbooking product from zero code to a usable web app that combines the approachable creation flow of Canva, the canvas precision of Figma, and a light non-destructive photo editing workflow inspired by Photoshop.
 
+Reference products for feature comparison include Canva, MyMemories Suite, Shutterfly, and Forever Artisan. The goal is not to clone any one tool, but to notice where each covers parts of the scrapbook workflow and use those gaps to prioritize a cohesive product.
+
 This plan intentionally avoids implementation. It documents the architecture, product milestones, release conventions, and sequencing needed to move from an empty repository to a functional product.
 
 ## Product Goals
 
 The first functional product should let users:
 
-- Upload photos into a local media library.
+- Upload one or multiple photos into a local media library.
 - Create scrapbook pages containing photos, text, shapes, embellishments, frames, stickers, patterned backgrounds, and visual styles.
 - Apply light non-destructive edits such as cropping, borders, shadows, filters, masks, cutouts, and frame effects.
+- Replace a previously placed photo with another uploaded photo while preserving the placement, frame, and styling when practical.
 - Create books as ordered collections of pages, with clear page order and facing two-page spread design.
+- Assign dates or date ranges to pages and books so memory timelines can be represented explicitly.
 - Reopen, revise, duplicate, print, and export work digitally.
 
 Longer term, the product should support native iOS and/or other native clients without rewriting the backend contract.
@@ -26,7 +30,10 @@ The app should feel like a scrapbook tool, not only a modern layout editor:
 
 - Book workflows must make page order obvious and allow users to design facing left/right pages together as a two-page spread while preserving the underlying ordered page model.
 - Editor tools should support playful scrapbook composition: overlapping photos, non-square image frames, rotated or layered elements, decorative frames, stickers, embellishments, patterned paper, and themed reusable elements.
-- Photo treatments should remain flexible and non-destructive, including crops, masks, cutouts, frame effects, and repositioning within a frame without mutating the uploaded original.
+- Photo treatments should remain flexible and non-destructive, including opacity, crops, masks, cutouts, frame effects, shape/size edits, and repositioning within a frame without mutating the uploaded original.
+- Asset selection should support batch uploads, choosing from an uploaded-photo pool, and swapping an existing photo placement for another asset without rebuilding the whole page element.
+- Page and book metadata should support exact dates and date ranges for event, trip, family-history, or yearbook-style layouts.
+- Future Gallery Mode should let users browse uploaded photos by tag, filter to specific tags, and sort by useful options such as upload date, captured date, title, or manual order.
 - Output should support both print-oriented workflows and digital sharing/export, especially for full books where page and spread order matter.
 
 ## Technical Principles
@@ -130,12 +137,12 @@ Notes:
 - `Account`: user-owned identity record for a person using the app.
 - `AuthIdentity`: sign-in method linked to an account, such as email/password, passkey, or future OAuth provider identity.
 - `Session`: browser session or native refresh session, including rotation and revocation metadata.
-- `Asset`: original uploaded file plus metadata.
+- `Asset`: original uploaded file plus metadata, including future user-maintained tags and captured-date fields for gallery filtering and sorting.
 - `AssetVariant`: generated thumbnail, preview, cropped render, or export-time derivative.
-- `Page`: canvas-sized document containing ordered elements and page-level settings.
+- `Page`: canvas-sized document containing ordered elements, page-level settings, and optional exact-date or date-range metadata.
 - `PageElement`: photo, text, shape, sticker, embellishment, decorative frame, patterned background, or group.
 - `PhotoEdit`: non-destructive edit stack attached to a photo element or reusable asset placement, including crop, mask/cutout, visual effects, and general transformations such as scale and flip.
-- `Book`: named collection of ordered pages.
+- `Book`: named collection of ordered pages, with optional exact-date or date-range metadata for the overall scrapbook.
 - `BookPage`: join/order record connecting books and pages.
 - `ExportJob`: requested render/export task and output metadata.
 
@@ -147,6 +154,7 @@ Uploaded originals are immutable. Edits are stored as structured instructions, f
 {
   "transform": { "scaleX": 1.2, "scaleY": 1.2, "rotation": 0, "flipX": false, "flipY": false, "offsetX": 0, "offsetY": 0 },
   "crop": { "x": 0.12, "y": 0.08, "width": 0.72, "height": 0.68 },
+  "opacity": 0.85,
   "filters": [{ "type": "brightness", "value": 1.05 }],
   "border": { "style": "solid", "width": 12, "color": "#ffffff", "radius": 8 },
   "shadow": { "x": 0, "y": 8, "blur": 20, "color": "rgba(0,0,0,0.22)" }
@@ -412,6 +420,7 @@ Goal: users can upload images and browse them in the web app.
 Deliverables:
 
 - Add multipart upload endpoint with file type and size validation.
+- Support selecting and uploading multiple photos in one action, with per-file success and error reporting.
 - Store original uploads on disk using content-addressed or opaque generated paths.
 - Persist asset metadata in SQLite.
 - Generate thumbnails/previews with Sharp.
@@ -420,7 +429,7 @@ Deliverables:
 
 Acceptance criteria:
 
-- User can upload supported image formats.
+- User can upload one or more supported image formats.
 - Original files remain untouched.
 - Asset library shows thumbnails and metadata.
 - Bad uploads return clear API errors.
@@ -435,6 +444,7 @@ Deliverables:
 - Define page document schema with canvas size, background, and ordered elements.
 - Build editor shell with toolbar, canvas, side panels, inspector, and page list.
 - Support adding photo elements from the asset library.
+- Support replacing a previously placed photo from the asset library while preserving element bounds, frame style, opacity, and other non-destructive edits where the replacement can safely inherit them.
 - Support text elements with font size, color, alignment, and basic style controls.
 - Support overlapping elements, non-square element bounds, and explicit layer order from the first editor schema.
 - Support select, move, resize, rotate, reorder, duplicate, and delete.
@@ -443,6 +453,7 @@ Deliverables:
 Acceptance criteria:
 
 - User can create a page, add photos and text, arrange them, save, leave, and reopen the page.
+- User can swap a placed photo for another uploaded photo without deleting and recreating the page element.
 - Page JSON validates on both client and server.
 - Invalid page updates are rejected with useful errors.
 
@@ -453,8 +464,8 @@ Goal: users can apply light photo edits without changing originals.
 Deliverables:
 
 - Add edit stack schema for general transforms, crop, mask/cutout, border, corner radius, shadow, opacity, and simple filters.
-- Add transform controls for scaling, rotation, flipping, and repositioning photos inside frames.
-- Add crop UI with aspect ratio presets and free crop.
+- Add transform controls for scaling, rotation, flipping, opacity, and repositioning photos inside frames.
+- Add crop UI with aspect ratio presets, free crop, crop size controls, frame shape controls, and in-frame photo pan/zoom.
 - Add border/frame controls, including decorative scrapbook frame styles and non-square photo frames.
 - Add mask/cutout controls so photos can be clipped to shapes or reusable cutout presets without mutating originals.
 - Add preview rendering in the editor.
@@ -463,7 +474,7 @@ Deliverables:
 
 Acceptance criteria:
 
-- User can crop and style a photo element, save it, reopen it, and keep editing from the original.
+- User can crop, resize, reshape, adjust opacity, and style a photo element, save it, reopen it, and keep editing from the original.
 - Resetting edits returns the element to the original upload view.
 - Server-rendered previews match editor behavior closely enough for export.
 
@@ -476,6 +487,7 @@ Deliverables:
 - Add book CRUD endpoints.
 - Add book-page ordering endpoint.
 - Build book list and book detail views.
+- Add page-level and book-level exact-date/date-range fields.
 - Support adding/removing/reordering pages in a book.
 - Add a spread-aware book view that shows adjacent left/right pages and makes cover/single-page cases explicit.
 - Add a two-page spread editor mode that lets users design facing pages together while saving each page in book order.
@@ -484,6 +496,7 @@ Deliverables:
 Acceptance criteria:
 
 - User can create a book, add pages, reorder them, and reopen the book later.
+- User can record dates or date ranges for pages and books and see those values when browsing or editing.
 - User can open a facing two-page spread, design across the pair, and return to the book with page order preserved.
 - Page order persists.
 - Removing a page from a book does not delete the page unless explicitly requested.
@@ -517,6 +530,7 @@ Deliverables:
 - Add undo/redo for editor operations.
 - Add keyboard shortcuts for common actions.
 - Add snapping, alignment guides, and basic layer controls.
+- Add Gallery Mode for uploaded photos with user tags, tag filters, and sort options such as upload date, captured date, title, and manual order.
 - Add empty states and loading states.
 - Improve responsive layout for tablet-sized screens.
 - Add destructive action confirmations.
