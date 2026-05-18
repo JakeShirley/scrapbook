@@ -544,6 +544,7 @@ function PageCanvas({
       style={{
         aspectRatio: `${document.canvas.width} / ${document.canvas.height}`,
         background: document.canvas.backgroundColor,
+        maxWidth: `min(760px, calc(72vh * ${document.canvas.width / document.canvas.height}))`,
       }}
       onPointerCancel={stopTransform}
       onPointerMove={transformLayer}

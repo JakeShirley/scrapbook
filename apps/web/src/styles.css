@@ -725,7 +725,6 @@ textarea:focus-visible {
 .editor-canvas {
   position: relative;
   width: min(100% - 32px, 760px);
-  max-height: 72vh;
   margin: 16px auto;
   overflow: hidden;
   border: 1px solid #d7d0c5;
