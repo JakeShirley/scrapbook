@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
 import type { ExportFormat, ExportPreset } from "@scrapbook/api-contract";
-import type { PageDocument, PageLayer, PhotoLayer } from "@scrapbook/editor-core";
+import { type PageDocument, type PhotoLayer, renderPageDocumentSvg } from "@scrapbook/editor-core";
 import sharp from "sharp";
 
 import type { Repositories } from "./persistence/repositories.js";
-import type { AssetRecord, PageRecord } from "./persistence/schema.js";
+import type { PageRecord } from "./persistence/schema.js";
 import type { StorageArea, StoredObject } from "./storage/disk.js";
 
 type WritableExportArea = Extract<StorageArea, "exports">;
@@ -57,88 +57,15 @@ const outputForFormat = (format: ExportFormat) =>
     ? { extension: ".jpg", mimeType: "image/jpeg" }
     : { extension: ".png", mimeType: "image/png" };
 
-const layerTransform = (layer: PageLayer): string => {
-  const centerX = layer.x + layer.width / 2;
-  const centerY = layer.y + layer.height / 2;
-
-  return `rotate(${layer.rotation} ${centerX} ${centerY})`;
-};
-
-const renderTextLayer = (layer: Extract<PageLayer, { kind: "text" }>): string => {
-  const lines = layer.text.split(/\r?\n/).slice(0, 20);
-  const lineHeight = layer.fontSize * 1.2;
-  const anchor = layer.align === "center" ? "middle" : layer.align === "right" ? "end" : "start";
-  const x =
-    layer.align === "center"
-      ? layer.x + layer.width / 2
-      : layer.align === "right"
-        ? layer.x + layer.width
-        : layer.x;
-
-  return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><text x="${x}" y="${layer.y + layer.fontSize}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${layer.fontSize}" text-anchor="${anchor}">${lines
-    .map(
-      (line, index) =>
-        `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
-    )
-    .join("")}</text></g>`;
-};
-
-const photoClipPath = (layer: PhotoLayer, clipId: string): string => {
-  switch (layer.mask.shape) {
-    case "ellipse":
-      return `<clipPath id="${clipId}"><ellipse cx="${layer.x + layer.width / 2}" cy="${layer.y + layer.height / 2}" rx="${(layer.width * (1 - layer.mask.inset)) / 2}" ry="${(layer.height * (1 - layer.mask.inset)) / 2}" /></clipPath>`;
-    case "diamond":
-      return `<clipPath id="${clipId}"><polygon points="${layer.x + layer.width / 2},${layer.y + layer.height * layer.mask.inset} ${layer.x + layer.width * (1 - layer.mask.inset)},${layer.y + layer.height / 2} ${layer.x + layer.width / 2},${layer.y + layer.height * (1 - layer.mask.inset)} ${layer.x + layer.width * layer.mask.inset},${layer.y + layer.height / 2}" /></clipPath>`;
-    default:
-      return `<clipPath id="${clipId}"><rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="${layer.border.radius}" /></clipPath>`;
-  }
-};
-
-const renderPhotoLayer = async (input: {
-  accountId: string;
-  asset: AssetRecord;
-  layer: PhotoLayer;
-  storage: ExportStorage;
-  index: number;
-}): Promise<{ defs: string; body: string }> => {
-  const buffer = await input.storage.read(input.asset.originalStorageKey);
-  const href = `data:${input.asset.mimeType};base64,${buffer.toString("base64")}`;
-  const layer = input.layer;
-  const clipId = `photo_clip_${input.index}`;
-  const frameInset = layer.border.width / 2;
-  const imageWidth = layer.width / Math.max(layer.crop.width, 0.05);
-  const imageHeight = layer.height / Math.max(layer.crop.height, 0.05);
-  const imageX = layer.x - layer.crop.x * imageWidth + layer.photoTransform.offsetX * layer.width;
-  const imageY = layer.y - layer.crop.y * imageHeight + layer.photoTransform.offsetY * layer.height;
-  const imageCenterX = layer.x + layer.width / 2;
-  const imageCenterY = layer.y + layer.height / 2;
-  const scaleX = layer.photoTransform.flipX
-    ? -layer.photoTransform.scale
-    : layer.photoTransform.scale;
-  const scaleY = layer.photoTransform.flipY
-    ? -layer.photoTransform.scale
-    : layer.photoTransform.scale;
-
-  return {
-    defs: photoClipPath(layer, clipId),
-    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="${layer.border.radius}" fill="${escapeXml(layer.border.color)}" opacity="${layer.border.width > 0 ? 1 : 0}" /><image href="${href}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}" clip-path="url(#${clipId})" transform="translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})" /><rect x="${layer.x + frameInset}" y="${layer.y + frameInset}" width="${Math.max(0, layer.width - layer.border.width)}" height="${Math.max(0, layer.height - layer.border.width)}" rx="${layer.border.radius}" fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${layer.border.width}" stroke-dasharray="${layer.border.style === "dashed" ? "24 18" : layer.border.style === "dotted" ? "4 14" : ""}" /></g>`,
-  };
-};
-
-const renderEmbellishmentLayer = (layer: Extract<PageLayer, { kind: "embellishment" }>): string =>
-  `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="24" fill="${escapeXml(layer.color)}" stroke="${escapeXml(layer.accentColor)}" stroke-width="12" /><text x="${layer.x + layer.width / 2}" y="${layer.y + layer.height / 2}" dominant-baseline="middle" text-anchor="middle" fill="#202426" font-family="Inter, sans-serif" font-size="${Math.max(24, Math.min(96, layer.height / 3))}" font-weight="700">${escapeXml(layer.label || layer.name)}</text></g>`;
-
 const renderPageSvg = async (input: {
   accountId: string;
-  page: PageRecord;
   document: PageDocument;
   repositories: Repositories;
   storage: ExportStorage;
 }): Promise<string> => {
-  const defs: string[] = [];
-  const bodies: string[] = [];
+  const photoHrefs = new Map<string, string>();
 
-  for (const [index, layer] of input.document.layers.entries()) {
+  for (const layer of input.document.layers) {
     if (layer.kind === "photo") {
       const asset = input.repositories.assets.findByIdForAccount(input.accountId, layer.assetId);
 
@@ -146,23 +73,15 @@ const renderPageSvg = async (input: {
         continue;
       }
 
-      const rendered = await renderPhotoLayer({
-        accountId: input.accountId,
-        asset,
-        layer,
-        storage: input.storage,
-        index,
-      });
+      const buffer = await input.storage.read(asset.originalStorageKey);
 
-      defs.push(rendered.defs);
-      bodies.push(rendered.body);
-      continue;
+      photoHrefs.set(layer.id, `data:${asset.mimeType};base64,${buffer.toString("base64")}`);
     }
-
-    bodies.push(layer.kind === "text" ? renderTextLayer(layer) : renderEmbellishmentLayer(layer));
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${input.document.canvas.width}" height="${input.document.canvas.height}" viewBox="0 0 ${input.document.canvas.width} ${input.document.canvas.height}"><defs>${defs.join("")}</defs><rect width="100%" height="100%" fill="${escapeXml(input.document.canvas.backgroundColor)}" />${bodies.join("")}</svg>`;
+  return renderPageDocumentSvg(input.document, {
+    resolvePhotoHref: (layer: PhotoLayer) => photoHrefs.get(layer.id),
+  });
 };
 
 const rasterizeSvg = async (
@@ -213,7 +132,6 @@ export const renderPageExport = async (input: {
   const document = await parsePageDocument(page);
   const svg = await renderPageSvg({
     accountId: input.accountId,
-    page,
     document,
     repositories: input.repositories,
     storage: input.storage,
@@ -247,7 +165,6 @@ export const renderBookExport = async (input: {
       page,
       svg: await renderPageSvg({
         accountId: input.accountId,
-        page,
         document: await parsePageDocument(page),
         repositories: input.repositories,
         storage: input.storage,

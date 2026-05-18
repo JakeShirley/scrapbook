@@ -9,6 +9,7 @@ import {
   type PageDocument,
   type PageLayer,
   type PhotoLayer,
+  renderPageDocumentSvg,
   reorderLayer,
   resetPhotoLayerEdits,
   updateCanvas,
@@ -144,69 +145,6 @@ const resizeLayerFromHandle = (
 
   return { height, width, x: center.x - width / 2, y: center.y - height / 2 };
 };
-
-const toRgba = (hexColor: string, opacity: number): string => {
-  const red = Number.parseInt(hexColor.slice(1, 3), 16);
-  const green = Number.parseInt(hexColor.slice(3, 5), 16);
-  const blue = Number.parseInt(hexColor.slice(5, 7), 16);
-
-  return `rgb(${red} ${green} ${blue} / ${opacity})`;
-};
-
-const buildMaskClipPath = (layer: PhotoLayer): string | undefined => {
-  const inset = layer.mask.inset * 100;
-
-  switch (layer.mask.shape) {
-    case "rectangle":
-      return inset > 0 ? `inset(${inset}% round ${layer.border.radius}px)` : undefined;
-    case "ellipse":
-      return `ellipse(${50 - inset}% ${50 - inset}% at 50% 50%)`;
-    case "arch":
-      return `polygon(${inset}% 100%, ${inset}% 36%, 18% 8%, 50% 0%, 82% 8%, ${100 - inset}% 36%, ${100 - inset}% 100%)`;
-    case "diamond":
-      return `polygon(50% ${inset}%, ${100 - inset}% 50%, 50% ${100 - inset}%, ${inset}% 50%)`;
-    case "ticket":
-      return `polygon(${inset}% ${inset}%, 42% ${inset}%, 50% 10%, 58% ${inset}%, ${100 - inset}% ${inset}%, ${100 - inset}% 42%, 90% 50%, ${100 - inset}% 58%, ${100 - inset}% ${100 - inset}%, 58% ${100 - inset}%, 50% 90%, 42% ${100 - inset}%, ${inset}% ${100 - inset}%, ${inset}% 58%, 10% 50%, ${inset}% 42%)`;
-  }
-};
-
-const buildFilter = (layer: PhotoLayer): string => {
-  const presetFilters: Record<PhotoLayer["filter"]["preset"], string> = {
-    none: "",
-    warm: "sepia(0.18) saturate(1.14)",
-    cool: "saturate(0.95) hue-rotate(8deg)",
-    mono: "grayscale(1)",
-    fade: "contrast(0.86) saturate(0.72) brightness(1.08)",
-    sepia: "sepia(0.72)",
-  };
-
-  return `${presetFilters[layer.filter.preset]} brightness(${layer.filter.brightness}) contrast(${layer.filter.contrast}) saturate(${layer.filter.saturation})`.trim();
-};
-
-const buildPhotoFrameStyle = (layer: PhotoLayer): CSSProperties => ({
-  borderColor: layer.border.color,
-  borderRadius: `${layer.border.radius}px`,
-  borderStyle: layer.border.style,
-  borderWidth: `${layer.border.width}px`,
-  boxShadow: layer.shadow.enabled
-    ? `${layer.shadow.offsetX}px ${layer.shadow.offsetY}px ${layer.shadow.blur}px ${layer.shadow.spread}px ${toRgba(layer.shadow.color, layer.shadow.opacity)}`
-    : undefined,
-  clipPath: buildMaskClipPath(layer),
-  filter:
-    layer.mask.feather > 0
-      ? `drop-shadow(0 0 ${layer.mask.feather}px rgb(255 255 255 / 60%))`
-      : undefined,
-});
-
-const buildPhotoImageStyle = (layer: PhotoLayer): CSSProperties => ({
-  filter: buildFilter(layer),
-  height: `${100 / layer.crop.height}%`,
-  left: `${(-layer.crop.x / layer.crop.width) * 100}%`,
-  objectFit: layer.fit,
-  top: `${(-layer.crop.y / layer.crop.height) * 100}%`,
-  transform: `translate(${layer.photoTransform.offsetX * 50}%, ${layer.photoTransform.offsetY * 50}%) scale(${layer.photoTransform.flipX ? -layer.photoTransform.scale : layer.photoTransform.scale}, ${layer.photoTransform.flipY ? -layer.photoTransform.scale : layer.photoTransform.scale}) rotate(${layer.photoTransform.rotation}deg)`,
-  width: `${100 / layer.crop.width}%`,
-});
 
 export function EditorView() {
   const { pageId } = useParams();
@@ -519,6 +457,15 @@ function PageCanvas({
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [activeTransform, setActiveTransform] = useState<ActiveTransform | null>(null);
+  const renderedSvg = useMemo(
+    () =>
+      renderPageDocumentSvg(document, {
+        resolvePhotoHref: (layer) =>
+          assetById.get(layer.assetId)?.originalContentUrl ??
+          assetById.get(layer.assetId)?.thumbnailUrl,
+      }),
+    [assetById, document],
+  );
   const getCanvasPoint = (event: ReactPointerEvent): CanvasPoint | null => {
     const canvasElement = canvasRef.current;
     if (!canvasElement) return null;
@@ -601,6 +548,8 @@ function PageCanvas({
       onPointerMove={transformLayer}
       onPointerUp={stopTransform}
     >
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Generated from validated page schema and escaped by editor-core. */}
+      <div className="editor-render-surface" dangerouslySetInnerHTML={{ __html: renderedSvg }} />
       {document.layers.map((layer) => {
         const isSelected = layer.id === selectedLayerId;
         const layerStyle: CSSProperties = {
@@ -628,48 +577,7 @@ function PageCanvas({
               onClick={() => onSelectLayer(layer.id)}
               onPointerDown={(event) => startTransform(event, layer, "move")}
             >
-              <span className="canvas-layer-content">
-                {layer.kind === "photo" ? (
-                  <span
-                    className="photo-frame-preview"
-                    data-frame={layer.border.framePreset}
-                    style={buildPhotoFrameStyle(layer)}
-                  >
-                    <img
-                      src={
-                        assetById.get(layer.assetId)?.thumbnailUrl ??
-                        assetById.get(layer.assetId)?.originalContentUrl
-                      }
-                      alt=""
-                      style={buildPhotoImageStyle(layer)}
-                    />
-                  </span>
-                ) : layer.kind === "text" ? (
-                  <span
-                    style={{
-                      color: layer.color,
-                      fontFamily: layer.fontFamily,
-                      fontSize: `${Math.max(10, Math.min(42, layer.fontSize / 3))}px`,
-                      textAlign: layer.align,
-                    }}
-                  >
-                    {layer.text}
-                  </span>
-                ) : (
-                  <span
-                    className="embellishment-preview"
-                    data-element={layer.element}
-                    style={
-                      {
-                        "--element-accent": layer.accentColor,
-                        "--element-color": layer.color,
-                      } as CSSProperties
-                    }
-                  >
-                    {layer.label}
-                  </span>
-                )}
-              </span>
+              <span className="canvas-layer-content" />
             </button>
             {isSelected && !layer.locked ? (
               <>

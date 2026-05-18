@@ -10,6 +10,7 @@ import {
   deleteLayer,
   duplicateLayer,
   pageDocumentSchema,
+  renderPageDocumentSvg,
   reorderLayer,
   resetPhotoLayerEdits,
   updateCanvas,
@@ -152,6 +153,30 @@ describe("page document helpers", () => {
       element: "paper-label",
       label: "Picnic",
     });
+  });
+
+  it("renders page primitives through the shared SVG renderer", () => {
+    const photo = createPhotoLayer({
+      assetId: "asset_1",
+      id: "photo_1",
+      mask: { shape: "ticket", inset: 0.08, feather: 0 },
+    });
+    const text = createTextLayer({ id: "text_1", text: "Family & friends" });
+    const embellishment = createEmbellishmentLayer({
+      id: "sticker_1",
+      element: "washi-tape",
+      color: "#79a9a4",
+    });
+    const document = createPageDocument({ layers: [photo, text, embellishment] });
+    const svg = renderPageDocumentSvg(document, {
+      resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    expect(svg).toContain("<svg");
+    expect(svg).toContain("photo_clip_0");
+    expect(svg).toContain("Family &amp; friends");
+    expect(svg).toContain("/assets/asset_1/content");
+    expect(svg).toContain('stroke-opacity="0.34"');
   });
 
   it("groups ordered book pages into cover and facing spreads", () => {

@@ -733,8 +733,22 @@ textarea:focus-visible {
   box-shadow: 0 18px 34px rgb(46 37 28 / 12%);
 }
 
+.editor-render-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.editor-render-surface svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .canvas-layer {
   position: absolute;
+  z-index: 1;
   display: block;
   border: 0;
   padding: 0;
@@ -881,106 +895,7 @@ textarea:focus-visible {
   transform: translate(-50%, -50%);
 }
 
-.canvas-layer img {
-  width: 100%;
-  height: 100%;
-  background: #edf0ed;
-}
-
-.photo-frame-preview {
-  position: relative;
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  padding: 0;
-  background: #fffdf7;
-}
-
-.photo-frame-preview[data-frame="mat"] {
-  padding: 6%;
-  background: #fffdf7;
-}
-
-.photo-frame-preview[data-frame="polaroid"] {
-  padding: 6% 6% 18%;
-  background: #ffffff;
-}
-
-.photo-frame-preview[data-frame="film"] {
-  padding: 5% 8%;
-  background:
-    linear-gradient(90deg, #202426 6px, transparent 6px) left / 16px 18px repeat-y,
-    linear-gradient(90deg, transparent calc(100% - 6px), #202426 calc(100% - 6px)) right / 16px 18px
-    repeat-y,
-    #202426;
-}
-
-.photo-frame-preview[data-frame="paper"] {
-  background: #fffdf7;
-  outline: 1px dashed rgb(32 36 38 / 18%);
-  outline-offset: -8px;
-}
-
-.photo-frame-preview img {
-  position: absolute;
-  max-width: none;
-  max-height: none;
-  background: #edf0ed;
-  transform-origin: center;
-}
-
-.frame-label {
-  position: absolute;
-  right: 8px;
-  bottom: 5px;
-  display: block;
-  width: auto;
-  height: auto;
-  padding: 0;
-  color: #687174;
-  font-size: 0.62rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.canvas-layer-content > span {
-  display: grid;
-  align-content: center;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  padding: 8px;
-  overflow-wrap: anywhere;
-  line-height: 1.15;
-}
-
-.canvas-layer .photo-frame-preview {
-  display: block;
-  padding: 0;
-}
-
-.canvas-layer .photo-frame-preview[data-frame="mat"] {
-  padding: 6%;
-}
-
-.canvas-layer .photo-frame-preview[data-frame="polaroid"] {
-  padding: 6% 6% 18%;
-}
-
-.canvas-layer .photo-frame-preview[data-frame="film"] {
-  padding: 5% 8%;
-}
-
-.canvas-layer .frame-label {
-  display: block;
-  width: auto;
-  height: auto;
-  padding: 0;
-}
-
-.element-preview,
-.embellishment-preview {
+.element-preview {
   --element-accent: #24766e;
   --element-color: #d6a537;
   background: var(--element-color);
@@ -994,22 +909,7 @@ textarea:focus-visible {
   border-radius: 6px;
 }
 
-.embellishment-preview {
-  display: grid;
-  align-content: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  padding: 8px;
-  color: #202426;
-  font-weight: 800;
-  line-height: 1.05;
-  text-align: center;
-}
-
-.element-preview[data-element="sticker-star"],
-.embellishment-preview[data-element="sticker-star"] {
+.element-preview[data-element="sticker-star"] {
   clip-path: polygon(
     50% 0%,
     61% 32%,
@@ -1024,30 +924,26 @@ textarea:focus-visible {
   );
 }
 
-.element-preview[data-element="paper-label"],
-.embellishment-preview[data-element="paper-label"] {
+.element-preview[data-element="paper-label"] {
   border: 2px solid var(--element-accent);
   border-radius: 8px;
   box-shadow: inset 0 0 0 5px rgb(255 255 255 / 48%);
 }
 
-.element-preview[data-element="washi-tape"],
-.embellishment-preview[data-element="washi-tape"] {
+.element-preview[data-element="washi-tape"] {
   background:
     repeating-linear-gradient(-45deg, rgb(255 255 255 / 34%) 0 8px, transparent 8px 16px),
     var(--element-color);
   border-radius: 4px;
 }
 
-.element-preview[data-element="photo-corner"],
-.embellishment-preview[data-element="photo-corner"] {
+.element-preview[data-element="photo-corner"] {
   background:
     linear-gradient(135deg, var(--element-color) 0 42%, transparent 42%),
     linear-gradient(315deg, var(--element-accent) 0 42%, transparent 42%);
 }
 
-.element-preview[data-element="pattern-paper"],
-.embellishment-preview[data-element="pattern-paper"] {
+.element-preview[data-element="pattern-paper"] {
   background:
     radial-gradient(circle at 8px 8px, var(--element-accent) 0 3px, transparent 4px) 0 0 / 22px 22px,
     var(--element-color);

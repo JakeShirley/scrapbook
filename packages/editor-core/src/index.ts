@@ -173,6 +173,10 @@ export type TextLayer = z.infer<typeof textLayerSchema>;
 export type EmbellishmentLayer = z.infer<typeof embellishmentLayerSchema>;
 export type PageLayerKind = PageLayer["kind"];
 
+export type RenderPageSvgOptions = {
+  resolvePhotoHref?: (layer: PhotoLayer) => string | null | undefined;
+};
+
 export type OrderedBookPage = {
   pageId: string;
   sortOrder: number;
@@ -258,6 +262,213 @@ export type CreateEmbellishmentLayerInput = Partial<
 const createLayerId = (): string => `layer_${crypto.randomUUID()}`;
 
 const parseDocument = (document: PageDocument): PageDocument => pageDocumentSchema.parse(document);
+
+const escapeXml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+
+const layerTransform = (layer: PageLayer): string => {
+  const centerX = layer.x + layer.width / 2;
+  const centerY = layer.y + layer.height / 2;
+
+  return `rotate(${layer.rotation} ${centerX} ${centerY})`;
+};
+
+const layerPoint = (layer: Pick<PageLayer, "height" | "width" | "x" | "y">, x: number, y: number) =>
+  `${layer.x + layer.width * x},${layer.y + layer.height * y}`;
+
+const layerPolygon = (
+  layer: Pick<PageLayer, "height" | "width" | "x" | "y">,
+  points: Array<[number, number]>,
+) => points.map(([x, y]) => layerPoint(layer, x, y)).join(" ");
+
+const photoClipPath = (layer: PhotoLayer, clipId: string): string => {
+  const inset = layer.mask.inset;
+
+  switch (layer.mask.shape) {
+    case "rectangle":
+      return `<clipPath id="${clipId}"><rect x="${layer.x + layer.width * inset}" y="${layer.y + layer.height * inset}" width="${layer.width * (1 - inset * 2)}" height="${layer.height * (1 - inset * 2)}" rx="${layer.border.radius}" /></clipPath>`;
+    case "ellipse":
+      return `<clipPath id="${clipId}"><ellipse cx="${layer.x + layer.width / 2}" cy="${layer.y + layer.height / 2}" rx="${layer.width * (0.5 - inset)}" ry="${layer.height * (0.5 - inset)}" /></clipPath>`;
+    case "arch":
+      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(layer, [
+        [inset, 1],
+        [inset, 0.36],
+        [0.18, 0.08],
+        [0.5, 0],
+        [0.82, 0.08],
+        [1 - inset, 0.36],
+        [1 - inset, 1],
+      ])}" /></clipPath>`;
+    case "diamond":
+      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(layer, [
+        [0.5, inset],
+        [1 - inset, 0.5],
+        [0.5, 1 - inset],
+        [inset, 0.5],
+      ])}" /></clipPath>`;
+    case "ticket":
+      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(layer, [
+        [inset, inset],
+        [0.42, inset],
+        [0.5, 0.1],
+        [0.58, inset],
+        [1 - inset, inset],
+        [1 - inset, 0.42],
+        [0.9, 0.5],
+        [1 - inset, 0.58],
+        [1 - inset, 1 - inset],
+        [0.58, 1 - inset],
+        [0.5, 0.9],
+        [0.42, 1 - inset],
+        [inset, 1 - inset],
+        [inset, 0.58],
+        [0.1, 0.5],
+        [inset, 0.42],
+      ])}" /></clipPath>`;
+  }
+};
+
+const renderTextLayerSvg = (layer: TextLayer): string => {
+  const lines = layer.text.split(/\r?\n/).slice(0, 20);
+  const lineHeight = layer.fontSize * 1.2;
+  const anchor = layer.align === "center" ? "middle" : layer.align === "right" ? "end" : "start";
+  const x =
+    layer.align === "center"
+      ? layer.x + layer.width / 2
+      : layer.align === "right"
+        ? layer.x + layer.width
+        : layer.x;
+
+  return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><text x="${x}" y="${layer.y + layer.fontSize}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${layer.fontSize}" text-anchor="${anchor}">${lines
+    .map(
+      (line, index) =>
+        `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
+    )
+    .join("")}</text></g>`;
+};
+
+const renderPhotoLayerSvg = (
+  layer: PhotoLayer,
+  href: string | null | undefined,
+  index: number,
+): { body: string; defs: string } | null => {
+  if (!href) {
+    return null;
+  }
+
+  const clipId = `photo_clip_${index}`;
+  const frameInset = layer.border.width / 2;
+  const imageWidth = layer.width / Math.max(layer.crop.width, 0.05);
+  const imageHeight = layer.height / Math.max(layer.crop.height, 0.05);
+  const imageX =
+    layer.x - layer.crop.x * imageWidth + layer.photoTransform.offsetX * imageWidth * 0.5;
+  const imageY =
+    layer.y - layer.crop.y * imageHeight + layer.photoTransform.offsetY * imageHeight * 0.5;
+  const imageCenterX = layer.x + layer.width / 2;
+  const imageCenterY = layer.y + layer.height / 2;
+  const scaleX = layer.photoTransform.flipX
+    ? -layer.photoTransform.scale
+    : layer.photoTransform.scale;
+  const scaleY = layer.photoTransform.flipY
+    ? -layer.photoTransform.scale
+    : layer.photoTransform.scale;
+
+  return {
+    defs: photoClipPath(layer, clipId),
+    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="${layer.border.radius}" fill="${escapeXml(layer.border.color)}" opacity="${layer.border.width > 0 ? 1 : 0}" /><image href="${escapeXml(href)}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}" clip-path="url(#${clipId})" transform="translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})" /><rect x="${layer.x + frameInset}" y="${layer.y + frameInset}" width="${Math.max(0, layer.width - layer.border.width)}" height="${Math.max(0, layer.height - layer.border.width)}" rx="${layer.border.radius}" fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${layer.border.width}" stroke-dasharray="${layer.border.style === "dashed" ? "24 18" : layer.border.style === "dotted" ? "4 14" : ""}" /></g>`,
+  };
+};
+
+const renderEmbellishmentLayerSvg = (layer: EmbellishmentLayer): string => {
+  const label = escapeXml(layer.label);
+  const labelText = `<text x="${layer.x + layer.width / 2}" y="${layer.y + layer.height / 2}" dominant-baseline="middle" text-anchor="middle" fill="#202426" font-family="Inter, sans-serif" font-size="${Math.max(24, Math.min(96, layer.height / 3))}" font-weight="700">${label}</text>`;
+  const fill = escapeXml(layer.color);
+  const accent = escapeXml(layer.accentColor);
+  let body: string;
+
+  switch (layer.element) {
+    case "sticker-star":
+      body = `<polygon points="${layerPolygon(layer, [
+        [0.5, 0],
+        [0.61, 0.32],
+        [0.95, 0.32],
+        [0.68, 0.52],
+        [0.78, 0.87],
+        [0.5, 0.66],
+        [0.22, 0.87],
+        [0.32, 0.52],
+        [0.05, 0.32],
+        [0.39, 0.32],
+      ])}" fill="${fill}" />${label ? labelText : ""}`;
+      break;
+    case "paper-label":
+      body = `<rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="8" fill="${fill}" stroke="${accent}" stroke-width="8" /><rect x="${layer.x + 16}" y="${layer.y + 16}" width="${Math.max(0, layer.width - 32)}" height="${Math.max(0, layer.height - 32)}" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.48" stroke-width="5" />${labelText}`;
+      break;
+    case "washi-tape": {
+      const stripes: string[] = [];
+
+      for (let offset = -layer.height; offset < layer.width + layer.height; offset += 32) {
+        stripes.push(
+          `<path d="M ${layer.x + offset} ${layer.y + layer.height} L ${layer.x + offset + layer.height} ${layer.y}" stroke="#ffffff" stroke-opacity="0.34" stroke-width="12" />`,
+        );
+      }
+
+      body = `<rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="4" fill="${fill}" />${stripes.join("")}${label ? labelText : ""}`;
+      break;
+    }
+    case "photo-corner":
+      body = `<polygon points="${layerPoint(layer, 0, 0)} ${layerPoint(layer, 0.42, 0)} ${layerPoint(layer, 0, 0.42)}" fill="${fill}" /><polygon points="${layerPoint(layer, 1, 1)} ${layerPoint(layer, 0.58, 1)} ${layerPoint(layer, 1, 0.58)}" fill="${accent}" />${label ? labelText : ""}`;
+      break;
+    case "pattern-paper": {
+      const dots: string[] = [];
+      const dotSpacing = 22;
+
+      for (let centerY = layer.y + 8; centerY < layer.y + layer.height; centerY += dotSpacing) {
+        for (let centerX = layer.x + 8; centerX < layer.x + layer.width; centerX += dotSpacing) {
+          dots.push(`<circle cx="${centerX}" cy="${centerY}" r="3" fill="${accent}" />`);
+        }
+      }
+
+      body = `<rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" fill="${fill}" stroke="#202426" stroke-opacity="0.15" />${dots.join("")}${label ? labelText : ""}`;
+      break;
+    }
+  }
+
+  return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${body}</g>`;
+};
+
+export const renderPageDocumentSvg = (
+  document: PageDocument,
+  options: RenderPageSvgOptions = {},
+): string => {
+  const parsedDocument = pageDocumentSchema.parse(document);
+  const defs: string[] = [];
+  const bodies: string[] = [];
+
+  for (const [index, layer] of parsedDocument.layers.entries()) {
+    if (layer.kind === "photo") {
+      const rendered = renderPhotoLayerSvg(layer, options.resolvePhotoHref?.(layer), index);
+
+      if (rendered) {
+        defs.push(rendered.defs);
+        bodies.push(rendered.body);
+      }
+
+      continue;
+    }
+
+    bodies.push(
+      layer.kind === "text" ? renderTextLayerSvg(layer) : renderEmbellishmentLayerSvg(layer),
+    );
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${parsedDocument.canvas.width}" height="${parsedDocument.canvas.height}" viewBox="0 0 ${parsedDocument.canvas.width} ${parsedDocument.canvas.height}"><defs>${defs.join("")}</defs><rect width="100%" height="100%" fill="${escapeXml(parsedDocument.canvas.backgroundColor)}" />${bodies.join("")}</svg>`;
+};
 
 export const createPageDocument = (input: CreatePageDocumentInput = {}): PageDocument =>
   pageDocumentSchema.parse({
