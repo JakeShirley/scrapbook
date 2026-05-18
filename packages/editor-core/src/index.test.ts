@@ -44,6 +44,46 @@ describe("page document helpers", () => {
     expect(deleted.layers.map((layer) => layer.id)).toEqual(["text_1", "text_2"]);
   });
 
+  it("rounds layer transform values to the nearest tenth", () => {
+    const photo = createPhotoLayer({ assetId: "asset_1", id: "photo_1" });
+    const document = addLayer(createPageDocument(), photo);
+    const updated = updateLayer(document, "photo_1", {
+      x: 123.44,
+      y: 234.56,
+      width: 345.55,
+      height: 456.04,
+      rotation: -12.34,
+      photoTransform: {
+        ...photo.photoTransform,
+        scale: 1.24,
+        rotation: 8.76,
+        offsetX: 0.12,
+        offsetY: -0.04,
+      },
+    });
+    const layer = updated.layers[0];
+
+    expect(layer).toMatchObject({
+      x: 123.4,
+      y: 234.6,
+      width: 345.6,
+      height: 456,
+      rotation: -12.3,
+    });
+    expect(layer?.kind).toBe("photo");
+
+    if (layer?.kind !== "photo") {
+      throw new Error("Expected a photo layer");
+    }
+
+    expect(layer.photoTransform).toMatchObject({
+      scale: 1.2,
+      rotation: 8.8,
+      offsetX: 0.1,
+      offsetY: 0,
+    });
+  });
+
   it("updates canvas settings without changing layers", () => {
     const text = createTextLayer({ id: "text_1", text: "Caption" });
     const document = addLayer(createPageDocument(), text);
@@ -87,7 +127,7 @@ describe("page document helpers", () => {
     });
 
     expect(photo.assetId).toBe("asset_1");
-    expect(photo.photoTransform).toMatchObject({ scale: 1.25, flipX: true });
+    expect(photo.photoTransform).toMatchObject({ scale: 1.3, flipX: true });
     expect(photo.crop).toMatchObject({ x: 0.1, width: 0.7 });
     expect(photo.mask.shape).toBe("ellipse");
     expect(photo.border.framePreset).toBe("polaroid");

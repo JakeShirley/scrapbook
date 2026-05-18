@@ -3,10 +3,20 @@ import { z } from "zod";
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const layerIdSchema = z.string().min(1).max(160);
 const layerNameSchema = z.string().min(1).max(120);
-const coordinateSchema = z.number().finite();
-const positiveSizeSchema = z.number().finite().positive();
+const roundToNearestTenth = (value: number): number => {
+  const rounded = Math.round(value * 10) / 10;
+
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
+const coordinateSchema = z.number().finite().transform(roundToNearestTenth);
+const positiveSizeSchema = z
+  .number()
+  .finite()
+  .positive()
+  .transform(roundToNearestTenth)
+  .pipe(z.number().positive());
 const opacitySchema = z.number().finite().min(0).max(1);
-const rotationSchema = z.number().finite().min(-360).max(360);
+const rotationSchema = z.number().finite().min(-360).max(360).transform(roundToNearestTenth);
 const cropCoordinateSchema = z.number().finite().min(0).max(1);
 const cropSizeSchema = z.number().finite().min(0.05).max(1);
 
@@ -76,12 +86,12 @@ export const photoLayerSchema = pageLayerBaseSchema.extend({
   fit: z.enum(["cover", "contain"]),
   photoTransform: z
     .object({
-      scale: z.number().finite().min(0.1).max(5),
+      scale: z.number().finite().min(0.1).max(5).transform(roundToNearestTenth),
       rotation: rotationSchema,
       flipX: z.boolean(),
       flipY: z.boolean(),
-      offsetX: z.number().finite().min(-1).max(1),
-      offsetY: z.number().finite().min(-1).max(1),
+      offsetX: z.number().finite().min(-1).max(1).transform(roundToNearestTenth),
+      offsetY: z.number().finite().min(-1).max(1).transform(roundToNearestTenth),
     })
     .default(defaultPhotoTransform),
   crop: z
