@@ -17,7 +17,7 @@
     "format:check": "biome format .",
     "lint": "biome lint .",
     "openapi:check": "pnpm --filter @scrapbook/api openapi:check",
-    "release:dry-run": "semantic-release --dry-run --no-ci --repository-url .",
+    "release:dry-run": "semantic-release --dry-run --no-ci",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
