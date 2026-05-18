@@ -3,6 +3,10 @@
   "version": "0.0.0-development",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JakeShirley/scrapbook.git"
+  },
   "packageManager": "pnpm@11.1.2",
   "engines": {
     "node": ">=24.0.0"
@@ -17,7 +21,7 @@
     "format:check": "biome format .",
     "lint": "biome lint .",
     "openapi:check": "pnpm --filter @scrapbook/api openapi:check",
-    "release:preview": "semantic-release --dry-run --no-ci --repository-url . --plugins @semantic-release/commit-analyzer --plugins @semantic-release/release-notes-generator",
+    "release:preview": "semantic-release --dry-run --no-ci --plugins @semantic-release/commit-analyzer --plugins @semantic-release/release-notes-generator",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
