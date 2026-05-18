@@ -1162,6 +1162,14 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
+.canvas-selection-frame {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  transform-origin: center;
+  pointer-events: none;
+}
+
 .canvas-layer-content {
   position: absolute;
   inset: 0;
@@ -1191,6 +1199,7 @@ textarea:focus-visible {
   padding: 0;
   background: #fffefb;
   box-shadow: 0 1px 6px rgb(32 36 38 / 22%);
+  pointer-events: auto;
   touch-action: none;
 }
 

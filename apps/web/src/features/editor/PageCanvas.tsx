@@ -12,6 +12,7 @@ import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "
 import {
   getAngle,
   getLayerCenter,
+  getLayerSelectionFrame,
   normalizeRotation,
   resizeHandles,
   resizeLayerFromHandle,
@@ -199,6 +200,14 @@ export function PageCanvas({
           opacity: layer.opacity,
           transform: `rotate(${layer.rotation}deg)`,
         };
+        const selectionFrame = getLayerSelectionFrame(layer);
+        const selectionFrameStyle: CSSProperties = {
+          left: `${((selectionFrame.x - layer.x) / layer.width) * 100}%`,
+          top: `${((selectionFrame.y - layer.y) / layer.height) * 100}%`,
+          width: `${(selectionFrame.width / layer.width) * 100}%`,
+          height: `${(selectionFrame.height / layer.height) * 100}%`,
+          transform: `rotate(${selectionFrame.rotation}deg)`,
+        };
         return (
           <div
             key={layer.id}
@@ -216,31 +225,32 @@ export function PageCanvas({
               onClick={() => onSelectLayer(layer.id)}
               onContextMenu={(event) => openContextMenu(event, layer)}
               onPointerDown={(event) => startTransform(event, layer, "move")}
-            >
+            />
+            <div className="canvas-selection-frame" style={selectionFrameStyle}>
               <span className="canvas-layer-content" />
-            </button>
-            {isSelected && !layer.locked ? (
-              <>
-                <button
-                  type="button"
-                  aria-label="Rotate layer"
-                  className="transform-rotate-handle"
-                  title="Rotate"
-                  onPointerDown={(event) => startTransform(event, layer, "rotate")}
-                />
-                {resizeHandles.map(({ handle, label }) => (
+              {isSelected && !layer.locked ? (
+                <>
                   <button
                     type="button"
-                    aria-label={label}
-                    className="transform-resize-handle"
-                    data-handle={handle}
-                    key={handle}
-                    title={label}
-                    onPointerDown={(event) => startTransform(event, layer, "resize", handle)}
+                    aria-label="Rotate layer"
+                    className="transform-rotate-handle"
+                    title="Rotate"
+                    onPointerDown={(event) => startTransform(event, layer, "rotate")}
                   />
-                ))}
-              </>
-            ) : null}
+                  {resizeHandles.map(({ handle, label }) => (
+                    <button
+                      type="button"
+                      aria-label={label}
+                      className="transform-resize-handle"
+                      data-handle={handle}
+                      key={handle}
+                      title={label}
+                      onPointerDown={(event) => startTransform(event, layer, "resize", handle)}
+                    />
+                  ))}
+                </>
+              ) : null}
+            </div>
           </div>
         );
       })}

@@ -1,4 +1,4 @@
-import type { PageLayer } from "@scrapbook/editor-core";
+import type { PageLayer, PhotoLayer } from "@scrapbook/editor-core";
 
 import type { CanvasPoint, ResizeHandle } from "./editorTypes";
 
@@ -21,6 +21,10 @@ const rotatePoint = (point: CanvasPoint, degrees: number): CanvasPoint => {
   const sin = Math.sin(radians);
 
   return { x: point.x * cos - point.y * sin, y: point.x * sin + point.y * cos };
+};
+
+export type SelectionFrame = Pick<PageLayer, "height" | "width" | "x" | "y"> & {
+  rotation: number;
 };
 
 export const getLayerCenter = (layer: PageLayer): CanvasPoint => ({
@@ -72,4 +76,47 @@ export const resizeLayerFromHandle = (
   const center = { x: startCenter.x + shift.x, y: startCenter.y + shift.y };
 
   return { height, width, x: center.x - width / 2, y: center.y - height / 2 };
+};
+
+export const getLayerSelectionFrame = (layer: PageLayer): SelectionFrame => {
+  if (layer.kind !== "photo") {
+    return { height: layer.height, rotation: 0, width: layer.width, x: layer.x, y: layer.y };
+  }
+
+  return getPhotoSelectionFrame(layer);
+};
+
+const getPhotoSelectionFrame = (layer: PhotoLayer): SelectionFrame => {
+  const imageWidth = layer.width / Math.max(layer.crop.width, 0.05);
+  const imageHeight = layer.height / Math.max(layer.crop.height, 0.05);
+  const imageX =
+    layer.x - layer.crop.x * imageWidth + layer.photoTransform.offsetX * imageWidth * 0.5;
+  const imageY =
+    layer.y - layer.crop.y * imageHeight + layer.photoTransform.offsetY * imageHeight * 0.5;
+  const layerCenter = getLayerCenter(layer);
+  const imageCenter = {
+    x: imageX + imageWidth / 2,
+    y: imageY + imageHeight / 2,
+  };
+  const relativeCenter = rotatePoint(
+    {
+      x: (imageCenter.x - layerCenter.x) * layer.photoTransform.scale,
+      y: (imageCenter.y - layerCenter.y) * layer.photoTransform.scale,
+    },
+    layer.photoTransform.rotation,
+  );
+  const width = imageWidth * layer.photoTransform.scale;
+  const height = imageHeight * layer.photoTransform.scale;
+  const center = {
+    x: layerCenter.x + relativeCenter.x,
+    y: layerCenter.y + relativeCenter.y,
+  };
+
+  return {
+    height,
+    rotation: layer.photoTransform.rotation,
+    width,
+    x: center.x - width / 2,
+    y: center.y - height / 2,
+  };
 };

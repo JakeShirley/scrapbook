@@ -1,6 +1,6 @@
 import { Button } from "@fluentui/react-components";
-import { type PhotoLayer, resetPhotoLayerEdits } from "@scrapbook/editor-core";
 import { PageFitRegular } from "@fluentui/react-icons";
+import { type PhotoLayer, resetPhotoLayerEdits } from "@scrapbook/editor-core";
 
 export function PhotoControls({
   layer,
