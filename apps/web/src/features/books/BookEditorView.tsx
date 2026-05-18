@@ -1,3 +1,16 @@
+import { Button, Field, Input, Tab, TabList } from "@fluentui/react-components";
+import {
+  AddRegular,
+  ArrowDownloadRegular,
+  ArrowLeftRegular,
+  ChevronLeftRegular,
+  ChevronRightRegular,
+  CopyRegular,
+  DeleteRegular,
+  DocumentPdfRegular,
+  RenameRegular,
+  SaveRegular,
+} from "@fluentui/react-icons";
 import {
   addLayer,
   createEmbellishmentLayer,
@@ -453,9 +466,14 @@ export function BookEditorView() {
     return (
       <>
         <WorkspaceHeader title="Book editor">
-          <button type="button" className="secondary-button" onClick={() => navigate("/books")}>
+          <Button
+            type="button"
+            className="secondary-button"
+            icon={<ArrowLeftRegular />}
+            onClick={() => navigate("/books")}
+          >
             Books
-          </button>
+          </Button>
         </WorkspaceHeader>
         {error ? (
           <p className="panel-alert" role="alert">
@@ -471,33 +489,42 @@ export function BookEditorView() {
   return (
     <>
       <WorkspaceHeader title={book.title}>
-        <button type="button" className="secondary-button" onClick={() => navigate("/books")}>
+        <Button
+          type="button"
+          className="secondary-button"
+          icon={<ArrowLeftRegular />}
+          onClick={() => navigate("/books")}
+        >
           Books
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           className="secondary-button"
           disabled={isWorking || book.pages.length === 0}
+          icon={<ArrowDownloadRegular />}
           onClick={() => exportActivePage("png")}
         >
           Export page PNG
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           className="secondary-button"
           disabled={isWorking || book.pages.length === 0}
+          icon={<DocumentPdfRegular />}
           onClick={() => exportBook("pdf")}
         >
           Export book PDF
-        </button>
-        <button
+        </Button>
+        <Button
+          appearance="primary"
           type="button"
           className="primary-button"
           disabled={!activePage || activeStatus === "saving"}
+          icon={<SaveRegular />}
           onClick={saveActivePage}
         >
           {activeStatus === "saving" ? "Saving" : "Save page"}
-        </button>
+        </Button>
       </WorkspaceHeader>
       {error ? (
         <p className="panel-alert" role="alert">
@@ -515,98 +542,101 @@ export function BookEditorView() {
         <AssetRail assets={assets} onAddEmbellishment={addEmbellishment} onAddPhoto={addPhoto} />
         <section className="book-editor-stage" aria-label="Book editor">
           <form className="book-title-form" onSubmit={renameBook}>
-            <label>
-              <span>Book title</span>
-              <input
+            <Field label="Book title">
+              <Input
                 maxLength={120}
                 value={bookTitleDraft}
                 onChange={(event) => setBookTitleDraft(event.currentTarget.value)}
               />
-            </label>
-            <button type="submit" className="secondary-button" disabled={isWorking}>
+            </Field>
+            <Button
+              type="submit"
+              className="secondary-button"
+              disabled={isWorking}
+              icon={<RenameRegular />}
+            >
               Rename
-            </button>
+            </Button>
           </form>
           <div className="book-modebar">
-            <fieldset className="book-view-toggle">
-              <legend className="visually-hidden">Editor view</legend>
-              <button
-                type="button"
-                aria-pressed={viewMode === "page"}
-                onClick={() => setViewMode("page")}
-              >
-                Page
-              </button>
-              <button
-                type="button"
-                aria-pressed={viewMode === "spread"}
-                onClick={() => setViewMode("spread")}
-              >
-                Spread
-              </button>
-            </fieldset>
+            <TabList
+              className="book-view-toggle"
+              aria-label="Editor view"
+              selectedValue={viewMode}
+              onTabSelect={(_, data) => setViewMode(data.value as ViewMode)}
+            >
+              <Tab value="page">Page</Tab>
+              <Tab value="spread">Spread</Tab>
+            </TabList>
             <div className="book-page-actions-inline">
-              <button
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={!canNavigatePrevious || isWorking}
+                icon={<ChevronLeftRegular />}
                 onClick={() => navigateBook(-1)}
               >
                 Previous
-              </button>
+              </Button>
               <span>{navigationLabel}</span>
-              <button
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={!canNavigateNext || isWorking}
+                icon={<ChevronRightRegular />}
                 onClick={() => navigateBook(1)}
               >
                 Next
-              </button>
+              </Button>
             </div>
             <div className="book-page-actions-inline">
-              <button
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={isWorking}
+                icon={<AddRegular />}
                 onClick={addPage}
               >
                 Add page
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={!activePage || isWorking}
+                icon={<CopyRegular />}
                 onClick={duplicateActivePage}
               >
                 Duplicate
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={activePageIndex <= 0 || isWorking}
+                icon={<ChevronLeftRegular />}
                 onClick={() => moveActivePage(-1)}
               >
                 Move left
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={
                   activePageIndex < 0 || activePageIndex >= orderedPageIds.length - 1 || isWorking
                 }
+                icon={<ChevronRightRegular />}
                 onClick={() => moveActivePage(1)}
               >
                 Move right
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="secondary-button"
                 disabled={!activePage || isWorking}
+                icon={<DeleteRegular />}
                 onClick={deleteActivePage}
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
           {activePage ? (
@@ -687,14 +717,16 @@ export function BookEditorView() {
           ) : (
             <div className="empty-book-editor">
               <p>This book has no pages yet.</p>
-              <button
+              <Button
+                appearance="primary"
                 type="button"
                 className="primary-button"
                 disabled={isWorking}
+                icon={<AddRegular />}
                 onClick={addPage}
               >
                 Add first page
-              </button>
+              </Button>
             </div>
           )}
         </section>

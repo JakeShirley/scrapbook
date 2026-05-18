@@ -1,3 +1,5 @@
+import { Button } from "@fluentui/react-components";
+import { AddRegular } from "@fluentui/react-icons";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -57,9 +59,16 @@ export function BooksView() {
   return (
     <>
       <WorkspaceHeader title="Books">
-        <button type="button" className="primary-button" disabled={isCreating} onClick={createBook}>
+        <Button
+          appearance="primary"
+          className="primary-button"
+          disabled={isCreating}
+          icon={<AddRegular />}
+          type="button"
+          onClick={createBook}
+        >
           New book
-        </button>
+        </Button>
       </WorkspaceHeader>
       {error ? (
         <p className="panel-alert" role="alert">
@@ -72,14 +81,16 @@ export function BooksView() {
           {!isLoading && books.length === 0 ? (
             <div className="books-empty-state">
               <p>No books yet.</p>
-              <button
+              <Button
+                appearance="primary"
                 type="button"
                 className="primary-button"
                 disabled={isCreating}
+                icon={<AddRegular />}
                 onClick={createBook}
               >
                 Create your first book
-              </button>
+              </Button>
             </div>
           ) : null}
           {books.length > 0 ? <BookList books={books} /> : null}

@@ -1,9 +1,16 @@
+import { Button } from "@fluentui/react-components";
 import {
   deleteLayer,
   duplicateLayer,
   type PageDocument,
   reorderLayer,
 } from "@scrapbook/editor-core";
+import {
+  ArrowDownRegular,
+  ArrowUpRegular,
+  CopyRegular,
+  DeleteRegular,
+} from "@fluentui/react-icons";
 
 export function LayerList({
   document,
@@ -25,32 +32,43 @@ export function LayerList({
             <span>{layer.kind}</span>
           </button>
           <div className="layer-actions">
-            <button
+            <Button
               type="button"
+              icon={<ArrowUpRegular />}
+              size="small"
               disabled={layerIndex === 0}
               onClick={() => onChange(reorderLayer(document, layer.id, layerIndex - 1))}
             >
               Up
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              icon={<ArrowDownRegular />}
+              size="small"
               disabled={layerIndex === document.layers.length - 1}
               onClick={() => onChange(reorderLayer(document, layer.id, layerIndex + 1))}
             >
               Down
-            </button>
-            <button type="button" onClick={() => onChange(duplicateLayer(document, layer.id))}>
-              Copy
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              icon={<CopyRegular />}
+              size="small"
+              onClick={() => onChange(duplicateLayer(document, layer.id))}
+            >
+              Copy
+            </Button>
+            <Button
+              type="button"
+              icon={<DeleteRegular />}
+              size="small"
               onClick={() => {
                 onChange(deleteLayer(document, layer.id));
                 onSelectLayer(null);
               }}
             >
               Del
-            </button>
+            </Button>
           </div>
         </li>
       ))}

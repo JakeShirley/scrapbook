@@ -1,3 +1,12 @@
+import {
+  Button,
+  Field,
+  Input,
+  MessageBar,
+  MessageBarBody,
+  Tab,
+  TabList,
+} from "@fluentui/react-components";
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -45,45 +54,33 @@ export function AuthPage({
           </div>
         </div>
 
-        <div className="segmented-control" role="tablist" aria-label="Authentication mode">
-          <button
-            aria-selected={mode === "login"}
-            role="tab"
-            type="button"
-            onClick={() => setMode("login")}
-          >
-            Sign in
-          </button>
-          <button
-            aria-selected={mode === "register"}
-            role="tab"
-            type="button"
-            onClick={() => setMode("register")}
-          >
-            Create account
-          </button>
-        </div>
+        <TabList
+          className="segmented-control"
+          aria-label="Authentication mode"
+          selectedValue={mode}
+          onTabSelect={(_, data) => setMode(data.value as AuthMode)}
+        >
+          <Tab value="login">Sign in</Tab>
+          <Tab value="register">Create account</Tab>
+        </TabList>
 
         {error ? (
-          <p className="alert" role="alert">
-            {error}
-          </p>
+          <MessageBar className="alert" intent="error">
+            <MessageBarBody>{error}</MessageBarBody>
+          </MessageBar>
         ) : null}
 
         <form className="auth-form" onSubmit={submit}>
           {mode === "register" ? (
-            <label>
-              <span>Name</span>
-              <input autoComplete="name" maxLength={120} name="displayName" required />
-            </label>
+            <Field label="Name">
+              <Input autoComplete="name" maxLength={120} name="displayName" required />
+            </Field>
           ) : null}
-          <label>
-            <span>Email</span>
-            <input autoComplete="email" maxLength={320} name="email" required type="email" />
-          </label>
-          <label>
-            <span>Password</span>
-            <input
+          <Field label="Email">
+            <Input autoComplete="email" maxLength={320} name="email" required type="email" />
+          </Field>
+          <Field label="Password">
+            <Input
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               maxLength={256}
               minLength={mode === "register" ? 12 : 1}
@@ -91,10 +88,15 @@ export function AuthPage({
               required
               type="password"
             />
-          </label>
-          <button className="primary-button" disabled={isSubmitting} type="submit">
+          </Field>
+          <Button
+            appearance="primary"
+            className="primary-button"
+            disabled={isSubmitting}
+            type="submit"
+          >
             {isSubmitting ? "Working" : mode === "login" ? "Sign in" : "Create account"}
-          </button>
+          </Button>
         </form>
       </section>
     </main>

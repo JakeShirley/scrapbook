@@ -1,3 +1,4 @@
+import { Badge, Spinner } from "@fluentui/react-components";
 import type { ReactNode } from "react";
 
 export function LoadingScreen() {
@@ -6,6 +7,7 @@ export function LoadingScreen() {
       <div className="brand-mark" aria-hidden="true">
         S
       </div>
+      <Spinner size="small" />
       <p>Opening Scrapbook</p>
     </main>
   );
@@ -36,7 +38,7 @@ export function Panel({
     <section className="panel" aria-labelledby={`${title.toLowerCase()}-heading`}>
       <div className="panel-heading">
         <h3 id={`${title.toLowerCase()}-heading`}>{title}</h3>
-        {count ? <span>{count}</span> : null}
+        {count ? <Badge appearance="tint">{count}</Badge> : null}
       </div>
       {children}
     </section>

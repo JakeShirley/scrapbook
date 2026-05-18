@@ -1,3 +1,6 @@
+import { Button } from "@fluentui/react-components";
+import { BookRegular, ImageRegular, SettingsRegular, SignOutRegular } from "@fluentui/react-icons";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router";
 
@@ -12,10 +15,10 @@ import { getErrorMessage } from "./lib/errors";
 import type { AuthMode, AuthSession, SessionState } from "./types";
 
 const navItems = [
-  { to: "/books", label: "Books" },
-  { to: "/library", label: "Photos" },
-  { to: "/settings", label: "Settings" },
-];
+  { to: "/books", label: "Books", icon: <BookRegular /> },
+  { to: "/library", label: "Photos", icon: <ImageRegular /> },
+  { to: "/settings", label: "Settings", icon: <SettingsRegular /> },
+] satisfies { to: string; label: string; icon: ReactNode }[];
 
 export function App() {
   return (
@@ -143,6 +146,9 @@ function ProtectedShell({
         <nav className="nav-list" aria-label="Workspace sections">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}>
+              <span className="nav-icon" aria-hidden="true">
+                {item.icon}
+              </span>
               {item.label}
             </NavLink>
           ))}
@@ -150,9 +156,14 @@ function ProtectedShell({
 
         <div className="sidebar-footer">
           <p>{session.account.primaryEmail}</p>
-          <button className="secondary-button" type="button" onClick={logout}>
+          <Button
+            className="secondary-button"
+            icon={<SignOutRegular />}
+            type="button"
+            onClick={logout}
+          >
             Sign out
-          </button>
+          </Button>
           {logoutError ? (
             <p className="sidebar-alert" role="alert">
               {logoutError}

@@ -1,3 +1,5 @@
+import { Button } from "@fluentui/react-components";
+import { AddRegular, ArrowUploadRegular } from "@fluentui/react-icons";
 import type { ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
@@ -77,17 +79,24 @@ export function LibraryView() {
           type="file"
           onChange={uploadAsset}
         />
-        <button
+        <Button
           type="button"
           className="secondary-button"
           disabled={uploadProgress !== null}
+          icon={<ArrowUploadRegular />}
           onClick={() => fileInputRef.current?.click()}
         >
           Upload
-        </button>
-        <button type="button" className="primary-button" onClick={() => navigate("/pages")}>
+        </Button>
+        <Button
+          appearance="primary"
+          type="button"
+          className="primary-button"
+          icon={<AddRegular />}
+          onClick={() => navigate("/pages")}
+        >
           New page
-        </button>
+        </Button>
       </WorkspaceHeader>
 
       <div className="workspace-grid library-grid">

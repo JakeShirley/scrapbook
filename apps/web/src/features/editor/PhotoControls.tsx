@@ -1,4 +1,6 @@
+import { Button } from "@fluentui/react-components";
 import { type PhotoLayer, resetPhotoLayerEdits } from "@scrapbook/editor-core";
+import { PageFitRegular } from "@fluentui/react-icons";
 
 export function PhotoControls({
   layer,
@@ -198,13 +200,14 @@ export function PhotoControls({
           </select>
         </label>
       </fieldset>
-      <button
+      <Button
         type="button"
         className="secondary-button full-width-button"
+        icon={<PageFitRegular />}
         onClick={() => onChange(resetPhotoLayerEdits(layer))}
       >
         Reset photo edits
-      </button>
+      </Button>
     </>
   );
 }

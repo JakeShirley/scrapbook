@@ -1,3 +1,4 @@
+import { Button } from "@fluentui/react-components";
 import {
   addLayer,
   createEmbellishmentLayer,
@@ -8,6 +9,14 @@ import {
   updateCanvas,
   updateLayer,
 } from "@scrapbook/editor-core";
+import {
+  ArrowDownloadRegular,
+  ArrowLeftRegular,
+  CopyRegular,
+  DeleteRegular,
+  DocumentPdfRegular,
+  SaveRegular,
+} from "@fluentui/react-icons";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -176,29 +185,56 @@ export function EditorView() {
   return (
     <>
       <WorkspaceHeader title="Editor">
-        <button type="button" className="secondary-button" onClick={() => navigate("/pages")}>
+        <Button
+          type="button"
+          className="secondary-button"
+          icon={<ArrowLeftRegular />}
+          onClick={() => navigate("/pages")}
+        >
           Back
-        </button>
-        <button type="button" className="secondary-button" onClick={duplicatePage}>
+        </Button>
+        <Button
+          type="button"
+          className="secondary-button"
+          icon={<CopyRegular />}
+          onClick={duplicatePage}
+        >
           Duplicate
-        </button>
-        <button type="button" className="secondary-button" onClick={deletePage}>
+        </Button>
+        <Button
+          type="button"
+          className="secondary-button"
+          icon={<DeleteRegular />}
+          onClick={deletePage}
+        >
           Delete
-        </button>
-        <button type="button" className="secondary-button" onClick={() => exportPage("png")}>
+        </Button>
+        <Button
+          type="button"
+          className="secondary-button"
+          icon={<ArrowDownloadRegular />}
+          onClick={() => exportPage("png")}
+        >
           Export PNG
-        </button>
-        <button type="button" className="secondary-button" onClick={() => exportPage("pdf")}>
+        </Button>
+        <Button
+          type="button"
+          className="secondary-button"
+          icon={<DocumentPdfRegular />}
+          onClick={() => exportPage("pdf")}
+        >
           Export PDF
-        </button>
-        <button
+        </Button>
+        <Button
+          appearance="primary"
           type="button"
           className="primary-button"
           disabled={status === "saving"}
+          icon={<SaveRegular />}
           onClick={savePage}
         >
           {status === "saving" ? "Saving" : "Save"}
-        </button>
+        </Button>
       </WorkspaceHeader>
       {error ? (
         <p className="panel-alert" role="alert">

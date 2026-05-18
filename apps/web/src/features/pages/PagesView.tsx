@@ -1,3 +1,5 @@
+import { Button } from "@fluentui/react-components";
+import { AddRegular } from "@fluentui/react-icons";
 import { createPageDocument } from "@scrapbook/editor-core";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -58,9 +60,16 @@ export function PagesView() {
   return (
     <>
       <WorkspaceHeader title="Pages">
-        <button type="button" className="primary-button" disabled={isCreating} onClick={createPage}>
+        <Button
+          appearance="primary"
+          type="button"
+          className="primary-button"
+          disabled={isCreating}
+          icon={<AddRegular />}
+          onClick={createPage}
+        >
           New page
-        </button>
+        </Button>
       </WorkspaceHeader>
       <div className="workspace-grid split-grid">
         <Panel title="Pages" count={String(pages.length)}>
