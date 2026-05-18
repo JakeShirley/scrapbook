@@ -909,7 +909,9 @@ textarea:focus-visible {
 }
 
 .book-canvas-deck[data-mode="spread"] {
+  column-gap: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 10px;
 }
 
 .book-page-frame {
@@ -1650,6 +1652,25 @@ textarea:focus-visible {
 .book-page-frame .editor-canvas {
   width: min(100%, 760px);
   margin: 0 auto;
+}
+
+.book-canvas-deck[data-mode="spread"] .book-page-frame:first-child .editor-canvas {
+  margin-right: 0;
+}
+
+.book-canvas-deck[data-mode="spread"] .book-page-frame:last-child .editor-canvas {
+  margin-left: 0;
+}
+
+.book-canvas-deck[data-mode="spread"] .book-page-frame:only-child .editor-canvas {
+  margin-inline: auto;
+}
+
+@media (max-width: 1200px) {
+  .book-canvas-deck[data-mode="spread"] .book-page-frame:first-child .editor-canvas,
+  .book-canvas-deck[data-mode="spread"] .book-page-frame:last-child .editor-canvas {
+    margin-inline: auto;
+  }
 }
 
 .book-page-frame[data-active="false"] .editor-canvas {
