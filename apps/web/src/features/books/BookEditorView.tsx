@@ -17,8 +17,10 @@ import {
   createPageDocument,
   createPhotoLayer,
   createTextLayer,
+  deleteLayer,
   type PageDocument,
   type PageLayer,
+  reorderLayer,
   updateCanvas,
   updateLayer,
 } from "@scrapbook/editor-core";
@@ -35,7 +37,6 @@ import { EditorToolbar } from "../editor/EditorToolbar";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
 import { LayerInspector } from "../editor/LayerInspector";
-import { LayerList } from "../editor/LayerList";
 import { PageCanvas } from "../editor/PageCanvas";
 
 type ViewMode = "page" | "spread";
@@ -218,6 +219,30 @@ export function BookEditorView() {
     }
 
     editPageDocument(pageId, updateLayer(page.document, layerId, update));
+  };
+
+  const reorderPageLayer = (pageId: string, layerId: string, toIndex: number) => {
+    const page = pageDetails.get(pageId);
+
+    if (!page) {
+      return;
+    }
+
+    editPageDocument(pageId, reorderLayer(page.document, layerId, toIndex));
+    setActivePageId(pageId);
+    setSelectedLayerId(layerId);
+  };
+
+  const deletePageLayer = (pageId: string, layerId: string) => {
+    const page = pageDetails.get(pageId);
+
+    if (!page) {
+      return;
+    }
+
+    editPageDocument(pageId, deleteLayer(page.document, layerId));
+    setActivePageId(pageId);
+    setSelectedLayerId((currentLayerId) => (currentLayerId === layerId ? null : currentLayerId));
   };
 
   const addText = () => {
@@ -686,6 +711,10 @@ export function BookEditorView() {
                         assetById={assetById}
                         document={page.document}
                         selectedLayerId={pageId === activePage.id ? selectedLayerId : null}
+                        onDeleteLayer={(layerId) => deletePageLayer(pageId, layerId)}
+                        onReorderLayer={(layerId, toIndex) =>
+                          reorderPageLayer(pageId, layerId, toIndex)
+                        }
                         onSelectLayer={(layerId) => selectPage(pageId, layerId)}
                         onTransformLayer={(layerId, update) =>
                           updateLayerTransform(pageId, layerId, update)
@@ -730,21 +759,13 @@ export function BookEditorView() {
             </div>
           )}
         </section>
-        <aside className="editor-panel" aria-label="Layer controls">
+        <aside className="editor-panel" aria-label="Selected layer controls">
           <div className="panel-heading compact-heading">
-            <h3>Layers</h3>
-            <span>{activePage?.document.layers.length ?? 0}</span>
+            <h3>Selection</h3>
+            <span>{selectedLayer ? selectedLayer.kind : "No layer"}</span>
           </div>
           {activePage ? (
-            <>
-              <LayerList
-                document={activePage.document}
-                selectedLayerId={selectedLayerId}
-                onSelectLayer={setSelectedLayerId}
-                onChange={(nextDocument) => editPageDocument(activePage.id, nextDocument)}
-              />
-              <LayerInspector layer={selectedLayer} onChange={updateActiveLayer} />
-            </>
+            <LayerInspector layer={selectedLayer} onChange={updateActiveLayer} />
           ) : (
             <p className="empty-state">Add a page to start editing.</p>
           )}

@@ -1,15 +1,5 @@
 import { Button } from "@fluentui/react-components";
 import {
-  addLayer,
-  createEmbellishmentLayer,
-  createPhotoLayer,
-  createTextLayer,
-  type PageDocument,
-  type PageLayer,
-  updateCanvas,
-  updateLayer,
-} from "@scrapbook/editor-core";
-import {
   ArrowDownloadRegular,
   ArrowLeftRegular,
   CopyRegular,
@@ -17,6 +7,18 @@ import {
   DocumentPdfRegular,
   SaveRegular,
 } from "@fluentui/react-icons";
+import {
+  addLayer,
+  createEmbellishmentLayer,
+  createPhotoLayer,
+  createTextLayer,
+  deleteLayer,
+  type PageDocument,
+  type PageLayer,
+  reorderLayer,
+  updateCanvas,
+  updateLayer,
+} from "@scrapbook/editor-core";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -29,7 +31,6 @@ import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
 import type { EmbellishmentPreset } from "./embellishments";
 import { LayerInspector } from "./LayerInspector";
-import { LayerList } from "./LayerList";
 import { PageCanvas } from "./PageCanvas";
 
 export function EditorView() {
@@ -92,6 +93,16 @@ export function EditorView() {
   };
   const updateLayerTransform = (layerId: string, update: Partial<PageLayer>) => {
     if (document) editDocument(updateLayer(document, layerId, update));
+  };
+  const reorderCanvasLayer = (layerId: string, toIndex: number) => {
+    if (!document) return;
+    editDocument(reorderLayer(document, layerId, toIndex));
+    setSelectedLayerId(layerId);
+  };
+  const deleteCanvasLayer = (layerId: string) => {
+    if (!document) return;
+    editDocument(deleteLayer(document, layerId));
+    setSelectedLayerId((currentLayerId) => (currentLayerId === layerId ? null : currentLayerId));
   };
   const addText = () => {
     if (!document) return;
@@ -268,21 +279,17 @@ export function EditorView() {
             assetById={assetById}
             document={document}
             selectedLayerId={selectedLayerId}
+            onDeleteLayer={deleteCanvasLayer}
+            onReorderLayer={reorderCanvasLayer}
             onSelectLayer={setSelectedLayerId}
             onTransformLayer={updateLayerTransform}
           />
         </section>
-        <aside className="editor-panel" aria-label="Layer controls">
+        <aside className="editor-panel" aria-label="Selected layer controls">
           <div className="panel-heading compact-heading">
-            <h3>Layers</h3>
-            <span>{document.layers.length}</span>
+            <h3>Selection</h3>
+            <span>{selectedLayer ? selectedLayer.kind : "No layer"}</span>
           </div>
-          <LayerList
-            document={document}
-            selectedLayerId={selectedLayerId}
-            onSelectLayer={setSelectedLayerId}
-            onChange={editDocument}
-          />
           <LayerInspector layer={selectedLayer} onChange={updateSelectedLayer} />
         </aside>
       </div>

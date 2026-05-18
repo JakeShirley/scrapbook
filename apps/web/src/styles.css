@@ -1106,10 +1106,12 @@ textarea:focus-visible {
 .editor-canvas {
   position: relative;
   width: min(100% - 32px, 760px);
+  min-inline-size: 0;
   margin: 16px auto;
   overflow: hidden;
   border: 1px solid #d7d0c5;
   border-radius: 4px;
+  padding: 0;
   box-shadow: 0 18px 34px rgb(46 37 28 / 12%);
 }
 
@@ -1273,6 +1275,58 @@ textarea:focus-visible {
   left: 0;
   cursor: ew-resize;
   transform: translate(-50%, -50%);
+}
+
+.layer-context-menu {
+  position: fixed;
+  z-index: 30;
+  display: grid;
+  width: 204px;
+  gap: 2px;
+  border: 1px solid var(--sb-neutral-stroke);
+  border-radius: 6px;
+  padding: 4px;
+  background: var(--sb-neutral-background);
+  box-shadow: var(--sb-shadow-8);
+}
+
+.layer-context-menu button {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0 8px;
+  color: var(--sb-neutral-foreground);
+  text-align: left;
+  background: transparent;
+}
+
+.layer-context-menu button:hover:not(:disabled),
+.layer-context-menu button:focus-visible {
+  background: var(--sb-neutral-background-4);
+}
+
+.layer-context-menu button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.layer-context-menu svg {
+  width: 18px;
+  height: 18px;
+}
+
+.layer-context-menu span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-context-menu .danger-menuitem {
+  color: var(--sb-danger-foreground);
 }
 
 .element-preview {
