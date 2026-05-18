@@ -26,7 +26,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm release:dry-run
+pnpm release:preview
 ```
 
 The API health endpoint is available at `http://127.0.0.1:4000/api/v1/health` when the API dev server is running. The web client runs at `http://127.0.0.1:5173`.
@@ -45,9 +45,9 @@ The Compose service exposes the web app and API on `http://127.0.0.1:4000` and m
 
 See [Local Data](local-data.md) for backup, restore, and cleanup notes for the SQLite database and disk storage directories.
 
-## Release Dry Runs
+## Release Previews
 
-Release automation uses semantic-release with package manifests left at `0.0.0-development`. The local and GitHub Actions dry-run command calculates the next release from Conventional Commits without publishing, tagging, generating changelogs, or changing checked-in package versions.
+Release automation uses semantic-release with package manifests left at `0.0.0-development`. The local and GitHub Actions preview command calculates the next release from Conventional Commits without publishing, tagging, generating changelogs, or changing checked-in package versions.
 
 ## Repository Rules
 

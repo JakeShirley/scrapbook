@@ -17,7 +17,7 @@ Current product reference set: Canva, MyMemories Suite, Shutterfly, and Forever 
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
 | Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, ordered book management, and PNG/JPEG exports exist. |
 | GitHub remote | `Done` | Changes are being pushed to the GitHub `gh` remote on `main`. |
-| CI/CD | `Done` | Pull request validation and release dry-run workflows are configured. |
+| CI/CD | `Done` | Pull request validation and release preview workflows are configured. |
 | Release automation | `Done` | semantic-release GitHub Releases and GHCR image publishing workflows exist. |
 
 ## Status Legend
@@ -129,7 +129,7 @@ Goal: define runtime configuration early and make validation automatic.
 | E03.4 | Define local data layout | `Done` | E03.1 | `SCRAPBOOK_DATA_DIR` convention | SQLite, uploads, variants, previews, and exports will root under the configured data directory. |
 | E03.5 | Add local Docker shell | `Done` | E02.6, E03.1 | `Dockerfile`, `docker-compose.yml` | API container exposes port 4000 and mounts persistent application data at `/data/scrapbook`. |
 | E03.6 | Add initial GitHub CI | `Done` | E02.6 | `.github/workflows/ci.yml` | Pull requests run install, format, lint, typecheck, tests, and build. |
-| E03.7 | Configure semantic-release skeleton | `Done` | E03.6 | `.releaserc.json`, release dry-run workflow | Dry-run calculates releases without changing checked-in versions, publishing, or tagging. |
+| E03.7 | Configure semantic-release skeleton | `Done` | E03.6 | `.releaserc.json`, release preview workflow | Release preview calculates releases without changing checked-in versions, publishing, or tagging. |
 
 Suggested commits:
 

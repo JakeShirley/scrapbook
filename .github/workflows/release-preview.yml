@@ -1,4 +1,4 @@
-name: Release Dry Run
+name: Release Preview
 
 on:
   workflow_dispatch:
@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  dry-run:
-    name: Calculate Release
+  preview:
+    name: Preview Release
     runs-on: ubuntu-latest
 
     steps:
@@ -31,5 +31,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Calculate semantic release
-        run: pnpm release:dry-run
+      - name: Preview semantic release
+        run: pnpm release:preview
