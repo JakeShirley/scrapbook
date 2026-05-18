@@ -21,18 +21,22 @@ import {
 export function PageCanvas({
   assetById,
   document,
+  previewLayers = [],
   selectedLayerId,
   onDeleteLayer,
   onReorderLayer,
   onSelectLayer,
+  onTransformEnd,
   onTransformLayer,
 }: {
   assetById: Map<string, Asset>;
   document: PageDocument;
+  previewLayers?: PageLayer[];
   selectedLayerId: string | null;
   onDeleteLayer: (layerId: string) => void;
   onReorderLayer: (layerId: string, toIndex: number) => void;
   onSelectLayer: (layerId: string) => void;
+  onTransformEnd?: (layerId: string, update: Partial<PageLayer> | null) => void;
   onTransformLayer: (layerId: string, update: Partial<PageLayer>) => void;
 }) {
   const canvasRef = useRef<HTMLFieldSetElement>(null);
@@ -41,14 +45,21 @@ export function PageCanvas({
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
   );
+  const renderedDocument = useMemo(
+    () =>
+      previewLayers.length > 0
+        ? { ...document, layers: [...document.layers, ...previewLayers] }
+        : document,
+    [document, previewLayers],
+  );
   const renderedSvg = useMemo(
     () =>
-      renderPageDocumentSvg(document, {
+      renderPageDocumentSvg(renderedDocument, {
         resolvePhotoHref: (layer) =>
           assetById.get(layer.assetId)?.originalContentUrl ??
           assetById.get(layer.assetId)?.thumbnailUrl,
       }),
-    [assetById, document],
+    [assetById, renderedDocument],
   );
   const contextLayerIndex = contextMenu
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)
@@ -115,40 +126,56 @@ export function PageCanvas({
       startPointerAngle: getAngle(center, pointer),
     });
   };
+  const getTransformUpdate = (
+    transform: ActiveTransform,
+    pointer: CanvasPoint,
+  ): Partial<PageLayer> => {
+    if (transform.mode === "move") {
+      return {
+        x: transform.startLayer.x + pointer.x - transform.startPointer.x,
+        y: transform.startLayer.y + pointer.y - transform.startPointer.y,
+      };
+    }
+    if (transform.mode === "resize" && transform.handle) {
+      return resizeLayerFromHandle(
+        transform.startLayer,
+        transform.handle,
+        pointer,
+        transform.startPointer,
+      );
+    }
+
+    return {
+      rotation: normalizeRotation(
+        transform.startLayer.rotation +
+          getAngle(transform.center, pointer) -
+          transform.startPointerAngle,
+      ),
+    };
+  };
   const transformLayer = (event: ReactPointerEvent<HTMLElement>) => {
     if (!activeTransform || event.pointerId !== activeTransform.pointerId) return;
     const pointer = getCanvasPoint(event);
     if (!pointer) return;
     event.preventDefault();
-    if (activeTransform.mode === "move") {
-      onTransformLayer(activeTransform.layerId, {
-        x: activeTransform.startLayer.x + pointer.x - activeTransform.startPointer.x,
-        y: activeTransform.startLayer.y + pointer.y - activeTransform.startPointer.y,
-      });
-      return;
-    }
-    if (activeTransform.mode === "resize" && activeTransform.handle) {
-      onTransformLayer(
-        activeTransform.layerId,
-        resizeLayerFromHandle(
-          activeTransform.startLayer,
-          activeTransform.handle,
-          pointer,
-          activeTransform.startPointer,
-        ),
-      );
-      return;
-    }
-    onTransformLayer(activeTransform.layerId, {
-      rotation: normalizeRotation(
-        activeTransform.startLayer.rotation +
-          getAngle(activeTransform.center, pointer) -
-          activeTransform.startPointerAngle,
-      ),
-    });
+    onTransformLayer(activeTransform.layerId, getTransformUpdate(activeTransform, pointer));
   };
   const stopTransform = (event: ReactPointerEvent<HTMLElement>) => {
-    if (activeTransform?.pointerId === event.pointerId) setActiveTransform(null);
+    if (activeTransform?.pointerId !== event.pointerId) return;
+    const transform = activeTransform;
+    const pointer = getCanvasPoint(event);
+    const update = pointer ? getTransformUpdate(transform, pointer) : null;
+
+    setActiveTransform(null);
+
+    if (onTransformEnd) {
+      onTransformEnd(transform.layerId, update);
+      return;
+    }
+
+    if (update) {
+      onTransformLayer(transform.layerId, update);
+    }
   };
   const openContextMenu = (event: ReactMouseEvent, layer: PageLayer) => {
     event.preventDefault();

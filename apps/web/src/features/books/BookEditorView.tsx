@@ -46,6 +46,166 @@ type LoadedBook = {
   pages: PageDetail[];
 };
 
+type SpreadPageContext = {
+  offsetX: number;
+  page: PageDetail;
+  pageId: string;
+};
+
+type SpreadLayerSyncResult = {
+  changedPageIds: string[];
+  containingPageId: string | null;
+  details: Map<string, PageDetail>;
+};
+
+const replacePageDocument = (page: PageDetail, document: PageDocument): PageDetail => ({
+  ...page,
+  document,
+  height: document.canvas.height,
+  layerCount: document.layers.length,
+  width: document.canvas.width,
+});
+
+const getSpreadPageContexts = (
+  details: Map<string, PageDetail>,
+  pageIds: string[],
+): SpreadPageContext[] => {
+  let offsetX = 0;
+  const pages: SpreadPageContext[] = [];
+
+  for (const pageId of pageIds) {
+    const page = details.get(pageId);
+
+    if (!page) {
+      continue;
+    }
+
+    pages.push({ offsetX, page, pageId });
+    offsetX += page.document.canvas.width;
+  }
+
+  return pages;
+};
+
+const layerOverlapsPageCanvas = (layer: PageLayer, document: PageDocument): boolean =>
+  layer.x < document.canvas.width &&
+  layer.x + layer.width > 0 &&
+  layer.y < document.canvas.height &&
+  layer.y + layer.height > 0;
+
+const syncLayerAcrossSpread = ({
+  details,
+  removeNonOverlappingSource,
+  sourceLayer,
+  sourcePageId,
+  spreadPageIds,
+}: {
+  details: Map<string, PageDetail>;
+  removeNonOverlappingSource: boolean;
+  sourceLayer: PageLayer;
+  sourcePageId: string;
+  spreadPageIds: string[];
+}): SpreadLayerSyncResult => {
+  const spreadPages = getSpreadPageContexts(details, spreadPageIds);
+  const sourceContext = spreadPages.find((spreadPage) => spreadPage.pageId === sourcePageId);
+
+  if (!sourceContext || spreadPages.length < 2) {
+    const sourcePage = details.get(sourcePageId);
+
+    if (!sourcePage) {
+      return { changedPageIds: [], containingPageId: null, details };
+    }
+
+    return {
+      changedPageIds: [sourcePageId],
+      containingPageId: sourcePageId,
+      details: new Map(details).set(
+        sourcePageId,
+        replacePageDocument(
+          sourcePage,
+          updateLayer(sourcePage.document, sourceLayer.id, sourceLayer),
+        ),
+      ),
+    };
+  }
+
+  const nextDetails = new Map(details);
+  const changedPageIds = new Set<string>();
+  const sourceLayerIndex = sourceContext.page.document.layers.findIndex(
+    (layer) => layer.id === sourceLayer.id,
+  );
+  const spreadX = sourceContext.offsetX + sourceLayer.x;
+  const spreadCenterX = spreadX + sourceLayer.width / 2;
+  const containingPage = spreadPages.find(
+    (spreadPage) =>
+      spreadCenterX >= spreadPage.offsetX &&
+      spreadCenterX < spreadPage.offsetX + spreadPage.page.document.canvas.width,
+  );
+  const ownerPage =
+    containingPage ??
+    spreadPages.reduce((closestPage, spreadPage) => {
+      const closestDistance = Math.min(
+        Math.abs(spreadCenterX - closestPage.offsetX),
+        Math.abs(spreadCenterX - (closestPage.offsetX + closestPage.page.document.canvas.width)),
+      );
+      const spreadPageDistance = Math.min(
+        Math.abs(spreadCenterX - spreadPage.offsetX),
+        Math.abs(spreadCenterX - (spreadPage.offsetX + spreadPage.page.document.canvas.width)),
+      );
+
+      return spreadPageDistance < closestDistance ? spreadPage : closestPage;
+    }, sourceContext);
+  const projectedLayers = spreadPages.map((spreadPage) => {
+    const currentPage = nextDetails.get(spreadPage.pageId) ?? spreadPage.page;
+    const localLayer = { ...sourceLayer, x: spreadX - spreadPage.offsetX };
+
+    return {
+      currentPage,
+      localLayer,
+      overlapsPage: layerOverlapsPageCanvas(localLayer, currentPage.document),
+      spreadPage,
+    };
+  });
+  const overlapsAnyPage = projectedLayers.some((projectedLayer) => projectedLayer.overlapsPage);
+
+  for (const { currentPage, localLayer, overlapsPage, spreadPage } of projectedLayers) {
+    const existingLayer = currentPage.document.layers.find((layer) => layer.id === sourceLayer.id);
+
+    if (existingLayer && existingLayer.kind !== sourceLayer.kind) {
+      continue;
+    }
+
+    const shouldKeepLayer =
+      overlapsPage ||
+      (!removeNonOverlappingSource && spreadPage.pageId === sourcePageId) ||
+      (!overlapsAnyPage && spreadPage.pageId === ownerPage.pageId);
+    let nextDocument = currentPage.document;
+
+    if (shouldKeepLayer) {
+      nextDocument = existingLayer
+        ? updateLayer(currentPage.document, sourceLayer.id, localLayer)
+        : addLayer(
+            currentPage.document,
+            localLayer,
+            Math.max(0, Math.min(sourceLayerIndex, currentPage.document.layers.length)),
+          );
+    } else if (existingLayer) {
+      nextDocument = deleteLayer(currentPage.document, sourceLayer.id);
+    }
+
+    if (nextDocument !== currentPage.document) {
+      nextDetails.set(spreadPage.pageId, replacePageDocument(currentPage, nextDocument));
+      changedPageIds.add(spreadPage.pageId);
+    }
+  }
+
+  return {
+    changedPageIds: [...changedPageIds],
+    containingPageId: ownerPage.pageId,
+    details: nextDetails,
+  };
+};
+
 const fetchBookWithPages = async (bookId: string): Promise<LoadedBook> => {
   const book = await apiClient.getBook(bookId);
   const pages = await Promise.all(book.pages.map((bookPage) => apiClient.getPage(bookPage.pageId)));
@@ -149,6 +309,10 @@ export function BookEditorView() {
       : (book?.spreads[0] ?? null);
   const visiblePageIds =
     viewMode === "spread" ? (activeSpread?.pageIds ?? []) : activePageId ? [activePageId] : [];
+  const visibleSpreadPages = useMemo(
+    () => (viewMode === "spread" ? getSpreadPageContexts(pageDetails, visiblePageIds) : []),
+    [pageDetails, viewMode, visiblePageIds],
+  );
   const canNavigatePrevious = viewMode === "spread" ? activeSpreadIndex > 0 : activePageIndex > 0;
   const canNavigateNext =
     viewMode === "spread"
@@ -160,11 +324,42 @@ export function BookEditorView() {
       : activePageIndex >= 0
         ? `Page ${activePageIndex + 1} of ${orderedPageIds.length}`
         : "No pages";
+  const currentSaveStatuses =
+    viewMode === "spread" && visiblePageIds.length > 1
+      ? visiblePageIds.map((pageId) => pageStatuses[pageId] ?? "saved")
+      : [activeStatus];
+  const currentSaveStatus: EditorSaveStatus = currentSaveStatuses.includes("saving")
+    ? "saving"
+    : currentSaveStatuses.includes("error")
+      ? "error"
+      : currentSaveStatuses.includes("unsaved")
+        ? "unsaved"
+        : "saved";
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
-  const selectedLayer = useMemo(
-    () => activePage?.document.layers.find((layer) => layer.id === selectedLayerId) ?? null,
-    [activePage, selectedLayerId],
-  );
+  const selectedLayerInfo = useMemo(() => {
+    if (!selectedLayerId) {
+      return null;
+    }
+
+    const candidatePageIds = [activePageId, ...visiblePageIds].filter(
+      (pageId, index, pageIds): pageId is string =>
+        Boolean(pageId) && pageIds.indexOf(pageId) === index,
+    );
+
+    for (const pageId of candidatePageIds) {
+      const page = pageDetails.get(pageId);
+      const layer = page?.document.layers.find(
+        (candidateLayer) => candidateLayer.id === selectedLayerId,
+      );
+
+      if (page && layer) {
+        return { layer, page };
+      }
+    }
+
+    return null;
+  }, [activePageId, pageDetails, selectedLayerId, visiblePageIds]);
+  const selectedLayer = selectedLayerInfo?.layer ?? null;
 
   const selectPage = (pageId: string, layerId?: string | null) => {
     const page = pageDetails.get(pageId);
@@ -192,23 +387,84 @@ export function BookEditorView() {
     setPageStatuses((currentStatuses) => ({ ...currentStatuses, [pageId]: status }));
   };
 
-  const editPageDocument = (pageId: string, nextDocument: PageDocument) => {
-    updatePageDetail(pageId, (page) => ({
-      ...page,
-      document: nextDocument,
-      height: nextDocument.canvas.height,
-      layerCount: nextDocument.layers.length,
-      width: nextDocument.canvas.width,
-    }));
-    setPageStatus(pageId, "unsaved");
-  };
-
-  const updateActiveLayer = (update: Partial<PageLayer>) => {
-    if (!activePage || !selectedLayerId) {
+  const setPagesStatus = (pageIds: string[], status: EditorSaveStatus) => {
+    if (pageIds.length === 0) {
       return;
     }
 
-    editPageDocument(activePage.id, updateLayer(activePage.document, selectedLayerId, update));
+    setPageStatuses((currentStatuses) => ({
+      ...currentStatuses,
+      ...Object.fromEntries(pageIds.map((pageId) => [pageId, status])),
+    }));
+  };
+
+  const editPageDocument = (pageId: string, nextDocument: PageDocument) => {
+    updatePageDetail(pageId, (page) => replacePageDocument(page, nextDocument));
+    setPageStatus(pageId, "unsaved");
+  };
+
+  const applySpreadLayerSync = (
+    result: SpreadLayerSyncResult,
+    options: { selectContainingPage?: boolean; selectedLayerId?: string } = {},
+  ) => {
+    setPageDetails(result.details);
+    setPagesStatus(result.changedPageIds, "unsaved");
+
+    if (options.selectContainingPage && result.containingPageId) {
+      setActivePageId(result.containingPageId);
+    }
+
+    if (options.selectedLayerId !== undefined) {
+      setSelectedLayerId(options.selectedLayerId);
+    }
+  };
+
+  const updateSharedSpreadLayer = ({
+    removeNonOverlappingSource,
+    selectContainingPage,
+    sourceLayer,
+    sourcePageId,
+  }: {
+    removeNonOverlappingSource: boolean;
+    selectContainingPage: boolean;
+    sourceLayer: PageLayer;
+    sourcePageId: string;
+  }) => {
+    applySpreadLayerSync(
+      syncLayerAcrossSpread({
+        details: pageDetails,
+        removeNonOverlappingSource,
+        sourceLayer,
+        sourcePageId,
+        spreadPageIds: visiblePageIds,
+      }),
+      { selectContainingPage, selectedLayerId: sourceLayer.id },
+    );
+  };
+
+  const updateActiveLayer = (update: Partial<PageLayer>) => {
+    if (!selectedLayerInfo) {
+      return;
+    }
+
+    const nextDocument = updateLayer(
+      selectedLayerInfo.page.document,
+      selectedLayerInfo.layer.id,
+      update,
+    );
+    const nextLayer = nextDocument.layers.find((layer) => layer.id === selectedLayerInfo.layer.id);
+
+    if (viewMode === "spread" && nextLayer && visiblePageIds.length > 1) {
+      updateSharedSpreadLayer({
+        removeNonOverlappingSource: true,
+        selectContainingPage: true,
+        sourceLayer: nextLayer,
+        sourcePageId: selectedLayerInfo.page.id,
+      });
+      return;
+    }
+
+    editPageDocument(selectedLayerInfo.page.id, nextDocument);
   };
 
   const updateLayerTransform = (pageId: string, layerId: string, update: Partial<PageLayer>) => {
@@ -218,13 +474,83 @@ export function BookEditorView() {
       return;
     }
 
-    editPageDocument(pageId, updateLayer(page.document, layerId, update));
+    const nextDocument = updateLayer(page.document, layerId, update);
+    const nextLayer = nextDocument.layers.find((layer) => layer.id === layerId);
+
+    if (viewMode === "spread" && nextLayer && visiblePageIds.length > 1) {
+      updateSharedSpreadLayer({
+        removeNonOverlappingSource: false,
+        selectContainingPage: false,
+        sourceLayer: nextLayer,
+        sourcePageId: pageId,
+      });
+      return;
+    }
+
+    editPageDocument(pageId, nextDocument);
+  };
+
+  const finishLayerTransform = (
+    pageId: string,
+    layerId: string,
+    update: Partial<PageLayer> | null,
+  ) => {
+    const page = pageDetails.get(pageId);
+
+    if (!page) {
+      return;
+    }
+
+    const nextDocument = update ? updateLayer(page.document, layerId, update) : page.document;
+    const nextLayer = nextDocument.layers.find((layer) => layer.id === layerId);
+
+    if (viewMode === "spread" && nextLayer && visiblePageIds.length > 1) {
+      updateSharedSpreadLayer({
+        removeNonOverlappingSource: true,
+        selectContainingPage: true,
+        sourceLayer: nextLayer,
+        sourcePageId: pageId,
+      });
+      return;
+    }
+
+    if (update) {
+      editPageDocument(pageId, nextDocument);
+    }
   };
 
   const reorderPageLayer = (pageId: string, layerId: string, toIndex: number) => {
     const page = pageDetails.get(pageId);
 
     if (!page) {
+      return;
+    }
+
+    const layer = page.document.layers.find((candidateLayer) => candidateLayer.id === layerId);
+
+    if (viewMode === "spread" && layer && visiblePageIds.length > 1) {
+      const nextDetails = new Map(pageDetails);
+      const changedPageIds: string[] = [];
+
+      for (const spreadPage of visibleSpreadPages) {
+        const currentPage = nextDetails.get(spreadPage.pageId);
+
+        if (!currentPage?.document.layers.some((candidateLayer) => candidateLayer.id === layerId)) {
+          continue;
+        }
+
+        nextDetails.set(
+          spreadPage.pageId,
+          replacePageDocument(currentPage, reorderLayer(currentPage.document, layerId, toIndex)),
+        );
+        changedPageIds.push(spreadPage.pageId);
+      }
+
+      applySpreadLayerSync(
+        { changedPageIds, containingPageId: pageId, details: nextDetails },
+        { selectedLayerId: layerId },
+      );
+      setActivePageId(pageId);
       return;
     }
 
@@ -237,6 +563,32 @@ export function BookEditorView() {
     const page = pageDetails.get(pageId);
 
     if (!page) {
+      return;
+    }
+
+    const layer = page.document.layers.find((candidateLayer) => candidateLayer.id === layerId);
+
+    if (viewMode === "spread" && layer && visiblePageIds.length > 1) {
+      const nextDetails = new Map(pageDetails);
+      const changedPageIds: string[] = [];
+
+      for (const spreadPage of visibleSpreadPages) {
+        const currentPage = nextDetails.get(spreadPage.pageId);
+
+        if (!currentPage?.document.layers.some((candidateLayer) => candidateLayer.id === layerId)) {
+          continue;
+        }
+
+        nextDetails.set(
+          spreadPage.pageId,
+          replacePageDocument(currentPage, deleteLayer(currentPage.document, layerId)),
+        );
+        changedPageIds.push(spreadPage.pageId);
+      }
+
+      applySpreadLayerSync({ changedPageIds, containingPageId: pageId, details: nextDetails });
+      setActivePageId(pageId);
+      setSelectedLayerId((currentLayerId) => (currentLayerId === layerId ? null : currentLayerId));
       return;
     }
 
@@ -309,24 +661,74 @@ export function BookEditorView() {
     }
   };
 
-  const saveActivePage = async () => {
-    if (!activePage) {
+  const saveCurrentPages = async () => {
+    const pageIdsToSave =
+      viewMode === "spread" && visiblePageIds.length > 1
+        ? visiblePageIds
+        : activePage
+          ? [activePage.id]
+          : [];
+    const pagesToSave = pageIdsToSave
+      .map((pageId) => pageDetails.get(pageId))
+      .filter((page): page is PageDetail => Boolean(page));
+
+    if (pagesToSave.length === 0) {
       return;
     }
 
-    setPageStatus(activePage.id, "saving");
+    setPagesStatus(
+      pagesToSave.map((page) => page.id),
+      "saving",
+    );
     setError(null);
 
-    try {
-      const savedPage = await apiClient.updatePage(activePage.id, {
-        document: activePage.document,
-        title: activePage.title,
+    const saveResults = await Promise.allSettled(
+      pagesToSave.map((page) =>
+        apiClient.updatePage(page.id, {
+          document: page.document,
+          title: page.title,
+        }),
+      ),
+    );
+    const savedPages: PageDetail[] = [];
+    const failedPageIds: string[] = [];
+    const firstFailure = saveResults.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+
+    for (const [index, saveResult] of saveResults.entries()) {
+      const page = pagesToSave[index];
+
+      if (!page) {
+        continue;
+      }
+
+      if (saveResult.status === "fulfilled") {
+        savedPages.push(saveResult.value);
+      } else {
+        failedPageIds.push(page.id);
+      }
+    }
+
+    if (savedPages.length > 0) {
+      setPageDetails((currentDetails) => {
+        const nextDetails = new Map(currentDetails);
+
+        for (const savedPage of savedPages) {
+          nextDetails.set(savedPage.id, savedPage);
+        }
+
+        return nextDetails;
       });
-      updatePageDetail(activePage.id, () => savedPage);
-      setPageStatus(activePage.id, "saved");
-    } catch (saveError: unknown) {
-      setPageStatus(activePage.id, "error");
-      setError(getErrorMessage(saveError));
+      setPagesStatus(
+        savedPages.map((page) => page.id),
+        "saved",
+      );
+    }
+
+    if (failedPageIds.length > 0) {
+      setPagesStatus(failedPageIds, "error");
+      setError(getErrorMessage(firstFailure?.reason ?? "Failed to save page"));
     }
   };
 
@@ -487,6 +889,44 @@ export function BookEditorView() {
     }
   };
 
+  const getSpreadPreviewLayers = (pageId: string): PageLayer[] => {
+    if (viewMode !== "spread" || visibleSpreadPages.length < 2) {
+      return [];
+    }
+
+    const targetPage = visibleSpreadPages.find((spreadPage) => spreadPage.pageId === pageId);
+
+    if (!targetPage) {
+      return [];
+    }
+
+    const existingLayerIds = new Set(targetPage.page.document.layers.map((layer) => layer.id));
+    const previewLayers: PageLayer[] = [];
+
+    for (const sourcePage of visibleSpreadPages) {
+      if (sourcePage.pageId === pageId) {
+        continue;
+      }
+
+      for (const layer of sourcePage.page.document.layers) {
+        if (existingLayerIds.has(layer.id)) {
+          continue;
+        }
+
+        const projectedLayer = {
+          ...layer,
+          x: sourcePage.offsetX + layer.x - targetPage.offsetX,
+        };
+
+        if (layerOverlapsPageCanvas(projectedLayer, targetPage.page.document)) {
+          previewLayers.push(projectedLayer);
+        }
+      }
+    }
+
+    return previewLayers;
+  };
+
   if (isLoading || !book) {
     return (
       <>
@@ -544,11 +984,15 @@ export function BookEditorView() {
           appearance="primary"
           type="button"
           className="primary-button"
-          disabled={!activePage || activeStatus === "saving"}
+          disabled={!activePage || currentSaveStatus === "saving"}
           icon={<SaveRegular />}
-          onClick={saveActivePage}
+          onClick={saveCurrentPages}
         >
-          {activeStatus === "saving" ? "Saving" : "Save page"}
+          {currentSaveStatus === "saving"
+            ? "Saving"
+            : viewMode === "spread" && visiblePageIds.length > 1
+              ? "Save spread"
+              : "Save page"}
         </Button>
       </WorkspaceHeader>
       {error ? (
@@ -710,12 +1154,16 @@ export function BookEditorView() {
                       <PageCanvas
                         assetById={assetById}
                         document={page.document}
+                        previewLayers={getSpreadPreviewLayers(pageId)}
                         selectedLayerId={pageId === activePage.id ? selectedLayerId : null}
                         onDeleteLayer={(layerId) => deletePageLayer(pageId, layerId)}
                         onReorderLayer={(layerId, toIndex) =>
                           reorderPageLayer(pageId, layerId, toIndex)
                         }
                         onSelectLayer={(layerId) => selectPage(pageId, layerId)}
+                        onTransformEnd={(layerId, update) =>
+                          finishLayerTransform(pageId, layerId, update)
+                        }
                         onTransformLayer={(layerId, update) =>
                           updateLayerTransform(pageId, layerId, update)
                         }
