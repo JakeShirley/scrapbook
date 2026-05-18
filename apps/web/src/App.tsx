@@ -1,5 +1,12 @@
 import { Button } from "@fluentui/react-components";
-import { BookRegular, ImageRegular, SettingsRegular, SignOutRegular } from "@fluentui/react-icons";
+import {
+  BookRegular,
+  ChevronLeftRegular,
+  ChevronRightRegular,
+  ImageRegular,
+  SettingsRegular,
+  SignOutRegular,
+} from "@fluentui/react-icons";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router";
@@ -19,6 +26,24 @@ const navItems = [
   { to: "/library", label: "Photos", icon: <ImageRegular /> },
   { to: "/settings", label: "Settings", icon: <SettingsRegular /> },
 ] satisfies { to: string; label: string; icon: ReactNode }[];
+
+const sidebarCollapsedStorageKey = "scrapbook:sidebar-collapsed";
+
+function getInitialSidebarCollapsed() {
+  try {
+    return window.localStorage.getItem(sidebarCollapsedStorageKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveSidebarCollapsedPreference(isCollapsed: boolean) {
+  try {
+    window.localStorage.setItem(sidebarCollapsedStorageKey, String(isCollapsed));
+  } catch {
+    // Keep the in-memory toggle usable if localStorage is unavailable.
+  }
+}
 
 export function App() {
   return (
@@ -117,7 +142,17 @@ function ProtectedShell({
   onLogout: () => Promise<void>;
 }) {
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const navigate = useNavigate();
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((currentValue) => {
+      const nextValue = !currentValue;
+      saveSidebarCollapsedPreference(nextValue);
+
+      return nextValue;
+    });
+  };
 
   const logout = async () => {
     setLogoutError(null);
@@ -131,13 +166,17 @@ function ProtectedShell({
   };
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar" aria-label="Primary navigation">
+    <main className="app-shell" data-sidebar-collapsed={isSidebarCollapsed}>
+      <aside
+        className="sidebar"
+        data-collapsed={isSidebarCollapsed}
+        aria-label="Primary navigation"
+      >
         <div className="brand-block">
           <div className="brand-mark" aria-hidden="true">
             S
           </div>
-          <div>
+          <div className="sidebar-copy">
             <h1>Scrapbook</h1>
             <p>{session.account.displayName}</p>
           </div>
@@ -145,24 +184,36 @@ function ProtectedShell({
 
         <nav className="nav-list" aria-label="Workspace sections">
           {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to}>
+            <NavLink key={item.to} to={item.to} aria-label={item.label} title={item.label}>
               <span className="nav-icon" aria-hidden="true">
                 {item.icon}
               </span>
-              {item.label}
+              <span className="sidebar-label">{item.label}</span>
             </NavLink>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-          <p>{session.account.primaryEmail}</p>
+          <p className="sidebar-label">{session.account.primaryEmail}</p>
           <Button
             className="secondary-button"
             icon={<SignOutRegular />}
             type="button"
+            aria-label="Sign out"
+            title="Sign out"
             onClick={logout}
           >
-            Sign out
+            <span className="sidebar-label">Sign out</span>
+          </Button>
+          <Button
+            className="secondary-button sidebar-toggle"
+            icon={isSidebarCollapsed ? <ChevronRightRegular /> : <ChevronLeftRegular />}
+            type="button"
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={toggleSidebar}
+          >
+            <span className="sidebar-label">{isSidebarCollapsed ? "Expand" : "Collapse"}</span>
           </Button>
           {logoutError ? (
             <p className="sidebar-alert" role="alert">
