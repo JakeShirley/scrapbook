@@ -163,7 +163,7 @@ export function BooksView() {
     void setBookPageIds(pageIds);
   };
 
-  const exportBook = async () => {
+  const exportBook = async (format: "pdf" | "png") => {
     if (!selectedBook) {
       return;
     }
@@ -173,7 +173,7 @@ export function BooksView() {
 
     try {
       setExportJob(
-        await apiClient.createExport({ bookId: selectedBook.id, format: "png", preset: "print" }),
+        await apiClient.createExport({ bookId: selectedBook.id, format, preset: "print" }),
       );
     } catch (exportError: unknown) {
       setError(getErrorMessage(exportError));
@@ -230,9 +230,17 @@ export function BooksView() {
                   className="secondary-button"
                   type="button"
                   disabled={isWorking}
-                  onClick={exportBook}
+                  onClick={() => exportBook("png")}
                 >
-                  Export
+                  Export PNG
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={isWorking}
+                  onClick={() => exportBook("pdf")}
+                >
+                  Export PDF
                 </button>
               </form>
               {selectedBook.pages.length === 0 ? (

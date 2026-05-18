@@ -3,17 +3,6 @@ import {
   type AccountResponse,
   type AssetResponse,
   type AuthSessionResponse,
-  bookCreateRoute,
-  bookDetailRoute,
-  bookListResponseSchema,
-  bookListRoute,
-  bookPatchRoute,
-  type BookPageResponse,
-  bookResponseSchema,
-  type BookResponse,
-  type BookSummaryResponse,
-  bookSummaryResponseSchema,
-  bookSetPagesRoute,
   assetDetailRoute,
   assetListResponseSchema,
   assetListRoute,
@@ -22,17 +11,30 @@ import {
   assetUploadRoute,
   assetVariantContentRoute,
   authSessionResponseSchema,
+  type BookPageResponse,
+  type BookResponse,
+  type BookSummaryResponse,
+  bookCreateRoute,
+  bookDetailRoute,
+  bookListResponseSchema,
+  bookListRoute,
+  bookPatchRoute,
+  bookResponseSchema,
+  bookSetPagesRoute,
+  bookSummaryResponseSchema,
   currentSessionRoute,
   type ErrorResponse,
+  type ExportJobResponse,
   exportContentRoute,
   exportCreateRoute,
   exportDetailRoute,
-  type ExportJobResponse,
   exportJobResponseSchema,
   healthResponseSchema,
   healthRoute,
   loginRoute,
   logoutRoute,
+  type PageResponse,
+  type PageSummaryResponse,
   pageCreateRoute,
   pageDeleteRoute,
   pageDetailRoute,
@@ -40,9 +42,7 @@ import {
   pageListResponseSchema,
   pageListRoute,
   pagePatchRoute,
-  type PageResponse,
   pageResponseSchema,
-  type PageSummaryResponse,
   pageSummaryResponseSchema,
   registerRoute,
   type SessionResponse,
@@ -1239,7 +1239,12 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     const buffer = await options.storage.read(exportJob.outputStorageKey);
-    const contentType = exportJob.format === "jpeg" ? "image/jpeg" : "image/png";
+    const contentType =
+      exportJob.format === "pdf"
+        ? "application/pdf"
+        : exportJob.format === "jpeg"
+          ? "image/jpeg"
+          : "image/png";
 
     return context.body(toArrayBuffer(buffer), 200, {
       "cache-control": "private, max-age=86400",

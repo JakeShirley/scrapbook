@@ -12,7 +12,7 @@ import { makeFixedClock } from "@scrapbook/test-utils";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
-import { type ExportStorage, renderPageExport } from "./exports.js";
+import { type ExportStorage, renderBookExport, renderPageExport } from "./exports.js";
 import { createDatabaseConnection } from "./persistence/database.js";
 import { runMigrations } from "./persistence/migrations.js";
 import { createRepositories } from "./persistence/repositories.js";
@@ -95,7 +95,7 @@ const countPixels = (
   return count;
 };
 
-const renderDocumentPng = async (document: PageDocument): Promise<DecodedPng> => {
+const createExportFixture = async (document: PageDocument) => {
   const connection = createDatabaseConnection({ databasePath: ":memory:" });
   const clock = makeFixedClock(fixedDate);
   const repositories = createRepositories(connection.db, { clock });
@@ -142,13 +142,24 @@ const renderDocumentPng = async (document: PageDocument): Promise<DecodedPng> =>
       width: document.canvas.width,
     });
 
+    return { connection, repositories, storage };
+  } catch (error) {
+    connection.close();
+    throw error;
+  }
+};
+
+const renderDocumentPng = async (document: PageDocument): Promise<DecodedPng> => {
+  const fixture = await createExportFixture(document);
+
+  try {
     const rendered = await renderPageExport({
       accountId: testAccountId,
       format: "png",
       pageId: testPageId,
       preset: "print",
-      repositories,
-      storage,
+      repositories: fixture.repositories,
+      storage: fixture.storage,
     });
 
     expect(rendered.extension).toBe(".png");
@@ -156,7 +167,7 @@ const renderDocumentPng = async (document: PageDocument): Promise<DecodedPng> =>
 
     return decodePng(rendered.buffer);
   } finally {
-    connection.close();
+    fixture.connection.close();
   }
 };
 
@@ -390,5 +401,90 @@ describe("PNG page exports", () => {
     expectColorNear(pixelAt(photoCorner, 160, 160), scrapbookBackground);
     expectColorNear(pixelAt(patternPaper, 88, 124), { blue: 55, green: 165, red: 214 });
     expectColorNear(pixelAt(patternPaper, 104, 124), { blue: 201, green: 215, red: 242 });
+  });
+
+  it("renders page exports as PDF documents", async () => {
+    const fixture = await createExportFixture(
+      createPageDocument({
+        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
+        layers: [createTextLayer({ id: "pdf_text", text: "PDF" })],
+      }),
+    );
+
+    try {
+      const rendered = await renderPageExport({
+        accountId: testAccountId,
+        format: "pdf",
+        pageId: testPageId,
+        preset: "print",
+        repositories: fixture.repositories,
+        storage: fixture.storage,
+      });
+
+      expect(rendered.extension).toBe(".pdf");
+      expect(rendered.mimeType).toBe("application/pdf");
+      expect(rendered.buffer.subarray(0, 5).toString()).toBe("%PDF-");
+      expect(rendered.buffer.toString("latin1")).toContain("/DCTDecode");
+    } finally {
+      fixture.connection.close();
+    }
+  });
+
+  it("renders book PDF exports with one PDF page per scrapbook page", async () => {
+    const fixture = await createExportFixture(
+      createPageDocument({
+        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
+        layers: [createTextLayer({ id: "book_pdf_text", text: "One" })],
+      }),
+    );
+
+    try {
+      const secondPage = fixture.repositories.pages.create({
+        accountId: testAccountId,
+        documentJson: JSON.stringify(
+          createPageDocument({
+            canvas: { backgroundColor: "#fffdf7", height: 320, width: 320 },
+            layers: [createTextLayer({ id: "book_pdf_text_2", text: "Two" })],
+          }),
+        ),
+        height: 320,
+        id: "page_export_pixels_2",
+        title: "Export pixels two",
+        width: 320,
+      });
+      const book = fixture.repositories.books.create({
+        accountId: testAccountId,
+        id: "book_export_pixels",
+        title: "Export pixels book",
+      });
+
+      fixture.repositories.books.addPage({
+        accountId: testAccountId,
+        bookId: book.id,
+        pageId: testPageId,
+        sortOrder: 0,
+      });
+      fixture.repositories.books.addPage({
+        accountId: testAccountId,
+        bookId: book.id,
+        pageId: secondPage.id,
+        sortOrder: 1,
+      });
+
+      const rendered = await renderBookExport({
+        accountId: testAccountId,
+        bookId: book.id,
+        format: "pdf",
+        preset: "print",
+        repositories: fixture.repositories,
+        storage: fixture.storage,
+      });
+
+      expect(rendered.extension).toBe(".pdf");
+      expect(rendered.mimeType).toBe("application/pdf");
+      expect(rendered.buffer.toString("latin1")).toContain("/Count 2");
+    } finally {
+      fixture.connection.close();
+    }
   });
 });

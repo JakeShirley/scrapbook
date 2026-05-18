@@ -275,13 +275,11 @@ export function EditorView() {
       setError(getErrorMessage(deleteError));
     }
   };
-  const exportPage = async () => {
+  const exportPage = async (format: "pdf" | "png") => {
     if (!page) return;
     setError(null);
     try {
-      setExportJob(
-        await apiClient.createExport({ format: "png", pageId: page.id, preset: "print" }),
-      );
+      setExportJob(await apiClient.createExport({ format, pageId: page.id, preset: "print" }));
     } catch (exportError: unknown) {
       setError(getErrorMessage(exportError));
     }
@@ -314,8 +312,11 @@ export function EditorView() {
         <button type="button" className="secondary-button" onClick={deletePage}>
           Delete
         </button>
-        <button type="button" className="secondary-button" onClick={exportPage}>
+        <button type="button" className="secondary-button" onClick={() => exportPage("png")}>
           Export PNG
+        </button>
+        <button type="button" className="secondary-button" onClick={() => exportPage("pdf")}>
+          Export PDF
         </button>
         <button
           type="button"

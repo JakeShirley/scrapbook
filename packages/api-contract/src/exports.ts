@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { errorResponseSchema } from "./shared.js";
 
-export const exportFormatSchema = z.enum(["png", "jpeg"]);
+export const exportFormatSchema = z.enum(["png", "jpeg", "pdf"]);
 export const exportPresetSchema = z.enum(["digital", "print"]);
 export const exportStatusSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
 
@@ -146,6 +146,9 @@ export const exportContentRoute = createRoute({
           schema: z.string().openapi({ format: "binary" }),
         },
         "image/jpeg": {
+          schema: z.string().openapi({ format: "binary" }),
+        },
+        "application/pdf": {
           schema: z.string().openapi({ format: "binary" }),
         },
       },

@@ -587,6 +587,16 @@ describe("api app", () => {
       firstCookie,
     );
     const bookExport = exportJobResponseSchema.parse(await bookExportResponse.json());
+    const pdfExportResponse = await postJson(
+      app,
+      "/api/v1/exports",
+      { pageId: page.id, format: "pdf", preset: "print" },
+      firstCookie,
+    );
+    const pdfExport = exportJobResponseSchema.parse(await pdfExportResponse.json());
+    const pdfContentResponse = await app.request(`/api/v1/exports/${pdfExport.id}/content`, {
+      headers: { cookie: firstCookie },
+    });
 
     expect(pageExportResponse.status).toBe(201);
     expect(pageExport).toMatchObject({ status: "completed", targetKind: "page" });
@@ -598,6 +608,15 @@ describe("api app", () => {
     expect(crossAccountExportResponse.status).toBe(404);
     expect(bookExportResponse.status).toBe(201);
     expect(bookExport).toMatchObject({ format: "jpeg", preset: "print", targetKind: "book" });
+    expect(pdfExportResponse.status).toBe(201);
+    expect(pdfExport).toMatchObject({ format: "pdf", preset: "print", targetKind: "page" });
+    expect(pdfContentResponse.status).toBe(200);
+    expect(pdfContentResponse.headers.get("content-type")).toBe("application/pdf");
+    expect(
+      Buffer.from(await pdfContentResponse.arrayBuffer())
+        .subarray(0, 5)
+        .toString(),
+    ).toBe("%PDF-");
   });
 
   it("persists non-destructive photo edits without mutating original assets", async () => {
