@@ -41,6 +41,12 @@ import { PageCanvas } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
 import { PngExportSettingsModal } from "../editor/PngExportSettingsModal";
 import {
+  type BookEditorHistoryEntry,
+  type EditHistoryMode,
+  getChangedPageIds,
+  useBookEditorHistory,
+} from "./bookEditorHistory";
+import {
   commonBookPageSizes,
   customBookPageSizeKey,
   defaultBookPageSize,
@@ -252,23 +258,29 @@ export function BookEditorView() {
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { endHistoryGroup, recordHistory, redoHistory, resetHistory, undoHistory } =
+    useBookEditorHistory<BookEditorHistoryEntry>();
 
-  const applyLoadedBook = useCallback((loadedBook: LoadedBook, preferredPageId: string | null) => {
-    const detailsById = new Map(loadedBook.pages.map((page) => [page.id, page]));
-    const orderedPageIds = loadedBook.book.pages.map((bookPage) => bookPage.pageId);
-    const nextActivePageId =
-      preferredPageId && orderedPageIds.includes(preferredPageId)
-        ? preferredPageId
-        : (orderedPageIds[0] ?? null);
+  const applyLoadedBook = useCallback(
+    (loadedBook: LoadedBook, preferredPageId: string | null) => {
+      const detailsById = new Map(loadedBook.pages.map((page) => [page.id, page]));
+      const orderedPageIds = loadedBook.book.pages.map((bookPage) => bookPage.pageId);
+      const nextActivePageId =
+        preferredPageId && orderedPageIds.includes(preferredPageId)
+          ? preferredPageId
+          : (orderedPageIds[0] ?? null);
 
-    setBook(loadedBook.book);
-    setBookTitleDraft(loadedBook.book.title);
-    setBookPageSizeDraft(getBookPageSizeKey(loadedBook.book));
-    setPageDetails(detailsById);
-    setPageStatuses(Object.fromEntries(loadedBook.pages.map((page) => [page.id, "saved"])));
-    setActivePageId(nextActivePageId);
-    setSelectedLayerId(null);
-  }, []);
+      setBook(loadedBook.book);
+      setBookTitleDraft(loadedBook.book.title);
+      setBookPageSizeDraft(getBookPageSizeKey(loadedBook.book));
+      setPageDetails(detailsById);
+      resetHistory();
+      setPageStatuses(Object.fromEntries(loadedBook.pages.map((page) => [page.id, "saved"])));
+      setActivePageId(nextActivePageId);
+      setSelectedLayerId(null);
+    },
+    [resetHistory],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -355,26 +367,11 @@ export function BookEditorView() {
     setSelectedLayerId(layerId);
   };
 
-  const updatePageDetail = (pageId: string, update: (page: PageDetail) => PageDetail) => {
-    setPageDetails((currentDetails) => {
-      const page = currentDetails.get(pageId);
-
-      if (!page) {
-        return currentDetails;
-      }
-
-      const nextDetails = new Map(currentDetails);
-      nextDetails.set(pageId, update(page));
-
-      return nextDetails;
-    });
-  };
-
   const setPageStatus = (pageId: string, status: EditorSaveStatus) => {
     setPageStatuses((currentStatuses) => ({ ...currentStatuses, [pageId]: status }));
   };
 
-  const setPagesStatus = (pageIds: string[], status: EditorSaveStatus) => {
+  const setPagesStatus = useCallback((pageIds: string[], status: EditorSaveStatus) => {
     if (pageIds.length === 0) {
       return;
     }
@@ -383,12 +380,117 @@ export function BookEditorView() {
       ...currentStatuses,
       ...Object.fromEntries(pageIds.map((pageId) => [pageId, status])),
     }));
+  }, []);
+
+  const createHistoryEntry = useCallback(
+    (): BookEditorHistoryEntry => ({
+      activePageId,
+      editingPageId,
+      pageDetails: new Map(pageDetails),
+      selectedLayerId,
+    }),
+    [activePageId, editingPageId, pageDetails, selectedLayerId],
+  );
+
+  const applyHistoryEntry = useCallback(
+    (entry: BookEditorHistoryEntry) => {
+      const changedPageIds = getChangedPageIds(pageDetails, entry.pageDetails);
+      const nextActivePageId =
+        entry.activePageId && entry.pageDetails.has(entry.activePageId)
+          ? entry.activePageId
+          : (orderedPageIds.find((pageId) => entry.pageDetails.has(pageId)) ?? null);
+      const nextEditingPageId =
+        entry.editingPageId && entry.pageDetails.has(entry.editingPageId)
+          ? entry.editingPageId
+          : null;
+
+      setPageDetails(new Map(entry.pageDetails));
+      setActivePageId(nextActivePageId);
+      setSelectedLayerId(entry.selectedLayerId);
+      setEditingPageId(nextEditingPageId);
+      setPagesStatus(changedPageIds, "unsaved");
+    },
+    [orderedPageIds, pageDetails, setPagesStatus],
+  );
+
+  const recordEditorHistory = useCallback(
+    (historyMode: EditHistoryMode = "record") => {
+      recordHistory(createHistoryEntry, historyMode);
+    },
+    [createHistoryEntry, recordHistory],
+  );
+
+  const undoBookEdit = useCallback(() => {
+    undoHistory({ applyEntry: applyHistoryEntry, createEntry: createHistoryEntry });
+  }, [applyHistoryEntry, createHistoryEntry, undoHistory]);
+
+  const redoBookEdit = useCallback(() => {
+    redoHistory({ applyEntry: applyHistoryEntry, createEntry: createHistoryEntry });
+  }, [applyHistoryEntry, createHistoryEntry, redoHistory]);
+
+  const updatePageDetail = (
+    pageId: string,
+    update: (page: PageDetail) => PageDetail,
+    historyMode: EditHistoryMode = "record",
+  ) => {
+    const page = pageDetails.get(pageId);
+
+    if (!page) {
+      return;
+    }
+
+    recordEditorHistory(historyMode);
+    setPageDetails((currentDetails) => {
+      const currentPage = currentDetails.get(pageId);
+
+      if (!currentPage) {
+        return currentDetails;
+      }
+
+      const nextDetails = new Map(currentDetails);
+      nextDetails.set(pageId, update(currentPage));
+
+      return nextDetails;
+    });
   };
 
-  const editPageDocument = (pageId: string, nextDocument: PageDocument) => {
-    updatePageDetail(pageId, (page) => replacePageDocument(page, nextDocument));
+  const editPageDocument = (
+    pageId: string,
+    nextDocument: PageDocument,
+    historyMode: EditHistoryMode = "record",
+  ) => {
+    updatePageDetail(pageId, (page) => replacePageDocument(page, nextDocument), historyMode);
     setPageStatus(pageId, "unsaved");
   };
+
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        !(event.ctrlKey || event.metaKey) ||
+        event.key.toLowerCase() !== "z" ||
+        isBookSettingsOpen ||
+        isPhotoPickerOpen ||
+        pngExportTarget
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (event.shiftKey) {
+        redoBookEdit();
+        return;
+      }
+
+      undoBookEdit();
+    };
+
+    document.addEventListener("keydown", handleHistoryShortcut);
+
+    return () => document.removeEventListener("keydown", handleHistoryShortcut);
+  }, [isBookSettingsOpen, isPhotoPickerOpen, pngExportTarget, redoBookEdit, undoBookEdit]);
 
   const changePageTitle = (pageId: string, title: string) => {
     updatePageDetail(pageId, (page) => ({ ...page, title }));
@@ -486,8 +588,16 @@ export function BookEditorView() {
 
   const applySpreadLayerSync = (
     result: SpreadLayerSyncResult,
-    options: { selectContainingPage?: boolean; selectedLayerId?: string } = {},
+    options: {
+      historyMode?: EditHistoryMode;
+      selectContainingPage?: boolean;
+      selectedLayerId?: string;
+    } = {},
   ) => {
+    if (result.changedPageIds.length > 0) {
+      recordEditorHistory(options.historyMode);
+    }
+
     setPageDetails(result.details);
     setPagesStatus(result.changedPageIds, "unsaved");
 
@@ -505,12 +615,24 @@ export function BookEditorView() {
     selectContainingPage,
     sourceLayer,
     sourcePageId,
+    historyMode,
   }: {
+    historyMode?: EditHistoryMode;
     removeNonOverlappingSource: boolean;
     selectContainingPage: boolean;
     sourceLayer: PageLayer;
     sourcePageId: string;
   }) => {
+    const syncOptions: {
+      historyMode?: EditHistoryMode;
+      selectContainingPage: boolean;
+      selectedLayerId: string;
+    } = { selectContainingPage, selectedLayerId: sourceLayer.id };
+
+    if (historyMode !== undefined) {
+      syncOptions.historyMode = historyMode;
+    }
+
     applySpreadLayerSync(
       syncLayerAcrossSpread({
         details: pageDetails,
@@ -519,11 +641,16 @@ export function BookEditorView() {
         sourcePageId,
         spreadPageIds: visiblePageIds,
       }),
-      { selectContainingPage, selectedLayerId: sourceLayer.id },
+      syncOptions,
     );
   };
 
-  const updateLayerTransform = (pageId: string, layerId: string, update: Partial<PageLayer>) => {
+  const updateLayerTransform = (
+    pageId: string,
+    layerId: string,
+    update: Partial<PageLayer>,
+    historyMode: EditHistoryMode = "record",
+  ) => {
     const page = pageDetails.get(pageId);
 
     if (!page) {
@@ -535,6 +662,7 @@ export function BookEditorView() {
 
     if (viewMode === "spread" && nextLayer && visiblePageIds.length > 1) {
       updateSharedSpreadLayer({
+        historyMode,
         removeNonOverlappingSource: false,
         selectContainingPage: false,
         sourceLayer: nextLayer,
@@ -543,7 +671,7 @@ export function BookEditorView() {
       return;
     }
 
-    editPageDocument(pageId, nextDocument);
+    editPageDocument(pageId, nextDocument, historyMode);
   };
 
   const finishLayerTransform = (
@@ -562,17 +690,21 @@ export function BookEditorView() {
 
     if (viewMode === "spread" && nextLayer && visiblePageIds.length > 1) {
       updateSharedSpreadLayer({
+        historyMode: "group",
         removeNonOverlappingSource: true,
         selectContainingPage: true,
         sourceLayer: nextLayer,
         sourcePageId: pageId,
       });
+      endHistoryGroup();
       return;
     }
 
     if (update) {
-      editPageDocument(pageId, nextDocument);
+      editPageDocument(pageId, nextDocument, "group");
     }
+
+    endHistoryGroup();
   };
 
   const reorderPageLayer = (pageId: string, layerId: string, toIndex: number) => {
@@ -1305,7 +1437,7 @@ export function BookEditorView() {
                           finishLayerTransform(pageId, layerId, update)
                         }
                         onTransformLayer={(layerId, update) =>
-                          updateLayerTransform(pageId, layerId, update)
+                          updateLayerTransform(pageId, layerId, update, "group")
                         }
                       />
                     </section>
