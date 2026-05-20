@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gt, isNull } from "drizzle-orm";
 
 import type { AppDatabase } from "./database.js";
 import { createEntityId, createInternalId } from "./ids.js";
+import { createMemoryPageDocumentStore, type PageDocumentStore } from "./page-documents.js";
 import {
   type AccountRecord,
   type AssetRecord,
@@ -41,6 +42,37 @@ export class OwnershipError extends Error {
 const defaultClock: RepositoryClock = () => new Date();
 
 const now = (clock: RepositoryClock): ISODateTime => createTimestamp(clock());
+
+const createDefaultPageDocumentJson = (page: Pick<PageRecord, "height" | "width">): string =>
+  JSON.stringify(createPageDocument({ canvas: { width: page.width, height: page.height } }));
+
+const readPageDocumentJson = (page: PageRecord, pageDocuments: PageDocumentStore): string => {
+  if (page.documentStorageKey) {
+    const storedDocumentJson = pageDocuments.read(page.documentStorageKey);
+
+    if (storedDocumentJson) {
+      return storedDocumentJson;
+    }
+  }
+
+  return page.documentJson.trim().length > 0
+    ? page.documentJson
+    : createDefaultPageDocumentJson(page);
+};
+
+const hydratePageRecord = (
+  page: PageRecord | null,
+  pageDocuments: PageDocumentStore,
+): PageRecord | null => {
+  if (!page) {
+    return null;
+  }
+
+  return {
+    ...page,
+    documentJson: readPageDocumentJson(page, pageDocuments),
+  };
+};
 
 export class AccountRepository {
   constructor(
@@ -353,6 +385,7 @@ export class PageRepository {
   constructor(
     private readonly db: AppDatabase,
     private readonly clock: RepositoryClock = defaultClock,
+    private readonly pageDocuments: PageDocumentStore = createMemoryPageDocumentStore(),
   ) {}
 
   create(input: {
@@ -364,33 +397,44 @@ export class PageRepository {
     id?: string;
   }): PageRecord {
     const timestamp = now(this.clock);
+    const pageId = input.id ?? createEntityId("page");
+    const documentJson = input.documentJson ?? createDefaultPageDocumentJson(input);
+    const documentStorageKey = this.pageDocuments.createKey({
+      accountId: input.accountId,
+      pageId,
+    });
     const record: PageRecord = {
-      id: input.id ?? createEntityId("page"),
+      id: pageId,
       accountId: input.accountId,
       title: input.title,
       width: input.width,
       height: input.height,
-      documentJson:
-        input.documentJson ??
-        JSON.stringify(
-          createPageDocument({ canvas: { width: input.width, height: input.height } }),
-        ),
+      documentJson: "",
+      documentStorageKey,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
 
-    this.db.insert(pages).values(record).run();
+    this.pageDocuments.write(documentStorageKey, documentJson, { overwrite: false });
 
-    return record;
+    try {
+      this.db.insert(pages).values(record).run();
+    } catch (error) {
+      this.pageDocuments.remove(documentStorageKey);
+      throw error;
+    }
+
+    return { ...record, documentJson };
   }
 
   findByIdForAccount(accountId: string, pageId: string): PageRecord | null {
-    return (
+    return hydratePageRecord(
       this.db
         .select()
         .from(pages)
         .where(and(eq(pages.accountId, accountId), eq(pages.id, pageId)))
-        .get() ?? null
+        .get() ?? null,
+      this.pageDocuments,
     );
   }
 
@@ -400,7 +444,8 @@ export class PageRepository {
       .from(pages)
       .where(eq(pages.accountId, accountId))
       .orderBy(desc(pages.updatedAt))
-      .all();
+      .all()
+      .map((page) => hydratePageRecord(page, this.pageDocuments) ?? page);
   }
 
   updateForAccount(
@@ -415,11 +460,23 @@ export class PageRepository {
     }
 
     const timestamp = now(this.clock);
+    const documentJson = input.documentJson ?? existing.documentJson;
+    const documentStorageKey =
+      existing.documentStorageKey ??
+      this.pageDocuments.createKey({ accountId: existing.accountId, pageId: existing.id });
+
+    if (input.documentJson !== undefined || !existing.documentStorageKey) {
+      this.pageDocuments.write(documentStorageKey, documentJson, {
+        overwrite: existing.documentStorageKey !== null,
+      });
+    }
+
     const nextRecord = {
       title: input.title ?? existing.title,
       width: input.width ?? existing.width,
       height: input.height ?? existing.height,
-      documentJson: input.documentJson ?? existing.documentJson,
+      documentJson: "",
+      documentStorageKey,
       updatedAt: timestamp,
     };
 
@@ -433,10 +490,16 @@ export class PageRepository {
   }
 
   deleteByIdForAccount(accountId: string, pageId: string): boolean {
+    const existing = this.findByIdForAccount(accountId, pageId);
+
     const result = this.db
       .delete(pages)
       .where(and(eq(pages.accountId, accountId), eq(pages.id, pageId)))
       .run();
+
+    if (result.changes > 0 && existing?.documentStorageKey) {
+      this.pageDocuments.remove(existing.documentStorageKey);
+    }
 
     return result.changes > 0;
   }
@@ -446,6 +509,7 @@ export class BookRepository {
   constructor(
     private readonly db: AppDatabase,
     private readonly clock: RepositoryClock = defaultClock,
+    private readonly pageDocuments: PageDocumentStore = createMemoryPageDocumentStore(),
   ) {}
 
   create(input: {
@@ -525,7 +589,11 @@ export class BookRepository {
       .innerJoin(pages, and(eq(bookPages.pageId, pages.id), eq(pages.accountId, accountId)))
       .where(and(eq(bookPages.accountId, accountId), eq(bookPages.bookId, bookId)))
       .orderBy(asc(bookPages.sortOrder))
-      .all();
+      .all()
+      .map(({ bookPage, page }) => ({
+        bookPage,
+        page: hydratePageRecord(page, this.pageDocuments) ?? page,
+      }));
   }
 
   addPage(input: {
@@ -710,16 +778,20 @@ export class ExportJobRepository {
   }
 }
 
-export const createRepositories = (db: AppDatabase, options: { clock?: RepositoryClock } = {}) => {
+export const createRepositories = (
+  db: AppDatabase,
+  options: { clock?: RepositoryClock; pageDocuments?: PageDocumentStore } = {},
+) => {
   const clock = options.clock ?? defaultClock;
+  const pageDocuments = options.pageDocuments ?? createMemoryPageDocumentStore();
 
   return {
     accounts: new AccountRepository(db, clock),
     authIdentities: new AuthIdentityRepository(db, clock),
     sessions: new SessionRepository(db, clock),
     assets: new AssetRepository(db, clock),
-    pages: new PageRepository(db, clock),
-    books: new BookRepository(db, clock),
+    pages: new PageRepository(db, clock, pageDocuments),
+    books: new BookRepository(db, clock, pageDocuments),
     exports: new ExportJobRepository(db, clock),
   };
 };

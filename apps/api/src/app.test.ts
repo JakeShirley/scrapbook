@@ -1,3 +1,4 @@
+import { mkdtempSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,6 +19,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { createDatabaseConnection, type DatabaseConnection } from "./persistence/database.js";
 import { runMigrations } from "./persistence/migrations.js";
+import { createPageDocumentStore } from "./persistence/page-documents.js";
 import { createRepositories } from "./persistence/repositories.js";
 import { createDiskStorage } from "./storage/disk.js";
 
@@ -27,13 +29,18 @@ const fixedDate = new Date("2026-05-17T12:00:00.000Z");
 
 const createTestApp = () => {
   const connection = createDatabaseConnection({ databasePath: ":memory:" });
+  const rootDir = mkdtempSync(join(tmpdir(), "scrapbook-api-"));
+  const pageDocuments = createPageDocumentStore({ rootDir });
+
   connections.push(connection);
+  tempDirs.push(rootDir);
   runMigrations(connection.sqlite);
 
   return createApp({
     clock: makeFixedClock(fixedDate),
     repositories: createRepositories(connection.db, {
       clock: makeFixedClock(fixedDate),
+      pageDocuments,
     }),
   });
 };
@@ -50,7 +57,10 @@ const createTestAppWithStorage = async () => {
 
   return createApp({
     clock: makeFixedClock(fixedDate),
-    repositories: createRepositories(connection.db, { clock: makeFixedClock(fixedDate) }),
+    repositories: createRepositories(connection.db, {
+      clock: makeFixedClock(fixedDate),
+      pageDocuments: createPageDocumentStore({ rootDir }),
+    }),
     storage,
   });
 };

@@ -44,7 +44,7 @@ The app should feel like a scrapbook tool, not only a modern layout editor:
 - Keep domain models portable and boring: accounts, books, pages, assets, page elements, edits, exports.
 - Make user ownership and authorization part of the API from the first real data model.
 - Store originals separately from derived previews/renders so edits remain non-destructive.
-- Use SQLite first for simplicity and durability, with a schema that can migrate later.
+- Use SQLite first for relational indexes and operational state, while keeping creative document bodies and binary objects in managed local files.
 - Host the source repository on GitHub and use GitHub-native automation for validation, releases, dependency updates, and container publishing.
 - Keep repository version checked in as `0.0.0-development`; let `semantic-release` own published versions, tags, and changelogs.
 - Use Conventional Commits from the beginning so release automation works later.

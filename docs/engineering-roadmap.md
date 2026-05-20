@@ -1,6 +1,6 @@
 # Engineering Roadmap
 
-_Last updated: 2026-05-17_
+_Last updated: 2026-05-20_
 
 This document turns the product roadmap into an execution tracker for engineers and future LLM agents. Keep it current as implementation lands so the next useful task is obvious without rediscovering project intent.
 
@@ -15,7 +15,7 @@ Current product reference set: Canva, MyMemories Suite, Shutterfly, and Forever 
 | Local Git repo | `Done` | Repository exists on `main`. |
 | Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
-| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, ordered book management, and PNG/JPEG exports exist. |
+| Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, file-backed page document storage, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, ordered book management, and PNG/JPEG exports exist. |
 | GitHub remote | `Done` | Changes are being pushed to the GitHub `gh` remote on `main`. |
 | CI/CD | `Done` | Pull request validation and release preview workflows are configured. |
 | Release automation | `Done` | semantic-release GitHub Releases and GHCR image publishing workflows exist. |

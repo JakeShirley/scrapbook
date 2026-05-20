@@ -3,6 +3,7 @@ import { loadConfig } from "@scrapbook/config";
 
 import { createApp } from "./app.js";
 import { createDatabaseConnection } from "./persistence/database.js";
+import { createPageDocumentStore } from "./persistence/page-documents.js";
 import { createRepositories } from "./persistence/repositories.js";
 import { createDiskStorage } from "./storage/disk.js";
 
@@ -12,11 +13,12 @@ const databaseConnection = createDatabaseConnection({
   migrate: true,
 });
 const storage = createDiskStorage({ rootDir: config.SCRAPBOOK_DATA_DIR });
+const pageDocuments = createPageDocumentStore({ rootDir: config.SCRAPBOOK_DATA_DIR });
 await storage.ensureReady();
 
 const staticAssetsDir = process.env.WEB_ASSETS_DIR;
 const app = createApp({
-  repositories: createRepositories(databaseConnection.db),
+  repositories: createRepositories(databaseConnection.db, { pageDocuments }),
   sessionCookieSecure: config.NODE_ENV === "production",
   ...(staticAssetsDir ? { staticAssetsDir } : {}),
   storage,

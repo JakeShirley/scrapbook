@@ -134,9 +134,13 @@ export const pages = sqliteTable(
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     documentJson: text("document_json").notNull(),
+    documentStorageKey: text("document_storage_key"),
     ...timestampColumns(),
   },
-  (table) => [index("pages_account_id_idx").on(table.accountId)],
+  (table) => [
+    index("pages_account_id_idx").on(table.accountId),
+    uniqueIndex("pages_document_storage_key_unique").on(table.documentStorageKey),
+  ],
 );
 
 export const books = sqliteTable(

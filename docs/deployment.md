@@ -65,6 +65,6 @@ Migrations run on startup. Keep a backup of the data volume before upgrades.
 
 ## Backup And Restore
 
-Stop the container before filesystem backups so SQLite and stored files are captured together. Back up the entire `SCRAPBOOK_DATA_DIR`, including `scrapbook.sqlite`, WAL/SHM files, uploads, variants, previews, and exports.
+Stop the container before filesystem backups so SQLite and stored files are captured together. Back up the entire `SCRAPBOOK_DATA_DIR`, including `scrapbook.sqlite`, WAL/SHM files, page documents, uploads, variants, previews, and exports.
 
 To restore, start a new container with the restored directory mounted at the same `SCRAPBOOK_DATA_DIR` path.

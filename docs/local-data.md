@@ -9,13 +9,19 @@ SCRAPBOOK_DATA_DIR/
   scrapbook.sqlite
   scrapbook.sqlite-shm
   scrapbook.sqlite-wal
+  documents/
+    accounts/
+      account_<id>/
+        pages/
+          page_<id>/
+            document.json
   uploads/
   variants/
   previews/
   exports/
 ```
 
-SQLite owns the `scrapbook.sqlite*` files. The storage adapter owns the other directories and returns opaque storage keys such as `uploads/ab/<uuid>.jpg`. Application code should store those keys, not absolute paths.
+SQLite owns the `scrapbook.sqlite*` files. Page documents and stored binary objects live as loose files under managed subdirectories. Application code stores opaque storage keys such as `documents/accounts/account_<id>/pages/page_<id>/document.json` or `uploads/ab/<uuid>.jpg`, not absolute paths.
 
 ## Assets
 
@@ -25,7 +31,9 @@ The upload endpoint accepts JPEG, PNG, and WebP images up to 20 MB. Originals ar
 
 ## Pages
 
-Scrapbook pages are owned by the authenticated account that created them. The API stores page title, canvas dimensions, timestamps, and a versioned page document JSON blob in SQLite. Page documents contain canvas settings plus ordered text and photo layers; photo layers may only reference assets owned by the same account.
+Scrapbook pages are owned by the authenticated account that created them. SQLite stores page title, canvas dimensions, timestamps, ownership, and the storage key for the page document. The canonical versioned page document JSON lives on disk under `documents/accounts/<account-id>/pages/<page-id>/document.json`. Page documents contain canvas settings plus ordered text and photo layers; photo layers may only reference assets owned by the same account.
+
+Older local data may still have page document JSON in SQLite's legacy `document_json` column. New and updated pages write the document body to loose files; the repository layer can still read the legacy column as a fallback so existing development data can reopen.
 
 Books are account-owned ordered collections of pages. The `book_pages` join table stores the stable page IDs and zero-based `sort_order`; replacing book order never deletes the underlying pages. Ordered pages are grouped into adjacent left/right facing spreads for previews, navigation, and export ordering, with an unpaired final page represented as a single-page spread.
 
@@ -45,7 +53,7 @@ Migrations are idempotent and recorded in the `schema_migrations` table.
 
 ## Backup
 
-Stop the API before making a filesystem backup so SQLite and file storage are captured together. Back up the entire `SCRAPBOOK_DATA_DIR`, including `scrapbook.sqlite`, any `scrapbook.sqlite-wal` or `scrapbook.sqlite-shm` files, and the storage directories.
+Stop the API before making a filesystem backup so SQLite and file storage are captured together. Back up the entire `SCRAPBOOK_DATA_DIR`, including `scrapbook.sqlite`, any `scrapbook.sqlite-wal` or `scrapbook.sqlite-shm` files, `documents/`, and the storage directories.
 
 For Docker Compose, stop the service and archive the `scrapbook-data` volume contents from a temporary container or from Docker Desktop's volume tooling.
 

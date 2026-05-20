@@ -145,6 +145,13 @@ ALTER TABLE books ADD COLUMN page_width INTEGER NOT NULL DEFAULT 2400 CHECK (pag
 ALTER TABLE books ADD COLUMN page_height INTEGER NOT NULL DEFAULT 3000 CHECK (page_height >= 320 AND page_height <= 10000);
 `,
   },
+  {
+    id: "0004_add_page_document_storage_key",
+    sql: `
+ALTER TABLE pages ADD COLUMN document_storage_key TEXT;
+CREATE UNIQUE INDEX pages_document_storage_key_unique ON pages (document_storage_key) WHERE document_storage_key IS NOT NULL;
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

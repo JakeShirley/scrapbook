@@ -14,7 +14,7 @@ Scrapbook needs export output before the editor has a dedicated canvas rendering
 
 Use a server-side SVG-to-image renderer backed by Sharp for the first export implementation.
 
-The API converts saved page documents into SVG, embeds account-owned original assets as data URLs, and rasterizes the result to PNG or JPEG. Digital exports render at a reduced scale for sharing. Print exports keep the saved page dimensions and use higher output quality. Book exports initially produce an ordered contact-sheet image that preserves book page order and facing-spread grouping; PDF and ZIP bundles remain future extensions of the same export job model.
+The API converts saved page documents into SVG, embeds account-owned original assets as data URLs, and rasterizes the result to PNG or JPEG. Digital exports render at a reduced scale for sharing. Print exports keep the saved page dimensions and use higher output quality. Book exports initially produce an ordered contact-sheet image that preserves book page order and facing-spread grouping; PDF and ZIP bundles remain future extensions of the same export job model. Page document bodies are loaded through the repository layer, which may hydrate them from file-backed storage.
 
 ## Consequences
 

@@ -12,12 +12,14 @@ describe("SQLite migrations", () => {
         "0001_initial_schema",
         "0002_add_export_presets",
         "0003_add_book_page_size",
+        "0004_add_page_document_storage_key",
       ]);
       expect(runMigrations(connection.sqlite)).toEqual([]);
       expect(getAppliedMigrations(connection.sqlite)).toEqual([
         "0001_initial_schema",
         "0002_add_export_presets",
         "0003_add_book_page_size",
+        "0004_add_page_document_storage_key",
       ]);
 
       const tableNames = connection.sqlite

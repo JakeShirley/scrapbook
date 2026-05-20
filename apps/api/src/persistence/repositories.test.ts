@@ -1,17 +1,31 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { makeFixedClock } from "@scrapbook/test-utils";
 import { describe, expect, it } from "vitest";
 
 import { createDatabaseConnection } from "./database.js";
 import { runMigrations } from "./migrations.js";
+import { createPageDocumentStore } from "./page-documents.js";
 import { createRepositories, OwnershipError } from "./repositories.js";
 
-const createTestRepositories = () => {
+const createTestRepositories = (options: { fileBackedPageDocuments?: boolean } = {}) => {
   const connection = createDatabaseConnection({ databasePath: ":memory:" });
+  const rootDir = options.fileBackedPageDocuments
+    ? mkdtempSync(join(tmpdir(), "scrapbook-repositories-"))
+    : null;
+  const pageDocuments = rootDir ? createPageDocumentStore({ rootDir }) : undefined;
+
   runMigrations(connection.sqlite);
 
   return {
     connection,
-    repositories: createRepositories(connection.db, { clock: makeFixedClock() }),
+    repositories: createRepositories(connection.db, {
+      clock: makeFixedClock(),
+      ...(pageDocuments ? { pageDocuments } : {}),
+    }),
+    rootDir,
   };
 };
 
@@ -156,6 +170,58 @@ describe("repositories", () => {
       ).toThrow(OwnershipError);
     } finally {
       connection.close();
+    }
+  });
+
+  it("stores page document JSON in loose files", () => {
+    const { connection, repositories, rootDir } = createTestRepositories({
+      fileBackedPageDocuments: true,
+    });
+
+    try {
+      const account = repositories.accounts.create({
+        displayName: "Ada Lovelace",
+        primaryEmail: "ada-files@example.com",
+      });
+      const documentJson = JSON.stringify({
+        canvas: { backgroundColor: "#ffffff", height: 2400, width: 2400 },
+        layers: [],
+        schemaVersion: 1,
+      });
+      const page = repositories.pages.create({
+        accountId: account.id,
+        documentJson,
+        height: 2400,
+        title: "Loose file page",
+        width: 2400,
+      });
+      const row = connection.sqlite
+        .prepare(
+          "SELECT document_json, document_storage_key FROM pages WHERE id = ? AND account_id = ?",
+        )
+        .get(page.id, account.id) as { document_json: string; document_storage_key: string };
+      const documentPath = join(rootDir ?? "", row.document_storage_key);
+
+      expect(row.document_json).toBe("");
+      expect(row.document_storage_key).toBe(
+        `documents/accounts/${account.id}/pages/${page.id}/document.json`,
+      );
+      expect(JSON.parse(readFileSync(documentPath, "utf8"))).toMatchObject({
+        canvas: { width: 2400 },
+      });
+      expect(repositories.pages.findByIdForAccount(account.id, page.id)?.documentJson).toBe(
+        documentJson,
+      );
+
+      repositories.pages.deleteByIdForAccount(account.id, page.id);
+
+      expect(existsSync(documentPath)).toBe(false);
+    } finally {
+      connection.close();
+
+      if (rootDir) {
+        rmSync(rootDir, { recursive: true, force: true });
+      }
     }
   });
 });
