@@ -53,6 +53,18 @@ const createSolidPng = (color: Rgb): Promise<Buffer> =>
     .png()
     .toBuffer();
 
+const createSolidTiff = (color: Rgb): Promise<Buffer> =>
+  sharp({
+    create: {
+      background: { b: color.blue, g: color.green, r: color.red },
+      channels: 3,
+      height: 1600,
+      width: 1600,
+    },
+  })
+    .tiff({ compression: "none" })
+    .toBuffer();
+
 const decodePng = async (buffer: Buffer): Promise<DecodedPng> => {
   const { data, info } = await sharp(buffer).ensureAlpha().raw().toBuffer({
     resolveWithObject: true,
@@ -95,12 +107,23 @@ const countPixels = (
   return count;
 };
 
-const createExportFixture = async (document: PageDocument) => {
+const createExportFixture = async (
+  document: PageDocument,
+  assetInput?: {
+    buffer: Buffer;
+    height: number;
+    mimeType: string;
+    originalFilename: string;
+    storageKey: string;
+    width: number;
+  },
+) => {
   const connection = createDatabaseConnection({ databasePath: ":memory:" });
   const clock = makeFixedClock(fixedDate);
   const repositories = createRepositories(connection.db, { clock });
-  const photoBuffer = await createSolidPng(photoRed);
-  const storageObjects = new Map([[testAssetStorageKey, photoBuffer]]);
+  const photoBuffer = assetInput?.buffer ?? (await createSolidPng(photoRed));
+  const photoStorageKey = assetInput?.storageKey ?? testAssetStorageKey;
+  const storageObjects = new Map([[photoStorageKey, photoBuffer]]);
   const storage: ExportStorage = {
     read: async (key) => {
       const storedObject = storageObjects.get(key);
@@ -126,12 +149,12 @@ const createExportFixture = async (document: PageDocument) => {
       accountId: testAccountId,
       byteSize: photoBuffer.byteLength,
       checksumSha256: checksumSha256(photoBuffer),
-      height: 32,
+      height: assetInput?.height ?? 32,
       id: testAssetId,
-      mimeType: "image/png",
-      originalFilename: "export-pixels.png",
-      originalStorageKey: testAssetStorageKey,
-      width: 32,
+      mimeType: assetInput?.mimeType ?? "image/png",
+      originalFilename: assetInput?.originalFilename ?? "export-pixels.png",
+      originalStorageKey: photoStorageKey,
+      width: assetInput?.width ?? 32,
     });
     repositories.pages.create({
       accountId: testAccountId,
@@ -485,6 +508,67 @@ describe("PNG page exports", () => {
       expect(rendered.extension).toBe(".pdf");
       expect(rendered.mimeType).toBe("application/pdf");
       expect(rendered.buffer.toString("latin1")).toContain("/Count 2");
+    } finally {
+      fixture.connection.close();
+    }
+  });
+
+  it("renders book PNG exports when pages include TIFF originals", async () => {
+    const tiffBuffer = await createSolidTiff(photoRed);
+    const fixture = await createExportFixture(
+      createPageDocument({
+        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
+        layers: [
+          createPhotoLayer({
+            assetId: testAssetId,
+            height: 96,
+            id: "book_tiff_photo",
+            width: 96,
+            x: 24,
+            y: 24,
+          }),
+        ],
+      }),
+      {
+        buffer: tiffBuffer,
+        height: 1600,
+        mimeType: "image/tiff",
+        originalFilename: "scan.tiff",
+        storageKey: "uploads/export-pixels.tiff",
+        width: 1600,
+      },
+    );
+
+    try {
+      const book = fixture.repositories.books.create({
+        accountId: testAccountId,
+        id: "book_export_tiff_pixels",
+        pageWidth: 320,
+        pageHeight: 320,
+        title: "TIFF export book",
+      });
+
+      fixture.repositories.books.addPage({
+        accountId: testAccountId,
+        bookId: book.id,
+        pageId: testPageId,
+        sortOrder: 0,
+      });
+
+      const rendered = await renderBookExport({
+        accountId: testAccountId,
+        bookId: book.id,
+        format: "png",
+        preset: "print",
+        repositories: fixture.repositories,
+        storage: fixture.storage,
+      });
+      const image = await decodePng(rendered.buffer);
+
+      expect(rendered.extension).toBe(".png");
+      expect(rendered.mimeType).toBe("image/png");
+      expect(image).toMatchObject({ height: 442, width: 679 });
+      expectColorNear(pixelAt(image, 85, 173), photoRed, 12);
     } finally {
       fixture.connection.close();
     }

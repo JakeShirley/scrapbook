@@ -12,7 +12,8 @@ export type RenderedRasterImage = {
   width: number;
 };
 
-const renderScaleForPreset = (preset: ExportPreset): number => (preset === "print" ? 1 : 0.5);
+export const renderScaleForPreset = (preset: ExportPreset): number =>
+  preset === "print" ? 1 : 0.5;
 
 const outputForFormat = (format: RasterExportFormat) =>
   format === "jpeg"

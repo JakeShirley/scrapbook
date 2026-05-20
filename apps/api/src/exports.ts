@@ -1,6 +1,6 @@
 import type { ExportFormat, ExportPreset } from "@scrapbook/api-contract";
 
-import { createBookSheetSvg } from "./export-rendering/book-sheet.js";
+import { rasterizeBookSheet } from "./export-rendering/book-sheet.js";
 import { parsePageDocument, renderPageSvg } from "./export-rendering/documents.js";
 import { renderSvgPdf } from "./export-rendering/pdf.js";
 import { rasterizeSvg } from "./export-rendering/raster.js";
@@ -26,6 +26,7 @@ const renderStoredPageSvg = async (input: ExportRendererInput & { page: PageReco
   renderPageSvg({
     accountId: input.accountId,
     document: await parsePageDocument(input.page),
+    preset: input.preset,
     repositories: input.repositories,
     storage: input.storage,
   });
@@ -92,7 +93,5 @@ export const renderBookExport = async (
     );
   }
 
-  const sheetSvg = createBookSheetSvg(renderedPages);
-
-  return rasterizeSvg(sheetSvg, input.format, input.preset);
+  return rasterizeBookSheet(renderedPages, input.format, input.preset);
 };
