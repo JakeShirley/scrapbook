@@ -1198,23 +1198,23 @@ export function BookEditorView() {
             <div className="book-page-actions-inline">
               <Button
                 type="button"
-                className="secondary-button"
+                className="secondary-button compact-icon-button"
+                aria-label="Previous"
+                title="Previous"
                 disabled={!canNavigatePrevious || isWorking}
                 icon={<ChevronLeftRegular />}
                 onClick={() => navigateBook(-1)}
-              >
-                Previous
-              </Button>
+              />
               <span>{navigationLabel}</span>
               <Button
                 type="button"
-                className="secondary-button"
+                className="secondary-button compact-icon-button"
+                aria-label="Next"
+                title="Next"
                 disabled={!canNavigateNext || isWorking}
                 icon={<ChevronRightRegular />}
                 onClick={() => navigateBook(1)}
-              >
-                Next
-              </Button>
+              />
             </div>
           </div>
           {activePage ? (

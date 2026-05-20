@@ -934,11 +934,6 @@ textarea:focus-visible {
   min-width: 0;
 }
 
-.book-page-actions-inline:last-child {
-  grid-column: 1 / -1;
-  justify-content: flex-start;
-}
-
 .book-page-actions-inline .secondary-button,
 .book-page-actions-inline .fui-Button.secondary-button {
   flex: 0 0 auto;
@@ -3120,17 +3115,26 @@ body {
 }
 
 .book-editor-page .book-modebar {
-  grid-template-columns: minmax(178px, max-content) minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 8px;
 }
 
 .book-editor-page .book-page-actions-inline {
+  flex-wrap: nowrap;
   gap: 6px;
 }
 
 .book-editor-page .book-page-actions-inline .secondary-button,
 .book-editor-page .book-page-actions-inline .fui-Button.secondary-button {
   min-width: 84px;
+}
+
+.book-editor-page .book-page-actions-inline .compact-icon-button,
+.book-editor-page .book-page-actions-inline .fui-Button.compact-icon-button {
+  flex-basis: 34px;
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
 }
 
 .book-editor-page .book-page-actions-inline > span {
