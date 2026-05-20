@@ -30,7 +30,6 @@ import { AssetRail } from "./AssetRail";
 import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
 import type { EmbellishmentPreset } from "./embellishments";
-import { LayerInspector } from "./LayerInspector";
 import { PageCanvas } from "./PageCanvas";
 
 export function EditorView() {
@@ -80,16 +79,9 @@ export function EditorView() {
   }, [navigate, pageId]);
 
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
-  const selectedLayer = useMemo(
-    () => document?.layers.find((layer) => layer.id === selectedLayerId) ?? null,
-    [document, selectedLayerId],
-  );
   const editDocument = (nextDocument: PageDocument) => {
     setDocument(nextDocument);
     setStatus("unsaved");
-  };
-  const updateSelectedLayer = (update: Partial<PageLayer>) => {
-    if (document && selectedLayerId) editDocument(updateLayer(document, selectedLayerId, update));
   };
   const updateLayerTransform = (layerId: string, update: Partial<PageLayer>) => {
     if (document) editDocument(updateLayer(document, layerId, update));
@@ -279,19 +271,13 @@ export function EditorView() {
             assetById={assetById}
             document={document}
             selectedLayerId={selectedLayerId}
+            onChangeLayer={updateLayerTransform}
             onDeleteLayer={deleteCanvasLayer}
             onReorderLayer={reorderCanvasLayer}
             onSelectLayer={setSelectedLayerId}
             onTransformLayer={updateLayerTransform}
           />
         </section>
-        <aside className="editor-panel" aria-label="Selected layer controls">
-          <div className="panel-heading compact-heading">
-            <h3>Selection</h3>
-            <span>{selectedLayer ? selectedLayer.kind : "No layer"}</span>
-          </div>
-          <LayerInspector layer={selectedLayer} onChange={updateSelectedLayer} />
-        </aside>
       </div>
     </>
   );

@@ -36,7 +36,6 @@ import { AssetRail } from "../editor/AssetRail";
 import { EditorToolbar } from "../editor/EditorToolbar";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
-import { LayerInspector } from "../editor/LayerInspector";
 import { PageCanvas } from "../editor/PageCanvas";
 
 type ViewMode = "page" | "spread";
@@ -359,8 +358,6 @@ export function BookEditorView() {
 
     return null;
   }, [activePageId, pageDetails, selectedLayerId, visiblePageIds]);
-  const selectedLayer = selectedLayerInfo?.layer ?? null;
-
   const selectPage = (pageId: string, layerId?: string | null) => {
     const page = pageDetails.get(pageId);
 
@@ -1165,6 +1162,7 @@ export function BookEditorView() {
                         document={page.document}
                         previewLayers={getSpreadPreviewLayers(pageId)}
                         selectedLayerId={pageId === activePage.id ? selectedLayerId : null}
+                        onChangeLayer={(_layerId, update) => updateActiveLayer(update)}
                         onDeleteLayer={(layerId) => deletePageLayer(pageId, layerId)}
                         onReorderLayer={(layerId, toIndex) =>
                           reorderPageLayer(pageId, layerId, toIndex)
@@ -1216,17 +1214,6 @@ export function BookEditorView() {
             </div>
           )}
         </section>
-        <aside className="editor-panel" aria-label="Selected layer controls">
-          <div className="panel-heading compact-heading">
-            <h3>Selection</h3>
-            <span>{selectedLayer ? selectedLayer.kind : "No layer"}</span>
-          </div>
-          {activePage ? (
-            <LayerInspector layer={selectedLayer} onChange={updateActiveLayer} />
-          ) : (
-            <p className="empty-state">Add a page to start editing.</p>
-          )}
-        </aside>
       </div>
     </>
   );
