@@ -32,7 +32,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { apiClient } from "../../apiClient";
-import { WorkspaceHeader } from "../../components/layout";
+import { AppModal, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
@@ -238,6 +238,7 @@ export function BookEditorView() {
   const [viewMode, setViewMode] = useState<ViewMode>("spread");
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const [pageDropTarget, setPageDropTarget] = useState<{
     pageId: string;
@@ -765,6 +766,7 @@ export function BookEditorView() {
       setBook(updatedBook);
       setBookTitleDraft(updatedBook.title);
       setBookPageSizeDraft(getBookPageSizeKey(updatedBook));
+      setIsBookSettingsOpen(false);
     } catch (renameError: unknown) {
       setError(getErrorMessage(renameError));
     } finally {
@@ -1075,7 +1077,20 @@ export function BookEditorView() {
 
   return (
     <div className="book-editor-page">
-      <WorkspaceHeader title={book.title}>
+      <WorkspaceHeader
+        title={book.title}
+        titleActions={
+          <Button
+            type="button"
+            className="secondary-button compact-icon-button"
+            aria-label="Edit book settings"
+            aria-haspopup="dialog"
+            title="Edit book settings"
+            icon={<EditRegular />}
+            onClick={() => setIsBookSettingsOpen(true)}
+          />
+        }
+      >
         <Button
           type="button"
           className="secondary-button"
@@ -1112,29 +1127,15 @@ export function BookEditorView() {
           Export book PDF
         </Button>
       </WorkspaceHeader>
-      <div className="book-editor-notices">
-        {error ? (
-          <p className="panel-alert" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {exportJob?.outputContentUrl ? (
-          <p className="download-banner">
-            <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">
-              Download {exportJob.targetKind} {exportJob.format.toUpperCase()}
-            </a>
-          </p>
-        ) : null}
-      </div>
-      <div className="book-editor-shell">
-        <AssetRail
-          assets={assets}
-          onAddEmbellishment={addEmbellishment}
-          onAddPhoto={addPhoto}
-          onAddText={addText}
-        />
-        <section className="book-editor-stage" aria-label="Book editor">
-          <form className="book-title-form" onSubmit={renameBook}>
+      {isBookSettingsOpen ? (
+        <AppModal
+          title="Book settings"
+          eyebrow={book.title}
+          size="compact"
+          closeDisabled={isWorking}
+          onClose={() => setIsBookSettingsOpen(false)}
+        >
+          <form className="book-settings-form" onSubmit={renameBook}>
             <Field label="Book title">
               <Input
                 maxLength={120}
@@ -1158,15 +1159,50 @@ export function BookEditorView() {
                 ))}
               </select>
             </Field>
-            <Button
-              type="submit"
-              className="secondary-button"
-              disabled={isWorking}
-              icon={<RenameRegular />}
-            >
-              Save
-            </Button>
+            <div className="book-settings-actions">
+              <Button
+                type="button"
+                className="secondary-button"
+                disabled={isWorking}
+                icon={<DismissRegular />}
+                onClick={() => setIsBookSettingsOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="secondary-button"
+                disabled={isWorking}
+                icon={<RenameRegular />}
+              >
+                Save
+              </Button>
+            </div>
           </form>
+        </AppModal>
+      ) : null}
+      <div className="book-editor-notices">
+        {error ? (
+          <p className="panel-alert" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {exportJob?.outputContentUrl ? (
+          <p className="download-banner">
+            <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">
+              Download {exportJob.targetKind} {exportJob.format.toUpperCase()}
+            </a>
+          </p>
+        ) : null}
+      </div>
+      <div className="book-editor-shell">
+        <AssetRail
+          assets={assets}
+          onAddEmbellishment={addEmbellishment}
+          onAddPhoto={addPhoto}
+          onAddText={addText}
+        />
+        <section className="book-editor-stage" aria-label="Book editor">
           <div className="book-modebar">
             <TabList
               className="book-view-toggle"

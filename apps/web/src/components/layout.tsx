@@ -1,5 +1,7 @@
 import { Badge, Spinner } from "@fluentui/react-components";
+import { DismissRegular } from "@fluentui/react-icons";
 import type { ReactNode } from "react";
+import { useEffect, useId } from "react";
 
 export function LoadingScreen() {
   return (
@@ -13,12 +15,23 @@ export function LoadingScreen() {
   );
 }
 
-export function WorkspaceHeader({ title, children }: { title: string; children?: ReactNode }) {
+export function WorkspaceHeader({
+  title,
+  titleActions,
+  children,
+}: {
+  title: string;
+  titleActions?: ReactNode;
+  children?: ReactNode;
+}) {
   return (
     <header className="topbar">
-      <div>
+      <div className="topbar-heading">
         <p className="eyebrow">Local workspace</p>
-        <h2>{title}</h2>
+        <div className="topbar-title-row">
+          <h2>{title}</h2>
+          {titleActions ? <div className="topbar-title-actions">{titleActions}</div> : null}
+        </div>
       </div>
       {children ? <div className="topbar-actions">{children}</div> : null}
     </header>
@@ -42,5 +55,79 @@ export function Panel({
       </div>
       {children}
     </section>
+  );
+}
+
+export function AppModal({
+  title,
+  eyebrow,
+  children,
+  closeDisabled = false,
+  size = "wide",
+  onClose,
+}: {
+  title: string;
+  eyebrow?: string;
+  children: ReactNode;
+  closeDisabled?: boolean;
+  size?: "compact" | "wide";
+  onClose: () => void;
+}) {
+  const titleId = useId();
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !closeDisabled) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [closeDisabled, onClose]);
+
+  const close = () => {
+    if (!closeDisabled) {
+      onClose();
+    }
+  };
+
+  return (
+    <div className="app-modal-overlay">
+      <button
+        type="button"
+        className="app-modal-backdrop"
+        disabled={closeDisabled}
+        tabIndex={-1}
+        aria-label="Close"
+        onClick={close}
+      />
+      <section
+        className="app-modal-dialog"
+        data-size={size}
+        role="dialog"
+        aria-labelledby={titleId}
+        aria-modal="true"
+      >
+        <header className="app-modal-header">
+          <div className="app-modal-title">
+            {eyebrow ? <span>{eyebrow}</span> : null}
+            <h3 id={titleId}>{title}</h3>
+          </div>
+          <button
+            type="button"
+            className="app-modal-close"
+            disabled={closeDisabled}
+            aria-label="Close"
+            title="Close"
+            onClick={close}
+          >
+            <DismissRegular />
+          </button>
+        </header>
+        <div className="app-modal-body">{children}</div>
+      </section>
+    </div>
   );
 }

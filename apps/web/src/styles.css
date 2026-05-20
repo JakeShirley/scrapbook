@@ -293,6 +293,32 @@ textarea:focus-visible {
   font-size: 1.8rem;
 }
 
+.topbar-heading {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.topbar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar-title-row h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-title-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
 .topbar-actions {
   display: flex;
   flex-wrap: wrap;
@@ -831,16 +857,12 @@ textarea:focus-visible {
   background: #ffffff;
 }
 
-.book-title-form {
+.book-settings-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) auto;
-  gap: 10px;
-  align-items: end;
-  padding: 12px;
-  border-bottom: 1px solid #edf0ed;
+  gap: 12px;
 }
 
-.book-title-form label {
+.book-settings-form label {
   display: grid;
   gap: 5px;
   color: #4f595c;
@@ -848,8 +870,8 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
-.book-title-form input,
-.book-title-form select {
+.book-settings-form input,
+.book-settings-form select {
   width: 100%;
   min-height: 38px;
   border: 1px solid #cbd2cf;
@@ -857,6 +879,13 @@ textarea:focus-visible {
   padding: 0 10px;
   color: #202426;
   background: #ffffff;
+}
+
+.book-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .book-modebar {
@@ -1862,7 +1891,7 @@ textarea:focus-visible {
   width: 100%;
 }
 
-.selected-layer-edit-overlay {
+.app-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -1873,11 +1902,20 @@ textarea:focus-visible {
   backdrop-filter: blur(2px);
 }
 
-.selected-layer-edit-dialog {
+.app-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.app-modal-dialog {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(1100px, calc(100vw - 48px));
-  height: min(860px, calc(100vh - 48px));
   overflow: hidden;
   border: 1px solid var(--sb-neutral-stroke-2);
   border-radius: 8px;
@@ -1885,7 +1923,17 @@ textarea:focus-visible {
   box-shadow: 0 24px 64px rgb(0 0 0 / 28%);
 }
 
-.selected-layer-edit-header {
+.app-modal-dialog[data-size="wide"] {
+  width: min(1100px, calc(100vw - 48px));
+  height: min(860px, calc(100vh - 48px));
+}
+
+.app-modal-dialog[data-size="compact"] {
+  width: min(440px, calc(100vw - 48px));
+  max-height: min(720px, calc(100vh - 48px));
+}
+
+.app-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1896,20 +1944,20 @@ textarea:focus-visible {
   background: var(--sb-neutral-background);
 }
 
-.selected-layer-edit-title {
+.app-modal-title {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.selected-layer-edit-title span {
+.app-modal-title span {
   color: var(--sb-neutral-foreground-3);
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.selected-layer-edit-title h3 {
+.app-modal-title h3 {
   overflow: hidden;
   margin: 0;
   color: var(--sb-neutral-foreground);
@@ -1919,7 +1967,7 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
-.selected-layer-edit-close {
+.app-modal-close {
   display: grid;
   flex: 0 0 auto;
   width: 36px;
@@ -1931,22 +1979,27 @@ textarea:focus-visible {
   background: var(--sb-neutral-background);
 }
 
-.selected-layer-edit-close:hover {
+.app-modal-close:hover:not(:disabled) {
   background: var(--sb-neutral-background-4);
 }
 
-.selected-layer-edit-close svg {
+.app-modal-close svg {
   width: 20px;
   height: 20px;
 }
 
-.selected-layer-edit-body {
+.app-modal-body {
   min-height: 0;
   overflow-y: auto;
   background: var(--sb-neutral-background-2);
 }
 
-.selected-layer-edit-body .inspector-form {
+.app-modal-dialog[data-size="compact"] .app-modal-body {
+  padding: 16px 18px 18px;
+  background: var(--sb-neutral-background);
+}
+
+.app-modal-body .inspector-form {
   grid-template-columns: repeat(2, minmax(240px, 1fr));
   align-content: start;
   gap: 16px;
@@ -1954,30 +2007,35 @@ textarea:focus-visible {
   padding: 18px;
 }
 
-.selected-layer-edit-body .inspector-form > label:first-child {
+.app-modal-body .inspector-form > label:first-child {
   grid-column: 1 / -1;
 }
 
-.selected-layer-edit-body .inspector-section {
+.app-modal-body .inspector-section {
   background: var(--sb-neutral-background);
 }
 
-.selected-layer-edit-body .full-width-button {
+.app-modal-body .full-width-button {
   justify-self: start;
   width: auto;
 }
 
 @media (max-width: 720px) {
-  .selected-layer-edit-overlay {
+  .app-modal-overlay {
     padding: 12px;
   }
 
-  .selected-layer-edit-dialog {
+  .app-modal-dialog[data-size="wide"],
+  .app-modal-dialog[data-size="compact"] {
     width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .app-modal-dialog[data-size="wide"] {
     height: calc(100vh - 24px);
   }
 
-  .selected-layer-edit-body .inspector-form {
+  .app-modal-body .inspector-form {
     grid-template-columns: 1fr;
     padding: 12px;
   }
@@ -2047,7 +2105,6 @@ textarea:focus-visible {
 
   .compact-form,
   .book-page-row,
-  .book-title-form,
   .book-modebar {
     grid-template-columns: 1fr;
   }
@@ -2066,6 +2123,10 @@ textarea:focus-visible {
   .topbar-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .topbar-title-row {
+    align-items: flex-start;
   }
 
   .nav-list {
@@ -2540,7 +2601,7 @@ body {
 }
 
 .panel-heading,
-.book-title-form,
+.book-settings-form,
 .book-modebar,
 .editor-toolbar,
 .inspector-form,
@@ -2637,7 +2698,7 @@ body {
 .auth-form label,
 .compact-form label,
 .book-size-picker,
-.book-title-form label,
+.book-settings-form label,
 .editor-toolbar label,
 .inspector-form label,
 .fui-Field__label {
@@ -2649,8 +2710,8 @@ body {
 .auth-form input,
 .compact-form input,
 .book-size-picker select,
-.book-title-form input,
-.book-title-form select,
+.book-settings-form input,
+.book-settings-form select,
 .editor-toolbar input,
 .inspector-form input,
 .inspector-form select,
@@ -2667,8 +2728,8 @@ body {
 .auth-form input:hover,
 .compact-form input:hover,
 .book-size-picker select:hover,
-.book-title-form input:hover,
-.book-title-form select:hover,
+.book-settings-form input:hover,
+.book-settings-form select:hover,
 .editor-toolbar input:hover,
 .inspector-form input:hover,
 .inspector-form select:hover,
@@ -3031,24 +3092,17 @@ body {
 
 .book-editor-page .book-editor-stage {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   min-height: 0;
   overflow: hidden;
 }
 
-.book-editor-page .book-title-form,
 .book-editor-page .book-modebar {
   padding: 8px 10px;
 }
 
-.book-editor-page .book-title-form input,
-.book-editor-page .book-title-form select,
 .book-editor-page .fui-Input {
   min-height: 32px;
-}
-
-.book-editor-page .book-title-form {
-  gap: 8px;
 }
 
 .book-editor-page .book-modebar {
@@ -3107,6 +3161,6 @@ body {
 }
 
 .book-editor-page .empty-book-editor {
-  grid-row: 3 / -1;
+  grid-row: 2 / -1;
   min-height: 0;
 }
