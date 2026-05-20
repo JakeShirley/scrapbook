@@ -25,6 +25,7 @@ import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
+import type { CanvasPreviewLayer } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
 import { PngExportSettingsModal } from "../editor/PngExportSettingsModal";
 import { BookCanvasDeck } from "./BookCanvasDeck";
@@ -1005,7 +1006,7 @@ export function BookEditorView() {
       : `Download ${exportJob.targetKind} ${exportJob.format.toUpperCase()}`
     : "";
 
-  const getSpreadPreviewLayers = (pageId: string): PageLayer[] => {
+  const getSpreadPreviewLayers = (pageId: string): CanvasPreviewLayer[] => {
     if (viewMode !== "spread" || visibleSpreadPages.length < 2) {
       return [];
     }
@@ -1017,7 +1018,7 @@ export function BookEditorView() {
     }
 
     const existingLayerIds = new Set(targetPage.page.document.layers.map((layer) => layer.id));
-    const previewLayers: PageLayer[] = [];
+    const previewLayers: CanvasPreviewLayer[] = [];
 
     for (const sourcePage of visibleSpreadPages) {
       if (sourcePage.pageId === pageId) {
@@ -1035,7 +1036,7 @@ export function BookEditorView() {
         };
 
         if (layerOverlapsPageCanvas(projectedLayer, targetPage.page.document)) {
-          previewLayers.push(projectedLayer);
+          previewLayers.push({ layer: projectedLayer, sourcePageId: sourcePage.pageId });
         }
       }
     }

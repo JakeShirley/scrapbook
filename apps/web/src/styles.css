@@ -1493,6 +1493,10 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
+.canvas-layer[data-preview="true"] .canvas-layer-hitbox {
+  cursor: pointer;
+}
+
 .canvas-selection-frame {
   position: absolute;
   z-index: 1;

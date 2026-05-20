@@ -33,6 +33,22 @@ import {
 
 type SelectionPanel = "edit" | "frame";
 
+export type CanvasPreviewLayer = {
+  layer: PageLayer;
+  sourcePageId: string;
+};
+
+type InteractiveCanvasLayer =
+  | {
+      kind: "document";
+      layer: PageLayer;
+    }
+  | {
+      kind: "preview";
+      layer: PageLayer;
+      sourcePageId: string;
+    };
+
 const framePresetOptions: PhotoLayer["border"]["framePreset"][] = [
   "none",
   "mat",
@@ -63,17 +79,19 @@ export function PageCanvas({
   onDeleteLayer,
   onChangeLayer,
   onReorderLayer,
+  onSelectPreviewLayer,
   onSelectLayer,
   onTransformEnd,
   onTransformLayer,
 }: {
   assetById: Map<string, Asset>;
   document: PageDocument;
-  previewLayers?: PageLayer[];
+  previewLayers?: CanvasPreviewLayer[];
   selectedLayerId: string | null;
   onDeleteLayer: (layerId: string) => void;
   onChangeLayer?: (layerId: string, update: Partial<PageLayer>) => void;
   onReorderLayer: (layerId: string, toIndex: number) => void;
+  onSelectPreviewLayer?: (pageId: string, layerId: string) => void;
   onSelectLayer: (layerId: string | null) => void;
   onTransformEnd?: (layerId: string, update: Partial<PageLayer> | null) => void;
   onTransformLayer: (layerId: string, update: Partial<PageLayer>) => void;
@@ -88,9 +106,20 @@ export function PageCanvas({
   const renderedDocument = useMemo(
     () =>
       previewLayers.length > 0
-        ? { ...document, layers: [...document.layers, ...previewLayers] }
+        ? { ...document, layers: [...document.layers, ...previewLayers.map(({ layer }) => layer)] }
         : document,
     [document, previewLayers],
+  );
+  const interactiveLayers = useMemo<InteractiveCanvasLayer[]>(
+    () => [
+      ...document.layers.map((layer) => ({ kind: "document" as const, layer })),
+      ...previewLayers.map(({ layer, sourcePageId }) => ({
+        kind: "preview" as const,
+        layer,
+        sourcePageId,
+      })),
+    ],
+    [document.layers, previewLayers],
   );
   const renderedSvg = useMemo(
     () =>
@@ -282,6 +311,17 @@ export function PageCanvas({
       y: Math.max(margin, Math.min(event.clientY, window.innerHeight - menuHeight - margin)),
     });
   };
+  const selectPreviewLayer = (
+    event: ReactPointerEvent<HTMLElement>,
+    previewLayer: CanvasPreviewLayer,
+  ) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenu();
+    setActiveSelectionPanel(null);
+    onSelectPreviewLayer?.(previewLayer.sourcePageId, previewLayer.layer.id);
+  };
   const runContextAction = (action: () => void) => {
     action();
     closeContextMenu();
@@ -345,13 +385,16 @@ export function PageCanvas({
       <legend className="visually-hidden">Editable page canvas</legend>
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Generated from validated page schema and escaped by editor-core. */}
       <div className="editor-render-surface" dangerouslySetInnerHTML={{ __html: renderedSvg }} />
-      {document.layers.map((layer) => {
-        const isSelected = layer.id === selectedLayerId;
+      {interactiveLayers.map((interactiveLayer, layerIndex) => {
+        const { layer } = interactiveLayer;
+        const isPreview = interactiveLayer.kind === "preview";
+        const isSelected = !isPreview && layer.id === selectedLayerId;
         const layerStyle: CSSProperties = {
           left: `${(layer.x / document.canvas.width) * 100}%`,
           top: `${(layer.y / document.canvas.height) * 100}%`,
           width: `${(layer.width / document.canvas.width) * 100}%`,
           height: `${(layer.height / document.canvas.height) * 100}%`,
+          zIndex: layerIndex + 1,
           opacity: layer.opacity,
           transform: `rotate(${layer.rotation}deg)`,
         };
@@ -365,22 +408,52 @@ export function PageCanvas({
         };
         return (
           <div
-            key={layer.id}
+            key={isPreview ? `${interactiveLayer.sourcePageId}:${layer.id}` : layer.id}
             className="canvas-layer"
             data-kind={layer.kind}
             data-locked={layer.locked}
+            data-preview={isPreview}
             data-selected={isSelected}
             data-transforming={activeTransform?.layerId === layer.id}
             style={layerStyle}
           >
             <button
               type="button"
-              aria-label={`${layer.name} ${layer.kind} layer`}
+              aria-label={`${layer.name} ${layer.kind} layer${
+                isPreview ? " from adjacent page" : ""
+              }`}
               className="canvas-layer-hitbox"
-              onClick={() => onSelectLayer(layer.id)}
-              onContextMenu={(event) => openContextMenu(event, layer)}
-              onDoubleClick={(event) => openLayerEditor(event, layer)}
-              onPointerDown={(event) => startTransform(event, layer, "move")}
+              onClick={() => {
+                if (interactiveLayer.kind === "preview") {
+                  onSelectPreviewLayer?.(interactiveLayer.sourcePageId, layer.id);
+                  return;
+                }
+
+                onSelectLayer(layer.id);
+              }}
+              onContextMenu={(event) => {
+                if (interactiveLayer.kind === "preview") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeContextMenu();
+                  onSelectPreviewLayer?.(interactiveLayer.sourcePageId, layer.id);
+                  return;
+                }
+
+                openContextMenu(event, layer);
+              }}
+              onDoubleClick={(event) => {
+                if (interactiveLayer.kind === "preview") return;
+                openLayerEditor(event, layer);
+              }}
+              onPointerDown={(event) => {
+                if (interactiveLayer.kind === "preview") {
+                  selectPreviewLayer(event, interactiveLayer);
+                  return;
+                }
+
+                startTransform(event, layer, "move");
+              }}
             />
             <div className="canvas-selection-frame" style={selectionFrameStyle}>
               <span className="canvas-layer-content" />

@@ -1,7 +1,7 @@
 import type { PageLayer } from "@scrapbook/editor-core";
 
 import type { Asset, PageDetail } from "../../types";
-import { PageCanvas } from "../editor/PageCanvas";
+import { type CanvasPreviewLayer, PageCanvas } from "../editor/PageCanvas";
 import type { EditHistoryMode } from "./bookEditorHistory";
 import type { ViewMode } from "./bookEditorTypes";
 
@@ -13,7 +13,7 @@ type BookCanvasDeckProps = {
   selectedLayerId: string | null;
   viewMode: ViewMode;
   visiblePageIds: string[];
-  getSpreadPreviewLayers: (pageId: string) => PageLayer[];
+  getSpreadPreviewLayers: (pageId: string) => CanvasPreviewLayer[];
   onDeleteLayer: (pageId: string, layerId: string) => void;
   onReorderLayer: (pageId: string, layerId: string, toIndex: number) => void;
   onSelectLayer: (pageId: string, layerId: string | null) => void;
@@ -66,6 +66,7 @@ export function BookCanvasDeck({
               onChangeLayer={(layerId, update) => onUpdateLayerTransform(pageId, layerId, update)}
               onDeleteLayer={(layerId) => onDeleteLayer(pageId, layerId)}
               onReorderLayer={(layerId, toIndex) => onReorderLayer(pageId, layerId, toIndex)}
+              onSelectPreviewLayer={onSelectLayer}
               onSelectLayer={(layerId) => onSelectLayer(pageId, layerId)}
               onTransformEnd={(layerId, update) => onTransformEnd(pageId, layerId, update)}
               onTransformLayer={(layerId, update) =>
