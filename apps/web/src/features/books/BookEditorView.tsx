@@ -1,17 +1,5 @@
-import { Button, Field, Input, Tab, TabList } from "@fluentui/react-components";
-import {
-  AddRegular,
-  ArrowDownloadRegular,
-  ChevronLeftRegular,
-  ChevronRightRegular,
-  CopyRegular,
-  DeleteRegular,
-  DismissRegular,
-  DocumentPdfRegular,
-  EditRegular,
-  RenameRegular,
-  ReOrderDotsVerticalRegular,
-} from "@fluentui/react-icons";
+import { Button } from "@fluentui/react-components";
+import { AddRegular } from "@fluentui/react-icons";
 import {
   addLayer,
   createEmbellishmentLayer,
@@ -31,207 +19,47 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { apiClient } from "../../apiClient";
-import { AppModal, WorkspaceHeader } from "../../components/layout";
+import { WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
-import { PageCanvas } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
 import { PngExportSettingsModal } from "../editor/PngExportSettingsModal";
+import { BookCanvasDeck } from "./BookCanvasDeck";
+import { BookEditorHeader } from "./BookEditorHeader";
+import { BookFilmstrip } from "./BookFilmstrip";
+import { BookModeBar } from "./BookModeBar";
+import { BookSettingsModal } from "./BookSettingsModal";
+import { fetchBookWithPages } from "./bookEditorData";
 import {
   type BookEditorHistoryEntry,
   type EditHistoryMode,
   getChangedPageIds,
   useBookEditorHistory,
 } from "./bookEditorHistory";
+import type {
+  LoadedBook,
+  PageDropPosition,
+  PageDropTarget,
+  PngExportTarget,
+  ViewMode,
+} from "./bookEditorTypes";
+import { PageSettingsPanel } from "./PageSettingsPanel";
 import {
-  commonBookPageSizes,
   customBookPageSizeKey,
   defaultBookPageSize,
-  formatBookPageSize,
   getBookPageSizeByKey,
   getBookPageSizeKey,
 } from "./pageSizes";
-
-type ViewMode = "page" | "spread";
-
-type PngExportTarget = "book" | "page";
-
-type PageDropPosition = "before" | "after";
-
-type LoadedBook = {
-  book: BookDetail;
-  pages: PageDetail[];
-};
-
-type SpreadPageContext = {
-  offsetX: number;
-  page: PageDetail;
-  pageId: string;
-};
-
-type SpreadLayerSyncResult = {
-  changedPageIds: string[];
-  containingPageId: string | null;
-  details: Map<string, PageDetail>;
-};
-
-const replacePageDocument = (page: PageDetail, document: PageDocument): PageDetail => ({
-  ...page,
-  document,
-  height: document.canvas.height,
-  layerCount: document.layers.length,
-  width: document.canvas.width,
-});
-
-const getSpreadPageContexts = (
-  details: Map<string, PageDetail>,
-  pageIds: string[],
-): SpreadPageContext[] => {
-  let offsetX = 0;
-  const pages: SpreadPageContext[] = [];
-
-  for (const pageId of pageIds) {
-    const page = details.get(pageId);
-
-    if (!page) {
-      continue;
-    }
-
-    pages.push({ offsetX, page, pageId });
-    offsetX += page.document.canvas.width;
-  }
-
-  return pages;
-};
-
-const layerOverlapsPageCanvas = (layer: PageLayer, document: PageDocument): boolean =>
-  layer.x < document.canvas.width &&
-  layer.x + layer.width > 0 &&
-  layer.y < document.canvas.height &&
-  layer.y + layer.height > 0;
-
-const syncLayerAcrossSpread = ({
-  details,
-  removeNonOverlappingSource,
-  sourceLayer,
-  sourcePageId,
-  spreadPageIds,
-}: {
-  details: Map<string, PageDetail>;
-  removeNonOverlappingSource: boolean;
-  sourceLayer: PageLayer;
-  sourcePageId: string;
-  spreadPageIds: string[];
-}): SpreadLayerSyncResult => {
-  const spreadPages = getSpreadPageContexts(details, spreadPageIds);
-  const sourceContext = spreadPages.find((spreadPage) => spreadPage.pageId === sourcePageId);
-
-  if (!sourceContext || spreadPages.length < 2) {
-    const sourcePage = details.get(sourcePageId);
-
-    if (!sourcePage) {
-      return { changedPageIds: [], containingPageId: null, details };
-    }
-
-    return {
-      changedPageIds: [sourcePageId],
-      containingPageId: sourcePageId,
-      details: new Map(details).set(
-        sourcePageId,
-        replacePageDocument(
-          sourcePage,
-          updateLayer(sourcePage.document, sourceLayer.id, sourceLayer),
-        ),
-      ),
-    };
-  }
-
-  const nextDetails = new Map(details);
-  const changedPageIds = new Set<string>();
-  const sourceLayerIndex = sourceContext.page.document.layers.findIndex(
-    (layer) => layer.id === sourceLayer.id,
-  );
-  const spreadX = sourceContext.offsetX + sourceLayer.x;
-  const spreadCenterX = spreadX + sourceLayer.width / 2;
-  const containingPage = spreadPages.find(
-    (spreadPage) =>
-      spreadCenterX >= spreadPage.offsetX &&
-      spreadCenterX < spreadPage.offsetX + spreadPage.page.document.canvas.width,
-  );
-  const ownerPage =
-    containingPage ??
-    spreadPages.reduce((closestPage, spreadPage) => {
-      const closestDistance = Math.min(
-        Math.abs(spreadCenterX - closestPage.offsetX),
-        Math.abs(spreadCenterX - (closestPage.offsetX + closestPage.page.document.canvas.width)),
-      );
-      const spreadPageDistance = Math.min(
-        Math.abs(spreadCenterX - spreadPage.offsetX),
-        Math.abs(spreadCenterX - (spreadPage.offsetX + spreadPage.page.document.canvas.width)),
-      );
-
-      return spreadPageDistance < closestDistance ? spreadPage : closestPage;
-    }, sourceContext);
-  const projectedLayers = spreadPages.map((spreadPage) => {
-    const currentPage = nextDetails.get(spreadPage.pageId) ?? spreadPage.page;
-    const localLayer = { ...sourceLayer, x: spreadX - spreadPage.offsetX };
-
-    return {
-      currentPage,
-      localLayer,
-      overlapsPage: layerOverlapsPageCanvas(localLayer, currentPage.document),
-      spreadPage,
-    };
-  });
-  const overlapsAnyPage = projectedLayers.some((projectedLayer) => projectedLayer.overlapsPage);
-
-  for (const { currentPage, localLayer, overlapsPage, spreadPage } of projectedLayers) {
-    const existingLayer = currentPage.document.layers.find((layer) => layer.id === sourceLayer.id);
-
-    if (existingLayer && existingLayer.kind !== sourceLayer.kind) {
-      continue;
-    }
-
-    const shouldKeepLayer =
-      overlapsPage ||
-      (!removeNonOverlappingSource && spreadPage.pageId === sourcePageId) ||
-      (!overlapsAnyPage && spreadPage.pageId === ownerPage.pageId);
-    let nextDocument = currentPage.document;
-
-    if (shouldKeepLayer) {
-      nextDocument = existingLayer
-        ? updateLayer(currentPage.document, sourceLayer.id, localLayer)
-        : addLayer(
-            currentPage.document,
-            localLayer,
-            Math.max(0, Math.min(sourceLayerIndex, currentPage.document.layers.length)),
-          );
-    } else if (existingLayer) {
-      nextDocument = deleteLayer(currentPage.document, sourceLayer.id);
-    }
-
-    if (nextDocument !== currentPage.document) {
-      nextDetails.set(spreadPage.pageId, replacePageDocument(currentPage, nextDocument));
-      changedPageIds.add(spreadPage.pageId);
-    }
-  }
-
-  return {
-    changedPageIds: [...changedPageIds],
-    containingPageId: ownerPage.pageId,
-    details: nextDetails,
-  };
-};
-
-const fetchBookWithPages = async (bookId: string): Promise<LoadedBook> => {
-  const book = await apiClient.getBook(bookId);
-  const pages = await Promise.all(book.pages.map((bookPage) => apiClient.getPage(bookPage.pageId)));
-
-  return { book, pages };
-};
+import {
+  getSpreadPageContexts,
+  layerOverlapsPageCanvas,
+  replacePageDocument,
+  type SpreadLayerSyncResult,
+  syncLayerAcrossSpread,
+} from "./spreadLayers";
 
 export function BookEditorView() {
   const { bookId } = useParams();
@@ -251,10 +79,7 @@ export function BookEditorView() {
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
-  const [pageDropTarget, setPageDropTarget] = useState<{
-    pageId: string;
-    position: PageDropPosition;
-  } | null>(null);
+  const [pageDropTarget, setPageDropTarget] = useState<PageDropTarget | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1235,48 +1060,15 @@ export function BookEditorView() {
 
   return (
     <div className="book-editor-page">
-      <WorkspaceHeader
+      <BookEditorHeader
         title={book.title}
-        titleActions={
-          <Button
-            type="button"
-            className="secondary-button compact-icon-button"
-            aria-label="Edit book settings"
-            aria-haspopup="dialog"
-            title="Edit book settings"
-            icon={<EditRegular />}
-            onClick={() => setIsBookSettingsOpen(true)}
-          />
-        }
-      >
-        <Button
-          type="button"
-          className="secondary-button"
-          disabled={isWorking || book.pages.length === 0}
-          icon={<ArrowDownloadRegular />}
-          onClick={() => setPngExportTarget("page")}
-        >
-          Export page PNG
-        </Button>
-        <Button
-          type="button"
-          className="secondary-button"
-          disabled={isWorking || book.pages.length === 0}
-          icon={<ArrowDownloadRegular />}
-          onClick={() => setPngExportTarget("book")}
-        >
-          Export book PNG
-        </Button>
-        <Button
-          type="button"
-          className="secondary-button"
-          disabled={isWorking || book.pages.length === 0}
-          icon={<DocumentPdfRegular />}
-          onClick={() => exportBook("pdf")}
-        >
-          Export book PDF
-        </Button>
-      </WorkspaceHeader>
+        hasPages={book.pages.length > 0}
+        isWorking={isWorking}
+        onEditSettings={() => setIsBookSettingsOpen(true)}
+        onExportBookPdf={() => exportBook("pdf")}
+        onExportBookPng={() => setPngExportTarget("book")}
+        onExportPagePng={() => setPngExportTarget("page")}
+      />
       {pngExportTarget ? (
         <PngExportSettingsModal
           eyebrow={pngExportTarget === "book" ? book.title : (activePage?.title ?? "Page")}
@@ -1294,58 +1086,16 @@ export function BookEditorView() {
         />
       ) : null}
       {isBookSettingsOpen ? (
-        <AppModal
-          title="Book settings"
-          eyebrow={book.title}
-          size="compact"
+        <BookSettingsModal
+          book={book}
           closeDisabled={isWorking}
+          pageSizeDraft={bookPageSizeDraft}
+          titleDraft={bookTitleDraft}
           onClose={() => setIsBookSettingsOpen(false)}
-        >
-          <form className="book-settings-form" onSubmit={renameBook}>
-            <Field label="Book title">
-              <Input
-                maxLength={120}
-                value={bookTitleDraft}
-                onChange={(event) => setBookTitleDraft(event.currentTarget.value)}
-              />
-            </Field>
-            <Field label="Page size">
-              <select
-                className="book-size-select"
-                value={bookPageSizeDraft}
-                onChange={(event) => setBookPageSizeDraft(event.currentTarget.value)}
-              >
-                {getBookPageSizeKey(book) === customBookPageSizeKey ? (
-                  <option value={customBookPageSizeKey}>{formatBookPageSize(book)}</option>
-                ) : null}
-                {commonBookPageSizes.map((pageSize) => (
-                  <option key={pageSize.key} value={pageSize.key}>
-                    {pageSize.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className="book-settings-actions">
-              <Button
-                type="button"
-                className="secondary-button"
-                disabled={isWorking}
-                icon={<DismissRegular />}
-                onClick={() => setIsBookSettingsOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="secondary-button"
-                disabled={isWorking}
-                icon={<RenameRegular />}
-              >
-                Save
-              </Button>
-            </div>
-          </form>
-        </AppModal>
+          onPageSizeDraftChange={setBookPageSizeDraft}
+          onSubmit={renameBook}
+          onTitleDraftChange={setBookTitleDraft}
+        />
       ) : null}
       <div className="book-editor-notices">
         {error ? (
@@ -1370,200 +1120,64 @@ export function BookEditorView() {
           onOpenPhotoPicker={() => setIsPhotoPickerOpen(true)}
         />
         <section className="book-editor-stage" aria-label="Book editor">
-          <div className="book-modebar">
-            <TabList
-              className="book-view-toggle"
-              aria-label="Editor view"
-              selectedValue={viewMode}
-              onTabSelect={(_, data) => setViewMode(data.value as ViewMode)}
-            >
-              <Tab value="page">Page</Tab>
-              <Tab value="spread">Spread</Tab>
-            </TabList>
-            <div className="book-page-actions-inline">
-              <Button
-                type="button"
-                className="secondary-button compact-icon-button"
-                aria-label="Previous"
-                title="Previous"
-                disabled={!canNavigatePrevious || isWorking}
-                icon={<ChevronLeftRegular />}
-                onClick={() => navigateBook(-1)}
-              />
-              <span>{navigationLabel}</span>
-              <Button
-                type="button"
-                className="secondary-button compact-icon-button"
-                aria-label="Next"
-                title="Next"
-                disabled={!canNavigateNext || isWorking}
-                icon={<ChevronRightRegular />}
-                onClick={() => navigateBook(1)}
-              />
-            </div>
-          </div>
+          <BookModeBar
+            canNavigateNext={canNavigateNext}
+            canNavigatePrevious={canNavigatePrevious}
+            isWorking={isWorking}
+            navigationLabel={navigationLabel}
+            viewMode={viewMode}
+            onNavigate={navigateBook}
+            onViewModeChange={setViewMode}
+          />
           {activePage ? (
             <>
-              <div className="book-canvas-deck" data-mode={viewMode}>
-                {visiblePageIds.map((pageId) => {
-                  const page = pageDetails.get(pageId);
-                  const pageIndex = orderedPageIds.indexOf(pageId);
-
-                  if (!page) {
-                    return null;
-                  }
-
-                  return (
-                    <section
-                      className="book-page-frame"
-                      data-active={pageId === activePage.id}
-                      key={pageId}
-                      aria-label={`Page ${pageIndex + 1}`}
-                    >
-                      <PageCanvas
-                        assetById={assetById}
-                        document={page.document}
-                        previewLayers={getSpreadPreviewLayers(pageId)}
-                        selectedLayerId={pageId === activePage.id ? selectedLayerId : null}
-                        onChangeLayer={(layerId, update) =>
-                          updateLayerTransform(pageId, layerId, update)
-                        }
-                        onDeleteLayer={(layerId) => deletePageLayer(pageId, layerId)}
-                        onReorderLayer={(layerId, toIndex) =>
-                          reorderPageLayer(pageId, layerId, toIndex)
-                        }
-                        onSelectLayer={(layerId) => selectPage(pageId, layerId)}
-                        onTransformEnd={(layerId, update) =>
-                          finishLayerTransform(pageId, layerId, update)
-                        }
-                        onTransformLayer={(layerId, update) =>
-                          updateLayerTransform(pageId, layerId, update, "group")
-                        }
-                      />
-                    </section>
-                  );
-                })}
-              </div>
+              <BookCanvasDeck
+                activePageId={activePage.id}
+                assetById={assetById}
+                getSpreadPreviewLayers={getSpreadPreviewLayers}
+                orderedPageIds={orderedPageIds}
+                pageDetails={pageDetails}
+                selectedLayerId={selectedLayerId}
+                viewMode={viewMode}
+                visiblePageIds={visiblePageIds}
+                onDeleteLayer={deletePageLayer}
+                onReorderLayer={reorderPageLayer}
+                onSelectLayer={selectPage}
+                onTransformEnd={finishLayerTransform}
+                onUpdateLayerTransform={updateLayerTransform}
+              />
               {editingPage && editingPageId ? (
-                <form
-                  className="page-card-editor"
-                  aria-label={`Edit page ${editingPageIndex + 1}`}
-                  onSubmit={(event) => event.preventDefault()}
-                >
-                  <div className="page-card-editor-heading">
-                    <span>{`Page ${editingPageIndex + 1} settings`}</span>
-                    <button
-                      type="button"
-                      aria-label="Close page settings"
-                      title="Close"
-                      onClick={() => setEditingPageId(null)}
-                    >
-                      <DismissRegular />
-                    </button>
-                  </div>
-                  <label>
-                    <span>Title</span>
-                    <input
-                      maxLength={120}
-                      value={editingPage.title}
-                      onChange={(event) =>
-                        changePageTitle(editingPageId, event.currentTarget.value)
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Background</span>
-                    <input
-                      type="color"
-                      value={editingPage.document.canvas.backgroundColor}
-                      onChange={(event) =>
-                        changePageBackground(editingPageId, event.currentTarget.value)
-                      }
-                    />
-                  </label>
-                  <div className="page-card-editor-actions">
-                    <Button
-                      type="button"
-                      className="secondary-button"
-                      disabled={isWorking}
-                      icon={<CopyRegular />}
-                      onClick={() => duplicateBookPage(editingPageId)}
-                    >
-                      Duplicate
-                    </Button>
-                    <Button
-                      type="button"
-                      className="secondary-button"
-                      disabled={isWorking}
-                      icon={<DeleteRegular />}
-                      onClick={() => deleteBookPage(editingPageId)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </form>
+                <PageSettingsPanel
+                  isWorking={isWorking}
+                  page={editingPage}
+                  pageId={editingPageId}
+                  pageIndex={editingPageIndex}
+                  onChangeBackground={changePageBackground}
+                  onChangeTitle={changePageTitle}
+                  onClose={() => setEditingPageId(null)}
+                  onDelete={deleteBookPage}
+                  onDuplicate={duplicateBookPage}
+                />
               ) : null}
-              <ol className="book-filmstrip" aria-label="Book pages">
-                {orderedPageIds.map((pageId, index) => {
-                  const page = pageDetails.get(pageId);
-
-                  return (
-                    <li
-                      key={pageId}
-                      data-dragging={draggedPageId === pageId}
-                      data-drop-position={
-                        pageDropTarget?.pageId === pageId ? pageDropTarget.position : undefined
-                      }
-                      data-editing={editingPageId === pageId}
-                      draggable={!isWorking}
-                      onDragEnd={clearPageDragState}
-                      onDragOver={(event) => handlePageDragOver(event, pageId)}
-                      onDragStart={(event) => handlePageDragStart(event, pageId)}
-                      onDrop={(event) => void handlePageDrop(event, pageId)}
-                    >
-                      <button
-                        type="button"
-                        className="book-filmstrip-select"
-                        aria-current={pageId === activePage.id ? "page" : undefined}
-                        onClick={() => selectPage(pageId)}
-                      >
-                        <span className="book-filmstrip-index">{index + 1}</span>
-                        <span className="book-filmstrip-title">{page?.title ?? "Page"}</span>
-                      </button>
-                      <span className="book-filmstrip-drag-handle" aria-hidden="true">
-                        <ReOrderDotsVerticalRegular />
-                      </span>
-                      {page ? (
-                        <button
-                          type="button"
-                          className="book-filmstrip-edit"
-                          aria-label={`Edit page ${index + 1}`}
-                          title="Edit page"
-                          onClick={() => {
-                            selectPage(pageId);
-                            setEditingPageId((currentPageId) =>
-                              currentPageId === pageId ? null : pageId,
-                            );
-                          }}
-                        >
-                          <EditRegular />
-                        </button>
-                      ) : null}
-                    </li>
-                  );
-                })}
-                <li className="book-filmstrip-add">
-                  <Button
-                    type="button"
-                    className="secondary-button book-filmstrip-add-button"
-                    disabled={isWorking}
-                    icon={<AddRegular />}
-                    onClick={addPage}
-                  >
-                    Add page
-                  </Button>
-                </li>
-              </ol>
+              <BookFilmstrip
+                activePageId={activePage.id}
+                draggedPageId={draggedPageId}
+                editingPageId={editingPageId}
+                isWorking={isWorking}
+                orderedPageIds={orderedPageIds}
+                pageDetails={pageDetails}
+                pageDropTarget={pageDropTarget}
+                onAddPage={addPage}
+                onClearDragState={clearPageDragState}
+                onDragOver={handlePageDragOver}
+                onDragStart={handlePageDragStart}
+                onDrop={(event, pageId) => void handlePageDrop(event, pageId)}
+                onSelectPage={selectPage}
+                onTogglePageSettings={(pageId) => {
+                  selectPage(pageId);
+                  setEditingPageId((currentPageId) => (currentPageId === pageId ? null : pageId));
+                }}
+              />
             </>
           ) : (
             <div className="empty-book-editor">
