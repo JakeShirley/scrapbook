@@ -46,7 +46,12 @@ import {
   pageResponseSchema,
   pageSummaryResponseSchema,
   registerRoute,
+  type ServerLogEntryResponse,
+  type ServerLogLevel,
   type SessionResponse,
+  serverLogEntryResponseSchema,
+  serverLogListResponseSchema,
+  serverLogListRoute,
 } from "@scrapbook/api-contract";
 import {
   createBookSpreads,
@@ -93,6 +98,13 @@ type ApiBindings = {
 };
 
 const packageVersion = "0.0.0-development";
+const maxServerLogEntries = 500;
+const serverLogLevelRank: Record<ServerLogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
 
 export type CreateAppOptions = {
   repositories?: Repositories;
@@ -110,7 +122,47 @@ type AuthenticatedSession = {
   session: SessionRecord;
 };
 
+type ServerLogEntryInput = Omit<ServerLogEntryResponse, "id" | "timestamp">;
+
 const defaultClock: RepositoryClock = () => new Date();
+
+const getRequestPath = (url: string): string => {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+};
+
+const getRequestLogLevel = (status: number): ServerLogLevel => {
+  if (status >= 500) {
+    return "error";
+  }
+
+  if (status >= 400) {
+    return "warn";
+  }
+
+  return "info";
+};
+
+const appendServerLogEntry = (
+  entries: ServerLogEntryResponse[],
+  clock: RepositoryClock,
+  input: ServerLogEntryInput,
+) => {
+  entries.push(
+    serverLogEntryResponseSchema.parse({
+      ...input,
+      id: crypto.randomUUID(),
+      timestamp: clock().toISOString(),
+    }),
+  );
+
+  if (entries.length > maxServerLogEntries) {
+    entries.splice(0, entries.length - maxServerLogEntries);
+  }
+};
 
 const createErrorResponse = (
   context: ApiContext,
@@ -361,6 +413,7 @@ const getAuthenticatedSession = (
 
 export const createApp = (createOptions: CreateAppOptions = {}) => {
   const app = new OpenAPIHono<ApiBindings>();
+  const serverLogEntries: ServerLogEntryResponse[] = [];
   const options = {
     clock: createOptions.clock ?? defaultClock,
     repositories: createOptions.repositories,
@@ -372,10 +425,37 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
 
   app.use("*", async (context, next) => {
     const requestId = context.req.header("x-request-id") ?? crypto.randomUUID();
+    const startedAt = performance.now();
+    const path = getRequestPath(context.req.url);
 
     context.set("requestId", requestId);
-    await next();
-    context.header("x-request-id", requestId);
+    try {
+      await next();
+    } catch (error) {
+      appendServerLogEntry(serverLogEntries, options.clock, {
+        durationMs: Number((performance.now() - startedAt).toFixed(1)),
+        level: "error",
+        message: error instanceof Error ? error.message : "Unhandled server error",
+        method: context.req.method,
+        path,
+        requestId,
+        status: 500,
+      });
+      throw error;
+    } finally {
+      context.header("x-request-id", requestId);
+    }
+
+    const status = context.res.status;
+    appendServerLogEntry(serverLogEntries, options.clock, {
+      durationMs: Number((performance.now() - startedAt).toFixed(1)),
+      level: getRequestLogLevel(status),
+      message: `${context.req.method} ${path} completed with ${status}`,
+      method: context.req.method,
+      path,
+      requestId,
+      status,
+    });
   });
 
   app.openapi(healthRoute, (context) => {
@@ -387,6 +467,33 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     });
 
     return context.json(body, 200);
+  });
+
+  app.openapi(serverLogListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "auth_unavailable", "Auth is unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { level, limit } = context.req.valid("query");
+    const minimumRank = serverLogLevelRank[level];
+    const logs = serverLogEntries
+      .filter((entry) => serverLogLevelRank[entry.level] >= minimumRank)
+      .slice(-limit)
+      .reverse();
+
+    return context.json(serverLogListResponseSchema.parse({ level, logs }), 200);
   });
 
   app.openapi(registerRoute, async (context) => {

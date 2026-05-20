@@ -47,10 +47,12 @@ export function Panel({
   count?: string;
   children: ReactNode;
 }) {
+  const titleId = useId();
+
   return (
-    <section className="panel" aria-labelledby={`${title.toLowerCase()}-heading`}>
+    <section className="panel" aria-labelledby={titleId}>
       <div className="panel-heading">
-        <h3 id={`${title.toLowerCase()}-heading`}>{title}</h3>
+        <h3 id={titleId}>{title}</h3>
         {count ? <Badge appearance="tint">{count}</Badge> : null}
       </div>
       {children}

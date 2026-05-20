@@ -8,6 +8,7 @@ import {
   exportJobResponseSchema,
   healthResponseSchema,
   pageResponseSchema,
+  serverLogListResponseSchema,
 } from "@scrapbook/api-contract";
 import { createPageDocument, createPhotoLayer, createTextLayer } from "@scrapbook/editor-core";
 import { makeFixedClock } from "@scrapbook/test-utils";
@@ -209,6 +210,34 @@ describe("api app", () => {
 
     expect(logoutResponse.status).toBe(204);
     expect(sessionResponse.status).toBe(401);
+  });
+
+  it("lists recent server logs by minimum verbosity", async () => {
+    const app = createTestApp();
+    const cookie = await registerAccount(app, {
+      displayName: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    const listResponse = await app.request("/api/v1/pages", { headers: { cookie } });
+    const missingResponse = await app.request("/api/v1/pages/missing", { headers: { cookie } });
+    const logsResponse = await app.request("/api/v1/logs?level=warn", { headers: { cookie } });
+
+    expect(listResponse.status).toBe(200);
+    expect(missingResponse.status).toBe(404);
+    expect(logsResponse.status).toBe(200);
+
+    const body = serverLogListResponseSchema.parse(await logsResponse.json());
+
+    expect(body.level).toBe("warn");
+    expect(body.logs).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        method: "GET",
+        path: "/api/v1/pages/missing",
+        status: 404,
+      }),
+    ]);
   });
 
   it("uploads images, stores metadata, lists assets, and streams original and thumbnail files", async () => {

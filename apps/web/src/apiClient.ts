@@ -27,6 +27,9 @@ import {
   pageListResponseSchema,
   pageResponseSchema,
   type RegisterRequest,
+  type ServerLogLevel,
+  type ServerLogListResponse,
+  serverLogListResponseSchema,
 } from "@scrapbook/api-contract";
 
 export class ApiClientError extends Error {
@@ -93,6 +96,13 @@ export type ApiClient = ReturnType<typeof createApiClient>;
 export const createApiClient = (baseUrl = defaultBaseUrl) => ({
   getHealth: (): Promise<HealthResponse> =>
     requestJson(baseUrl, healthResponseSchema, "/api/v1/health"),
+
+  listServerLogs: (level: ServerLogLevel, limit = 200): Promise<ServerLogListResponse> =>
+    requestJson(
+      baseUrl,
+      serverLogListResponseSchema,
+      `/api/v1/logs?${new URLSearchParams({ level, limit: String(limit) })}`,
+    ),
 
   getCurrentSession: (): Promise<AuthSessionResponse> =>
     requestJson(baseUrl, authSessionResponseSchema, "/api/v1/auth/session"),
