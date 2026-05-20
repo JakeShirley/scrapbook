@@ -31,6 +31,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
 import type { EmbellishmentPreset } from "./embellishments";
 import { PageCanvas } from "./PageCanvas";
+import { PhotoPickerModal } from "./PhotoPickerModal";
 import { PngExportSettingsModal } from "./PngExportSettingsModal";
 
 export function EditorView() {
@@ -42,6 +43,7 @@ export function EditorView() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
+  const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [isPngExportSettingsOpen, setIsPngExportSettingsOpen] = useState(false);
   const [status, setStatus] = useState<EditorSaveStatus>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -260,6 +262,14 @@ export function EditorView() {
           onSubmit={submitPngExport}
         />
       ) : null}
+      {isPhotoPickerOpen ? (
+        <PhotoPickerModal
+          assets={assets}
+          eyebrow={page.title}
+          onAddPhoto={addPhoto}
+          onClose={() => setIsPhotoPickerOpen(false)}
+        />
+      ) : null}
       {error ? (
         <p className="panel-alert" role="alert">
           {error}
@@ -274,10 +284,10 @@ export function EditorView() {
       ) : null}
       <div className="editor-shell">
         <AssetRail
-          assets={assets}
+          assetCount={assets.length}
           onAddEmbellishment={addEmbellishment}
-          onAddPhoto={addPhoto}
           onAddText={addText}
+          onOpenPhotoPicker={() => setIsPhotoPickerOpen(true)}
         />
         <section className="editor-stage" aria-label="Page canvas">
           <EditorToolbar

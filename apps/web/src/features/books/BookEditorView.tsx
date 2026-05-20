@@ -38,6 +38,7 @@ import { AssetRail } from "../editor/AssetRail";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
 import { PageCanvas } from "../editor/PageCanvas";
+import { PhotoPickerModal } from "../editor/PhotoPickerModal";
 import { PngExportSettingsModal } from "../editor/PngExportSettingsModal";
 import {
   commonBookPageSizes,
@@ -241,6 +242,7 @@ export function BookEditorView() {
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
+  const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const [pageDropTarget, setPageDropTarget] = useState<{
@@ -1154,6 +1156,14 @@ export function BookEditorView() {
           onSubmit={submitPngExport}
         />
       ) : null}
+      {isPhotoPickerOpen ? (
+        <PhotoPickerModal
+          assets={assets}
+          eyebrow={activePage?.title ?? book.title}
+          onAddPhoto={addPhoto}
+          onClose={() => setIsPhotoPickerOpen(false)}
+        />
+      ) : null}
       {isBookSettingsOpen ? (
         <AppModal
           title="Book settings"
@@ -1224,10 +1234,11 @@ export function BookEditorView() {
       </div>
       <div className="book-editor-shell">
         <AssetRail
-          assets={assets}
+          assetCount={assets.length}
+          isPhotoPickerDisabled={!activePage}
           onAddEmbellishment={addEmbellishment}
-          onAddPhoto={addPhoto}
           onAddText={addText}
+          onOpenPhotoPicker={() => setIsPhotoPickerOpen(true)}
         />
         <section className="book-editor-stage" aria-label="Book editor">
           <div className="book-modebar">

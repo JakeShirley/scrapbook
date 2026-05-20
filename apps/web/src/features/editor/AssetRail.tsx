@@ -1,39 +1,39 @@
-import { TextTRegular } from "@fluentui/react-icons";
+import { Button } from "@fluentui/react-components";
+import { AddRegular, TextTRegular } from "@fluentui/react-icons";
 import type { CSSProperties } from "react";
 
-import type { Asset } from "../../types";
 import { type EmbellishmentPreset, embellishmentPresets } from "./embellishments";
 
 export function AssetRail({
-  assets,
+  assetCount,
+  isPhotoPickerDisabled = false,
   onAddEmbellishment,
-  onAddPhoto,
   onAddText,
+  onOpenPhotoPicker,
 }: {
-  assets: Asset[];
+  assetCount: number;
+  isPhotoPickerDisabled?: boolean;
   onAddEmbellishment: (preset: EmbellishmentPreset) => void;
-  onAddPhoto: (asset: Asset) => void;
   onAddText: () => void;
+  onOpenPhotoPicker: () => void;
 }) {
   return (
     <aside className="editor-panel editor-asset-rail" aria-label="Assets">
       <div className="panel-heading compact-heading">
         <h3>Assets</h3>
-        <span>{assets.length}</span>
+        <span>{assetCount}</span>
       </div>
-      <div className="asset-rail-list">
-        {assets.length === 0 ? <p className="empty-state">No assets yet</p> : null}
-        {assets.map((asset) => (
-          <button
-            type="button"
-            key={asset.id}
-            className="asset-rail-item"
-            onClick={() => onAddPhoto(asset)}
-          >
-            <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
-            <span>{asset.originalFilename}</span>
-          </button>
-        ))}
+      <div className="asset-rail-actions">
+        <Button
+          appearance="primary"
+          type="button"
+          className="primary-button full-width-button"
+          disabled={isPhotoPickerDisabled}
+          icon={<AddRegular />}
+          onClick={onOpenPhotoPicker}
+        >
+          Add photo
+        </Button>
       </div>
       <div className="panel-heading compact-heading nested-heading">
         <h3>Elements</h3>

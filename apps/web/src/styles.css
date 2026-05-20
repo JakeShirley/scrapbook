@@ -1886,18 +1886,10 @@ textarea:focus-visible {
   padding: 12px;
 }
 
-.asset-rail-item {
+.asset-rail-actions {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  align-items: center;
   gap: 8px;
-  min-height: 54px;
-  border: 1px solid #d8ddd8;
-  border-radius: 8px;
-  padding: 5px;
-  color: #202426;
-  text-align: left;
-  background: #fbfbf8;
+  padding: 12px;
 }
 
 .element-rail-item {
@@ -1916,19 +1908,6 @@ textarea:focus-visible {
 
 .nested-heading {
   border-top: 1px solid #edf0ed;
-}
-
-.asset-rail-item img {
-  width: 46px;
-  aspect-ratio: 1;
-  border-radius: 6px;
-  object-fit: cover;
-}
-
-.asset-rail-item span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .element-rail-item span:last-child {
@@ -2171,6 +2150,108 @@ textarea:focus-visible {
   width: auto;
 }
 
+.photo-picker-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100%;
+}
+
+.photo-picker-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 420px) auto;
+  align-items: end;
+  gap: 12px;
+  border-bottom: 1px solid var(--sb-neutral-stroke-3);
+  padding: 14px 18px;
+  background: var(--sb-neutral-background);
+}
+
+.photo-picker-count {
+  justify-self: end;
+  padding-bottom: 7px;
+  color: var(--sb-neutral-foreground-3);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.photo-picker-modal > .empty-state {
+  margin: 0;
+  padding: 18px;
+}
+
+.photo-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  align-content: start;
+  padding: 18px;
+}
+
+.photo-picker-item {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  min-width: 0;
+  min-height: 250px;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--sb-neutral-foreground);
+  text-align: left;
+  background: var(--sb-neutral-background);
+}
+
+.photo-picker-item:hover {
+  border-color: var(--sb-brand);
+  box-shadow: 0 10px 20px rgb(32 36 38 / 10%);
+}
+
+.photo-picker-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: var(--sb-neutral-background-4);
+  object-fit: cover;
+}
+
+.photo-picker-item-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.photo-picker-item-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-picker-item-copy span:first-child {
+  font-weight: 700;
+}
+
+.photo-picker-item-copy span:last-child {
+  color: var(--sb-neutral-foreground-3);
+  font-size: 0.82rem;
+}
+
+.photo-picker-add-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  justify-self: stretch;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.photo-picker-add-indicator svg {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-width: 720px) {
   .app-modal-overlay {
     padding: 12px;
@@ -2189,6 +2270,27 @@ textarea:focus-visible {
   .app-modal-body .inspector-form {
     grid-template-columns: 1fr;
     padding: 12px;
+  }
+
+  .photo-picker-toolbar {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 12px;
+  }
+
+  .photo-picker-count {
+    justify-self: start;
+    padding-bottom: 0;
+  }
+
+  .photo-picker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .photo-picker-item {
+    min-height: 220px;
   }
 }
 
@@ -2906,7 +3008,6 @@ body {
 .book-page-list li,
 .spread-preview-row span,
 .book-filmstrip-select,
-.asset-rail-item,
 .element-rail-item,
 .layer-list li,
 .inspector-section {
@@ -2920,7 +3021,6 @@ body {
 .asset-tile:hover,
 .item-list button:hover,
 .book-card-list button:hover,
-.asset-rail-item:hover,
 .element-rail-item:hover,
 .book-filmstrip-select:hover {
   border-color: var(--sb-brand);
@@ -2936,8 +3036,7 @@ body {
   box-shadow: inset 0 0 0 1px var(--sb-brand-tint-strong);
 }
 
-.asset-tile img,
-.asset-rail-item img {
+.asset-tile img {
   background: var(--sb-neutral-background-4);
 }
 
@@ -3239,7 +3338,7 @@ body {
 
 .book-editor-page .editor-asset-rail {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
@@ -3250,7 +3349,6 @@ body {
   padding: 8px;
 }
 
-.book-editor-page .asset-rail-item,
 .book-editor-page .element-rail-item {
   min-height: 50px;
 }
