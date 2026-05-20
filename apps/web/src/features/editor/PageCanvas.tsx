@@ -1,5 +1,17 @@
-import { ArrowDownRegular, ArrowUpRegular, DeleteRegular } from "@fluentui/react-icons";
-import { type PageDocument, type PageLayer, renderPageDocumentSvg } from "@scrapbook/editor-core";
+import {
+  ArrowDownRegular,
+  ArrowUpRegular,
+  DeleteRegular,
+  DismissRegular,
+  EditRegular,
+  ImageBorderRegular,
+} from "@fluentui/react-icons";
+import {
+  type PageDocument,
+  type PageLayer,
+  type PhotoLayer,
+  renderPageDocumentSvg,
+} from "@scrapbook/editor-core";
 import type {
   CSSProperties,
   MouseEvent as ReactMouseEvent,
@@ -9,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Asset } from "../../types";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
+import { LayerInspector } from "./LayerInspector";
 import {
   getAngle,
   getLayerCenter,
@@ -18,12 +31,37 @@ import {
   resizeLayerFromHandle,
 } from "./transforms";
 
+type SelectionPanel = "edit" | "frame";
+
+const framePresetOptions: PhotoLayer["border"]["framePreset"][] = [
+  "none",
+  "mat",
+  "polaroid",
+  "film",
+  "paper",
+];
+
+const maskShapeOptions: PhotoLayer["mask"]["shape"][] = [
+  "rectangle",
+  "ellipse",
+  "arch",
+  "diamond",
+  "ticket",
+];
+
+const formatFramePreset = (preset: PhotoLayer["border"]["framePreset"]) =>
+  preset === "none" ? "None" : preset.charAt(0).toUpperCase() + preset.slice(1);
+
+const formatMaskShape = (shape: PhotoLayer["mask"]["shape"]) =>
+  shape.charAt(0).toUpperCase() + shape.slice(1);
+
 export function PageCanvas({
   assetById,
   document,
   previewLayers = [],
   selectedLayerId,
   onDeleteLayer,
+  onChangeLayer,
   onReorderLayer,
   onSelectLayer,
   onTransformEnd,
@@ -34,6 +72,7 @@ export function PageCanvas({
   previewLayers?: PageLayer[];
   selectedLayerId: string | null;
   onDeleteLayer: (layerId: string) => void;
+  onChangeLayer?: (layerId: string, update: Partial<PageLayer>) => void;
   onReorderLayer: (layerId: string, toIndex: number) => void;
   onSelectLayer: (layerId: string | null) => void;
   onTransformEnd?: (layerId: string, update: Partial<PageLayer> | null) => void;
@@ -42,6 +81,7 @@ export function PageCanvas({
   const canvasRef = useRef<HTMLFieldSetElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [activeTransform, setActiveTransform] = useState<ActiveTransform | null>(null);
+  const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
   );
@@ -65,7 +105,57 @@ export function PageCanvas({
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)
     : -1;
   const contextLayer = contextLayerIndex >= 0 ? document.layers[contextLayerIndex] : null;
+  const selectedLayer = document.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const selectedSelectionFrame = selectedLayer ? getLayerSelectionFrame(selectedLayer) : null;
+  const selectedLayerMenuPlacement =
+    selectedSelectionFrame && selectedSelectionFrame.y > document.canvas.height * 0.16
+      ? "above"
+      : "below";
+  const selectedLayerMenuStyle: CSSProperties | undefined = selectedSelectionFrame
+    ? {
+        left: `${Math.min(
+          92,
+          Math.max(
+            8,
+            ((selectedSelectionFrame.x + selectedSelectionFrame.width / 2) /
+              document.canvas.width) *
+              100,
+          ),
+        )}%`,
+        top: `${
+          ((selectedLayerMenuPlacement === "above"
+            ? selectedSelectionFrame.y
+            : selectedSelectionFrame.y + selectedSelectionFrame.height) /
+            document.canvas.height) *
+          100
+        }%`,
+      }
+    : undefined;
   const closeContextMenu = () => setContextMenu(null);
+  const changeLayer = (layerId: string, update: Partial<PageLayer>) =>
+    (onChangeLayer ?? onTransformLayer)(layerId, update);
+
+  useEffect(() => {
+    if (!selectedLayerId) setActiveSelectionPanel(null);
+  }, [selectedLayerId]);
+
+  useEffect(() => {
+    if (activeTransform) setActiveSelectionPanel(null);
+  }, [activeTransform]);
+
+  useEffect(() => {
+    if (!activeSelectionPanel) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActiveSelectionPanel(null);
+    };
+
+    globalThis.document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      globalThis.document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [activeSelectionPanel]);
   useEffect(() => {
     if (!contextMenu) return;
 
@@ -184,7 +274,7 @@ export function PageCanvas({
     onSelectLayer(layer.id);
 
     const menuWidth = 204;
-    const menuHeight = 190;
+    const menuHeight = 226;
     const margin = 8;
     setContextMenu({
       layerId: layer.id,
@@ -196,10 +286,41 @@ export function PageCanvas({
     action();
     closeContextMenu();
   };
+  const toggleSelectionPanel = (panel: SelectionPanel) => {
+    closeContextMenu();
+    setActiveSelectionPanel((currentPanel) => (currentPanel === panel ? null : panel));
+  };
+  const openSelectionPanel = (panel: SelectionPanel) => {
+    closeContextMenu();
+    setActiveSelectionPanel(panel);
+  };
+  const openLayerEditor = (event: ReactMouseEvent, layer: PageLayer) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setActiveTransform(null);
+    closeContextMenu();
+    onSelectLayer(layer.id);
+    setActiveSelectionPanel("edit");
+  };
+  const updateSelectedPhotoBorder = (update: Partial<PhotoLayer["border"]>) => {
+    if (!selectedLayer || selectedLayer.kind !== "photo") return;
+
+    changeLayer(selectedLayer.id, {
+      border: { ...selectedLayer.border, ...update },
+    } as Partial<PageLayer>);
+  };
+  const updateSelectedPhotoMask = (update: Partial<PhotoLayer["mask"]>) => {
+    if (!selectedLayer || selectedLayer.kind !== "photo") return;
+
+    changeLayer(selectedLayer.id, {
+      mask: { ...selectedLayer.mask, ...update },
+    } as Partial<PageLayer>);
+  };
   const clearSelection = (event: ReactPointerEvent<HTMLFieldSetElement>) => {
     if (event.button !== 0 || activeTransform) return;
     if (contextMenuRef.current?.contains(event.target as Node)) return;
     closeContextMenu();
+    setActiveSelectionPanel(null);
     onSelectLayer(null);
   };
 
@@ -258,6 +379,7 @@ export function PageCanvas({
               className="canvas-layer-hitbox"
               onClick={() => onSelectLayer(layer.id)}
               onContextMenu={(event) => openContextMenu(event, layer)}
+              onDoubleClick={(event) => openLayerEditor(event, layer)}
               onPointerDown={(event) => startTransform(event, layer, "move")}
             />
             <div className="canvas-selection-frame" style={selectionFrameStyle}>
@@ -288,6 +410,149 @@ export function PageCanvas({
           </div>
         );
       })}
+      {selectedLayer && selectedLayerMenuStyle && !activeTransform ? (
+        <div
+          className="selected-layer-tools"
+          data-placement={selectedLayerMenuPlacement}
+          style={selectedLayerMenuStyle}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div
+            aria-label={`${selectedLayer.name} actions`}
+            className="selected-layer-action-bar"
+            role="toolbar"
+          >
+            <button
+              type="button"
+              aria-label="Edit layer"
+              aria-pressed={activeSelectionPanel === "edit"}
+              title="Edit"
+              onClick={() => toggleSelectionPanel("edit")}
+            >
+              <EditRegular />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Frame photo"
+              aria-pressed={activeSelectionPanel === "frame"}
+              disabled={selectedLayer.kind !== "photo"}
+              title={selectedLayer.kind === "photo" ? "Frame" : "Frames are available for photos"}
+              onClick={() => toggleSelectionPanel("frame")}
+            >
+              <ImageBorderRegular />
+              <span>Frame</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Delete layer"
+              className="danger-action"
+              title="Delete"
+              onClick={() => onDeleteLayer(selectedLayer.id)}
+            >
+              <DeleteRegular />
+              <span>Delete</span>
+            </button>
+          </div>
+          {activeSelectionPanel === "frame" && selectedLayer.kind === "photo" ? (
+            <div
+              className="selected-layer-popover frame-popover"
+              role="dialog"
+              aria-label="Frame photo"
+            >
+              <fieldset className="frame-preset-grid">
+                <legend className="visually-hidden">Frame preset</legend>
+                {framePresetOptions.map((preset) => (
+                  <button
+                    type="button"
+                    aria-pressed={selectedLayer.border.framePreset === preset}
+                    key={preset}
+                    onClick={() => updateSelectedPhotoBorder({ framePreset: preset })}
+                  >
+                    {formatFramePreset(preset)}
+                  </button>
+                ))}
+              </fieldset>
+              <label className="frame-popover-range">
+                <span>Width</span>
+                <input
+                  max={160}
+                  min={0}
+                  type="range"
+                  value={selectedLayer.border.width}
+                  onChange={(event) =>
+                    updateSelectedPhotoBorder({ width: Number(event.currentTarget.value) })
+                  }
+                />
+              </label>
+              <div className="frame-popover-field-row">
+                <label>
+                  <span>Color</span>
+                  <input
+                    type="color"
+                    value={selectedLayer.border.color}
+                    onChange={(event) =>
+                      updateSelectedPhotoBorder({ color: event.currentTarget.value })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Mask</span>
+                  <select
+                    value={selectedLayer.mask.shape}
+                    onChange={(event) =>
+                      updateSelectedPhotoMask({
+                        shape: event.currentTarget.value as PhotoLayer["mask"]["shape"],
+                      })
+                    }
+                  >
+                    {maskShapeOptions.map((shape) => (
+                      <option value={shape} key={shape}>
+                        {formatMaskShape(shape)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {activeSelectionPanel === "edit" && selectedLayer ? (
+        <div
+          className="selected-layer-edit-overlay"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <section
+            aria-label={`Edit ${selectedLayer.name}`}
+            aria-modal="true"
+            className="selected-layer-edit-dialog"
+            role="dialog"
+          >
+            <header className="selected-layer-edit-header">
+              <div className="selected-layer-edit-title">
+                <span>{selectedLayer.kind}</span>
+                <h3>{selectedLayer.name}</h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close editor"
+                className="selected-layer-edit-close"
+                title="Close"
+                onClick={() => setActiveSelectionPanel(null)}
+              >
+                <DismissRegular />
+              </button>
+            </header>
+            <div className="selected-layer-edit-body">
+              <LayerInspector
+                layer={selectedLayer}
+                onChange={(update) => changeLayer(selectedLayer.id, update)}
+              />
+            </div>
+          </section>
+        </div>
+      ) : null}
       {contextMenu && contextLayer ? (
         <div
           ref={contextMenuRef}
@@ -301,6 +566,10 @@ export function PageCanvas({
           }}
           onPointerDown={(event) => event.stopPropagation()}
         >
+          <button type="button" role="menuitem" onClick={() => openSelectionPanel("edit")}>
+            <EditRegular />
+            <span>Edit</span>
+          </button>
           <button
             type="button"
             disabled={contextLayerIndex === document.layers.length - 1}

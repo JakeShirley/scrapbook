@@ -1293,6 +1293,9 @@ export function BookEditorView() {
                         document={page.document}
                         previewLayers={getSpreadPreviewLayers(pageId)}
                         selectedLayerId={pageId === activePage.id ? selectedLayerId : null}
+                        onChangeLayer={(layerId, update) =>
+                          updateLayerTransform(pageId, layerId, update)
+                        }
                         onDeleteLayer={(layerId) => deletePageLayer(pageId, layerId)}
                         onReorderLayer={(layerId, toIndex) =>
                           reorderPageLayer(pageId, layerId, toIndex)

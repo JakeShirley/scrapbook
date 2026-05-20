@@ -1748,16 +1748,23 @@ textarea:focus-visible {
 
 .frame-popover {
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  width: min(300px, calc(100vw - 32px));
+  gap: 8px;
+  padding: 10px;
 }
 
 .frame-popover label {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   color: var(--sb-neutral-foreground-2);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 600;
+}
+
+.frame-popover-range {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
 }
 
 .frame-popover input[type="range"] {
@@ -1765,18 +1772,34 @@ textarea:focus-visible {
 }
 
 .frame-popover input[type="color"] {
-  width: 48px;
-  min-height: 34px;
+  width: 42px;
+  min-height: 30px;
   border: 1px solid var(--sb-neutral-stroke);
   border-radius: 6px;
   padding: 3px;
   background: var(--sb-neutral-background);
 }
 
+.frame-popover select {
+  min-height: 30px;
+  border: 1px solid var(--sb-neutral-stroke);
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--sb-neutral-foreground);
+  background: var(--sb-neutral-background);
+  font-size: 0.8rem;
+}
+
+.frame-popover-field-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
 .frame-preset-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
   min-inline-size: 0;
   margin: 0;
   border: 0;
@@ -1784,12 +1807,12 @@ textarea:focus-visible {
 }
 
 .frame-preset-grid button {
-  min-height: 34px;
+  min-height: 30px;
   border: 1px solid var(--sb-neutral-stroke);
   border-radius: 6px;
   color: var(--sb-neutral-foreground);
   background: var(--sb-neutral-background);
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 600;
 }
 
@@ -2242,6 +2265,20 @@ textarea:focus-visible {
 }
 
 @media (max-width: 720px) {
+  .selected-layer-edit-overlay {
+    padding: 12px;
+  }
+
+  .selected-layer-edit-dialog {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+  }
+
+  .selected-layer-edit-body .inspector-form {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
   .app-modal-overlay {
     padding: 12px;
   }
@@ -3063,6 +3100,111 @@ body {
 .book-filmstrip-index {
   color: #ffffff;
   background: var(--sb-brand);
+}
+
+.selected-layer-edit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 46%);
+  backdrop-filter: blur(2px);
+}
+
+.selected-layer-edit-dialog {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1100px, calc(100vw - 48px));
+  height: min(860px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 8px;
+  background: var(--sb-neutral-background);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 28%);
+}
+
+.selected-layer-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  border-bottom: 1px solid var(--sb-neutral-stroke-3);
+  padding: 14px 18px;
+  background: var(--sb-neutral-background);
+}
+
+.selected-layer-edit-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.selected-layer-edit-title span {
+  color: var(--sb-neutral-foreground-3);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.selected-layer-edit-title h3 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--sb-neutral-foreground);
+  font-size: 1.12rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-layer-edit-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--sb-neutral-stroke);
+  border-radius: 6px;
+  color: var(--sb-neutral-foreground);
+  background: var(--sb-neutral-background);
+}
+
+.selected-layer-edit-close:hover {
+  background: var(--sb-neutral-background-4);
+}
+
+.selected-layer-edit-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.selected-layer-edit-body {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--sb-neutral-background-2);
+}
+
+.selected-layer-edit-body .inspector-form {
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  align-content: start;
+  gap: 16px;
+  border-top: 0;
+  padding: 18px;
+}
+
+.selected-layer-edit-body .inspector-form > label:first-child {
+  grid-column: 1 / -1;
+}
+
+.selected-layer-edit-body .inspector-section {
+  background: var(--sb-neutral-background);
+}
+
+.selected-layer-edit-body .full-width-button {
+  justify-self: start;
+  width: auto;
 }
 
 .canvas-layer[data-selected="true"] .canvas-layer-content {

@@ -172,6 +172,21 @@ export function PhotoControls({
               onChange={(event) => updateBorder({ width: Number(event.currentTarget.value) })}
             />
           </label>
+          <label>
+            <span>Mask</span>
+            <select
+              value={layer.mask.shape}
+              onChange={(event) =>
+                updateMask({ shape: event.currentTarget.value as PhotoLayer["mask"]["shape"] })
+              }
+            >
+              <option value="rectangle">Rectangle</option>
+              <option value="ellipse">Ellipse</option>
+              <option value="arch">Arch</option>
+              <option value="diamond">Diamond</option>
+              <option value="ticket">Ticket</option>
+            </select>
+          </label>
         </div>
         <label>
           <span>Border color</span>
@@ -180,24 +195,6 @@ export function PhotoControls({
             value={layer.border.color}
             onChange={(event) => updateBorder({ color: event.currentTarget.value })}
           />
-        </label>
-      </fieldset>
-      <fieldset className="inspector-section">
-        <legend>Mask</legend>
-        <label>
-          <span>Shape</span>
-          <select
-            value={layer.mask.shape}
-            onChange={(event) =>
-              updateMask({ shape: event.currentTarget.value as PhotoLayer["mask"]["shape"] })
-            }
-          >
-            <option value="rectangle">Rectangle</option>
-            <option value="ellipse">Ellipse</option>
-            <option value="arch">Arch</option>
-            <option value="diamond">Diamond</option>
-            <option value="ticket">Ticket</option>
-          </select>
         </label>
       </fieldset>
       <Button

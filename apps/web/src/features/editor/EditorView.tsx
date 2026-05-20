@@ -306,6 +306,7 @@ export function EditorView() {
             assetById={assetById}
             document={document}
             selectedLayerId={selectedLayerId}
+            onChangeLayer={updateLayerTransform}
             onDeleteLayer={deleteCanvasLayer}
             onReorderLayer={reorderCanvasLayer}
             onSelectLayer={setSelectedLayerId}
