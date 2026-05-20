@@ -6,14 +6,32 @@ import type { RenderedExport } from "./types.js";
 
 export type RasterExportFormat = Exclude<ExportFormat, "pdf">;
 
+export type RasterRenderSettings = {
+  dpi?: number;
+  preset: ExportPreset;
+};
+
 export type RenderedRasterImage = {
   buffer: Buffer;
   height: number;
   width: number;
 };
 
+const basePrintDpi = 300;
+
+export const defaultDpiForPreset = (preset: ExportPreset): number =>
+  preset === "print" ? basePrintDpi : 150;
+
+export const resolveRasterDpi = (settings: RasterRenderSettings): number =>
+  settings.dpi ?? defaultDpiForPreset(settings.preset);
+
+export const renderScaleForDpi = (dpi: number): number => dpi / basePrintDpi;
+
 export const renderScaleForPreset = (preset: ExportPreset): number =>
-  preset === "print" ? 1 : 0.5;
+  renderScaleForDpi(defaultDpiForPreset(preset));
+
+export const renderScaleForSettings = (settings: RasterRenderSettings): number =>
+  renderScaleForDpi(resolveRasterDpi(settings));
 
 const outputForFormat = (format: RasterExportFormat) =>
   format === "jpeg"
@@ -29,9 +47,10 @@ const readSvgDimension = (svg: string, dimension: "height" | "width"): number =>
 export const renderSvgRasterImage = async (
   svg: string,
   format: RasterExportFormat,
-  preset: ExportPreset,
+  settings: RasterRenderSettings,
 ): Promise<RenderedRasterImage> => {
-  const scale = renderScaleForPreset(preset);
+  const dpi = resolveRasterDpi(settings);
+  const scale = renderScaleForSettings(settings);
   const image = sharp(Buffer.from(svg), { density: 72, limitInputPixels: false }).resize({
     width: Math.round(readSvgDimension(svg, "width") * scale),
     withoutEnlargement: false,
@@ -39,9 +58,13 @@ export const renderSvgRasterImage = async (
   const rendered =
     format === "jpeg"
       ? await image
-          .jpeg({ mozjpeg: true, quality: preset === "print" ? 92 : 84 })
+          .withMetadata({ density: dpi })
+          .jpeg({ mozjpeg: true, quality: settings.preset === "print" ? 92 : 84 })
           .toBuffer({ resolveWithObject: true })
-      : await image.png({ compressionLevel: 9 }).toBuffer({ resolveWithObject: true });
+      : await image
+          .withMetadata({ density: dpi })
+          .png({ compressionLevel: 9 })
+          .toBuffer({ resolveWithObject: true });
 
   return {
     buffer: rendered.data,
@@ -53,10 +76,10 @@ export const renderSvgRasterImage = async (
 export const rasterizeSvg = async (
   svg: string,
   format: RasterExportFormat,
-  preset: ExportPreset,
+  settings: RasterRenderSettings,
 ): Promise<RenderedExport> => {
   const output = outputForFormat(format);
-  const image = await renderSvgRasterImage(svg, format, preset);
+  const image = await renderSvgRasterImage(svg, format, settings);
 
   return {
     buffer: image.buffer,

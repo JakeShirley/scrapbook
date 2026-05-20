@@ -4,6 +4,7 @@ import { errorResponseSchema } from "./shared.js";
 
 export const exportFormatSchema = z.enum(["png", "jpeg", "pdf"]);
 export const exportPresetSchema = z.enum(["digital", "print"]);
+export const exportDpiSchema = z.number().int().min(72).max(600);
 export const exportStatusSchema = z.enum(["queued", "running", "completed", "failed", "cancelled"]);
 
 export const exportJobResponseSchema = z
@@ -29,6 +30,7 @@ export const exportCreateRequestSchema = z
   .object({
     format: exportFormatSchema.default("png"),
     preset: exportPresetSchema.default("digital"),
+    dpi: exportDpiSchema.optional(),
     pageId: z.string().min(1).optional(),
     bookId: z.string().min(1).optional(),
   })
@@ -149,6 +151,9 @@ export const exportContentRoute = createRoute({
           schema: z.string().openapi({ format: "binary" }),
         },
         "application/pdf": {
+          schema: z.string().openapi({ format: "binary" }),
+        },
+        "application/zip": {
           schema: z.string().openapi({ format: "binary" }),
         },
       },

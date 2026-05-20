@@ -1006,6 +1006,11 @@ textarea:focus-visible {
   gap: 12px;
 }
 
+.export-settings-form {
+  display: grid;
+  gap: 14px;
+}
+
 .book-settings-form label {
   display: grid;
   gap: 5px;
@@ -1026,6 +1031,13 @@ textarea:focus-visible {
 }
 
 .book-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.export-settings-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;

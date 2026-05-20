@@ -4,27 +4,27 @@ import sharp from "sharp";
 
 import type { Repositories } from "../persistence/repositories.js";
 import type { PageRecord } from "../persistence/schema.js";
-import { renderScaleForPreset } from "./raster.js";
+import { type RasterRenderSettings, renderScaleForSettings } from "./raster.js";
 import type { ExportStorage } from "./types.js";
 
 const svgNativeImageMimeTypes = new Set(["image/jpeg", "image/png"]);
 const maxOriginalDataUriByteSize = 2 * 1024 * 1024;
 
-const targetPhotoDimension = (layer: PhotoLayer, preset: ExportPreset): number => {
+const targetPhotoDimension = (layer: PhotoLayer, settings: RasterRenderSettings): number => {
   const cropWidth = Math.max(layer.crop.width, 0.05);
   const cropHeight = Math.max(layer.crop.height, 0.05);
   const imageWidth = layer.width / cropWidth;
   const imageHeight = layer.height / cropHeight;
   const transformedDimension = Math.max(imageWidth, imageHeight) * layer.photoTransform.scale;
 
-  return Math.max(1, Math.ceil(transformedDimension * renderScaleForPreset(preset)));
+  return Math.max(1, Math.ceil(transformedDimension * renderScaleForSettings(settings)));
 };
 
 const createPhotoDataUri = async (input: {
   buffer: Buffer;
   layer: PhotoLayer;
   mimeType: string;
-  preset: ExportPreset;
+  settings: RasterRenderSettings;
 }): Promise<string> => {
   if (
     svgNativeImageMimeTypes.has(input.mimeType) &&
@@ -41,8 +41,8 @@ const createPhotoDataUri = async (input: {
     .rotate()
     .resize({
       fit: "inside",
-      height: targetPhotoDimension(input.layer, input.preset),
-      width: targetPhotoDimension(input.layer, input.preset),
+      height: targetPhotoDimension(input.layer, input.settings),
+      width: targetPhotoDimension(input.layer, input.settings),
       withoutEnlargement: true,
     });
   const rendered = metadata.hasAlpha
@@ -67,10 +67,13 @@ export const parsePageDocument = async (page: PageRecord): Promise<PageDocument>
 export const renderPageSvg = async (input: {
   accountId: string;
   document: PageDocument;
+  dpi?: number;
   preset: ExportPreset;
   repositories: Repositories;
   storage: ExportStorage;
 }): Promise<string> => {
+  const settings: RasterRenderSettings =
+    input.dpi === undefined ? { preset: input.preset } : { dpi: input.dpi, preset: input.preset };
   const photoHrefs = new Map<string, string>();
 
   for (const layer of input.document.layers) {
@@ -89,7 +92,7 @@ export const renderPageSvg = async (input: {
           buffer,
           layer,
           mimeType: asset.mimeType,
-          preset: input.preset,
+          settings,
         }),
       );
     }

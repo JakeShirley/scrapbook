@@ -307,6 +307,47 @@ const toBookResponse = (book: BookRecord, repositories: Repositories): BookRespo
 
 const buildExportContentUrl = (exportId: string): string => `/api/v1/exports/${exportId}/content`;
 
+const slugifyDownloadName = (value: string): string => {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug.length > 0 ? slug.slice(0, 80) : "scrapbook-export";
+};
+
+const getExportContentType = (exportJob: ExportJobRecord): string => {
+  if (exportJob.format === "pdf") {
+    return "application/pdf";
+  }
+
+  if (exportJob.format === "jpeg") {
+    return "image/jpeg";
+  }
+
+  return exportJob.bookId ? "application/zip" : "image/png";
+};
+
+const getExportDownloadFilename = (
+  exportJob: ExportJobRecord,
+  repositories: Repositories,
+): string => {
+  if (exportJob.bookId) {
+    const book = repositories.books.findByIdForAccount(exportJob.accountId, exportJob.bookId);
+    const name = slugifyDownloadName(book?.title ?? "scrapbook-book");
+
+    return exportJob.format === "png" ? `${name}-png-pages.zip` : `${name}.${exportJob.format}`;
+  }
+
+  const page = exportJob.pageId
+    ? repositories.pages.findByIdForAccount(exportJob.accountId, exportJob.pageId)
+    : null;
+  const name = slugifyDownloadName(page?.title ?? "scrapbook-page");
+
+  return `${name}.${exportJob.format === "jpeg" ? "jpg" : exportJob.format}`;
+};
+
 const toExportJobResponse = (exportJob: ExportJobRecord): ExportJobResponse =>
   exportJobResponseSchema.parse({
     id: exportJob.id,
@@ -1241,6 +1282,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
       const rendered = input.pageId
         ? await renderPageExport({
             accountId: authSession.account.id,
+            ...(input.dpi === undefined ? {} : { dpi: input.dpi }),
             format: input.format,
             pageId: input.pageId,
             preset: input.preset,
@@ -1250,6 +1292,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
         : await renderBookExport({
             accountId: authSession.account.id,
             bookId: input.bookId ?? "",
+            ...(input.dpi === undefined ? {} : { dpi: input.dpi }),
             format: input.format,
             preset: input.preset,
             repositories: options.repositories,
@@ -1364,15 +1407,12 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     const buffer = await options.storage.read(exportJob.outputStorageKey);
-    const contentType =
-      exportJob.format === "pdf"
-        ? "application/pdf"
-        : exportJob.format === "jpeg"
-          ? "image/jpeg"
-          : "image/png";
+    const contentType = getExportContentType(exportJob);
+    const filename = getExportDownloadFilename(exportJob, options.repositories);
 
     return context.body(toArrayBuffer(buffer), 200, {
       "cache-control": "private, max-age=86400",
+      "content-disposition": `attachment; filename="${filename}"`,
       "content-length": String(buffer.byteLength),
       "content-type": contentType,
     });

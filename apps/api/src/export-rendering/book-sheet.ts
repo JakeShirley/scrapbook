@@ -1,12 +1,13 @@
-import type { ExportPreset } from "@scrapbook/api-contract";
 import sharp from "sharp";
 import type { PageRecord } from "../persistence/schema.js";
 import { checksumSha256 } from "./checksums.js";
 import {
   type RasterExportFormat,
+  type RasterRenderSettings,
   type RenderedRasterImage,
-  renderScaleForPreset,
+  renderScaleForSettings,
   renderSvgRasterImage,
+  resolveRasterDpi,
 } from "./raster.js";
 import type { RenderedExport } from "./types.js";
 
@@ -104,13 +105,14 @@ const pageCompositeInput = (input: {
 export const rasterizeBookSheet = async (
   renderedPages: RenderedBookPage[],
   format: RasterExportFormat,
-  preset: ExportPreset,
+  settings: RasterRenderSettings,
 ): Promise<RenderedExport> => {
   const output = outputForFormat(format);
-  const scale = renderScaleForPreset(preset);
+  const dpi = resolveRasterDpi(settings);
+  const scale = renderScaleForSettings(settings);
   const layout = createBookSheetLayout(renderedPages);
   const pageImages = await Promise.all(
-    renderedPages.map(({ svg }) => renderSvgRasterImage(svg, "png", preset)),
+    renderedPages.map(({ svg }) => renderSvgRasterImage(svg, "png", settings)),
   );
   const composites = pageImages.map((image, index) =>
     pageCompositeInput({ image, index, layout, scale }),
@@ -129,10 +131,11 @@ export const rasterizeBookSheet = async (
   const buffer =
     format === "jpeg"
       ? await sheet
+          .withMetadata({ density: dpi })
           .flatten({ background: "#f5f3ee" })
           .jpeg({ mozjpeg: true, quality: 92 })
           .toBuffer()
-      : await sheet.png({ compressionLevel: 9 }).toBuffer();
+      : await sheet.withMetadata({ density: dpi }).png({ compressionLevel: 9 }).toBuffer();
 
   return {
     buffer,

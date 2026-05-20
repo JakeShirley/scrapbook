@@ -38,6 +38,7 @@ import { AssetRail } from "../editor/AssetRail";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
 import { PageCanvas } from "../editor/PageCanvas";
+import { PngExportSettingsModal } from "../editor/PngExportSettingsModal";
 import {
   commonBookPageSizes,
   customBookPageSizeKey,
@@ -48,6 +49,8 @@ import {
 } from "./pageSizes";
 
 type ViewMode = "page" | "spread";
+
+type PngExportTarget = "book" | "page";
 
 type PageDropPosition = "before" | "after";
 
@@ -238,6 +241,7 @@ export function BookEditorView() {
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
+  const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const [pageDropTarget, setPageDropTarget] = useState<{
     pageId: string;
@@ -976,7 +980,7 @@ export function BookEditorView() {
     }
   };
 
-  const exportBook = async (format: "pdf" | "png") => {
+  const exportBook = async (format: "pdf" | "png", dpi?: number) => {
     if (!book || book.pages.length === 0) {
       return;
     }
@@ -985,7 +989,14 @@ export function BookEditorView() {
     setError(null);
 
     try {
-      setExportJob(await apiClient.createExport({ bookId: book.id, format, preset: "print" }));
+      setExportJob(
+        await apiClient.createExport({
+          bookId: book.id,
+          ...(dpi === undefined ? {} : { dpi }),
+          format,
+          preset: "print",
+        }),
+      );
     } catch (exportError: unknown) {
       setError(getErrorMessage(exportError));
     } finally {
@@ -993,7 +1004,7 @@ export function BookEditorView() {
     }
   };
 
-  const exportActivePage = async (format: "pdf" | "png") => {
+  const exportActivePage = async (format: "pdf" | "png", dpi?: number) => {
     if (!activePage) {
       return;
     }
@@ -1003,7 +1014,12 @@ export function BookEditorView() {
 
     try {
       setExportJob(
-        await apiClient.createExport({ format, pageId: activePage.id, preset: "print" }),
+        await apiClient.createExport({
+          ...(dpi === undefined ? {} : { dpi }),
+          format,
+          pageId: activePage.id,
+          preset: "print",
+        }),
       );
     } catch (exportError: unknown) {
       setError(getErrorMessage(exportError));
@@ -1011,6 +1027,27 @@ export function BookEditorView() {
       setIsWorking(false);
     }
   };
+
+  const submitPngExport = (dpi: number) => {
+    const target = pngExportTarget;
+
+    setPngExportTarget(null);
+
+    if (target === "book") {
+      void exportBook("png", dpi);
+      return;
+    }
+
+    if (target === "page") {
+      void exportActivePage("png", dpi);
+    }
+  };
+
+  const exportDownloadLabel = exportJob
+    ? exportJob.targetKind === "book" && exportJob.format === "png"
+      ? "Download book PNG ZIP"
+      : `Download ${exportJob.targetKind} ${exportJob.format.toUpperCase()}`
+    : "";
 
   const getSpreadPreviewLayers = (pageId: string): PageLayer[] => {
     if (viewMode !== "spread" || visibleSpreadPages.length < 2) {
@@ -1086,7 +1123,7 @@ export function BookEditorView() {
           className="secondary-button"
           disabled={isWorking || book.pages.length === 0}
           icon={<ArrowDownloadRegular />}
-          onClick={() => exportActivePage("png")}
+          onClick={() => setPngExportTarget("page")}
         >
           Export page PNG
         </Button>
@@ -1095,7 +1132,7 @@ export function BookEditorView() {
           className="secondary-button"
           disabled={isWorking || book.pages.length === 0}
           icon={<ArrowDownloadRegular />}
-          onClick={() => exportBook("png")}
+          onClick={() => setPngExportTarget("book")}
         >
           Export book PNG
         </Button>
@@ -1109,6 +1146,14 @@ export function BookEditorView() {
           Export book PDF
         </Button>
       </WorkspaceHeader>
+      {pngExportTarget ? (
+        <PngExportSettingsModal
+          eyebrow={pngExportTarget === "book" ? book.title : (activePage?.title ?? "Page")}
+          closeDisabled={isWorking}
+          onClose={() => setPngExportTarget(null)}
+          onSubmit={submitPngExport}
+        />
+      ) : null}
       {isBookSettingsOpen ? (
         <AppModal
           title="Book settings"
@@ -1172,7 +1217,7 @@ export function BookEditorView() {
         {exportJob?.outputContentUrl ? (
           <p className="download-banner">
             <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">
-              Download {exportJob.targetKind} {exportJob.format.toUpperCase()}
+              {exportDownloadLabel}
             </a>
           </p>
         ) : null}

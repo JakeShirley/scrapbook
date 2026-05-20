@@ -64,7 +64,9 @@ export const renderSvgPdf = async (
   svgs: string[],
   preset: ExportPreset,
 ): Promise<RenderedExport> => {
-  const images = await Promise.all(svgs.map((svg) => renderSvgRasterImage(svg, "jpeg", preset)));
+  const images = await Promise.all(
+    svgs.map((svg) => renderSvgRasterImage(svg, "jpeg", { preset })),
+  );
   const buffer = createPdfFromJpegImages(images);
 
   return {

@@ -656,7 +656,10 @@ describe("api app", () => {
     expect(bookPngExportResponse.status).toBe(201);
     expect(bookPngExport).toMatchObject({ format: "png", preset: "print", targetKind: "book" });
     expect(bookPngContentResponse.status).toBe(200);
-    expect(bookPngContentResponse.headers.get("content-type")).toBe("image/png");
+    expect(bookPngContentResponse.headers.get("content-type")).toBe("application/zip");
+    expect(bookPngContentResponse.headers.get("content-disposition")).toContain(
+      "export-book-png-pages.zip",
+    );
     expect(Buffer.from(await bookPngContentResponse.arrayBuffer()).byteLength).toBeGreaterThan(100);
     expect(bookPdfExportResponse.status).toBe(201);
     expect(bookPdfExport).toMatchObject({ format: "pdf", preset: "print", targetKind: "book" });

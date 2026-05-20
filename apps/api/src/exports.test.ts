@@ -73,6 +73,29 @@ const decodePng = async (buffer: Buffer): Promise<DecodedPng> => {
   return { data, height: info.height, width: info.width };
 };
 
+const listStoredZipEntries = (buffer: Buffer): Array<{ data: Buffer; name: string }> => {
+  const entries: Array<{ data: Buffer; name: string }> = [];
+  let offset = 0;
+
+  while (offset + 30 <= buffer.length && buffer.readUInt32LE(offset) === 0x04034b50) {
+    const compressionMethod = buffer.readUInt16LE(offset + 8);
+    const compressedSize = buffer.readUInt32LE(offset + 18);
+    const fileNameLength = buffer.readUInt16LE(offset + 26);
+    const extraLength = buffer.readUInt16LE(offset + 28);
+    const nameStart = offset + 30;
+    const dataStart = nameStart + fileNameLength + extraLength;
+
+    expect(compressionMethod).toBe(0);
+    entries.push({
+      data: buffer.subarray(dataStart, dataStart + compressedSize),
+      name: buffer.subarray(nameStart, nameStart + fileNameLength).toString("utf8"),
+    });
+    offset = dataStart + compressedSize;
+  }
+
+  return entries;
+};
+
 const pixelAt = (image: DecodedPng, x: number, y: number): Rgb => {
   const offset = (y * image.width + x) * 4;
 
@@ -513,7 +536,7 @@ describe("PNG page exports", () => {
     }
   });
 
-  it("renders book PNG exports when pages include TIFF originals", async () => {
+  it("renders book PNG exports as ordered Shutterfly-ready ZIP files", async () => {
     const tiffBuffer = await createSolidTiff(photoRed);
     const fixture = await createExportFixture(
       createPageDocument({
@@ -554,21 +577,47 @@ describe("PNG page exports", () => {
         pageId: testPageId,
         sortOrder: 0,
       });
+      const secondPage = fixture.repositories.pages.create({
+        accountId: testAccountId,
+        documentJson: JSON.stringify(
+          createPageDocument({
+            canvas: { backgroundColor: "#fffdf7", height: 320, width: 320 },
+            layers: [createTextLayer({ id: "book_zip_text_2", text: "Two" })],
+          }),
+        ),
+        height: 320,
+        id: "page_export_pixels_2",
+        title: "Second page!",
+        width: 320,
+      });
+
+      fixture.repositories.books.addPage({
+        accountId: testAccountId,
+        bookId: book.id,
+        pageId: secondPage.id,
+        sortOrder: 1,
+      });
 
       const rendered = await renderBookExport({
         accountId: testAccountId,
         bookId: book.id,
+        dpi: 300,
         format: "png",
         preset: "print",
         repositories: fixture.repositories,
         storage: fixture.storage,
       });
-      const image = await decodePng(rendered.buffer);
+      const entries = listStoredZipEntries(rendered.buffer);
+      const firstPage = await decodePng(entries[0]?.data ?? Buffer.alloc(0));
 
-      expect(rendered.extension).toBe(".png");
-      expect(rendered.mimeType).toBe("image/png");
-      expect(image).toMatchObject({ height: 442, width: 679 });
-      expectColorNear(pixelAt(image, 85, 173), photoRed, 12);
+      expect(rendered.extension).toBe(".zip");
+      expect(rendered.mimeType).toBe("application/zip");
+      expect(entries.map((entry) => entry.name)).toEqual([
+        "001-export-pixels.png",
+        "002-second-page.png",
+      ]);
+      expect(firstPage).toMatchObject({ height: 320, width: 320 });
+      expectColorNear(pixelAt(firstPage, 72, 72), photoRed, 12);
     } finally {
       fixture.connection.close();
     }

@@ -1,9 +1,10 @@
 import type { ExportFormat, ExportPreset } from "@scrapbook/api-contract";
 
+import { rasterizeBookPngZip } from "./export-rendering/book-pages.js";
 import { rasterizeBookSheet } from "./export-rendering/book-sheet.js";
 import { parsePageDocument, renderPageSvg } from "./export-rendering/documents.js";
 import { renderSvgPdf } from "./export-rendering/pdf.js";
-import { rasterizeSvg } from "./export-rendering/raster.js";
+import { type RasterRenderSettings, rasterizeSvg } from "./export-rendering/raster.js";
 import {
   ExportRenderError,
   type ExportStorage,
@@ -16,16 +17,24 @@ export { ExportRenderError, type ExportStorage, type RenderedExport };
 
 type ExportRendererInput = {
   accountId: string;
+  dpi?: number;
   format: ExportFormat;
   preset: ExportPreset;
   repositories: Repositories;
   storage: ExportStorage;
 };
 
+const createRasterRenderSettings = (input: {
+  dpi?: number;
+  preset: ExportPreset;
+}): RasterRenderSettings =>
+  input.dpi === undefined ? { preset: input.preset } : { dpi: input.dpi, preset: input.preset };
+
 const renderStoredPageSvg = async (input: ExportRendererInput & { page: PageRecord }) =>
   renderPageSvg({
     accountId: input.accountId,
     document: await parsePageDocument(input.page),
+    ...createRasterRenderSettings(input),
     preset: input.preset,
     repositories: input.repositories,
     storage: input.storage,
@@ -44,16 +53,16 @@ export const renderPageExport = async (
 
   const svg = await renderStoredPageSvg({
     accountId: input.accountId,
+    ...createRasterRenderSettings(input),
     format: input.format,
     page,
-    preset: input.preset,
     repositories: input.repositories,
     storage: input.storage,
   });
 
   return input.format === "pdf"
     ? renderSvgPdf([svg], input.preset)
-    : rasterizeSvg(svg, input.format, input.preset);
+    : rasterizeSvg(svg, input.format, createRasterRenderSettings(input));
 };
 
 export const renderBookExport = async (
@@ -78,9 +87,9 @@ export const renderBookExport = async (
       page,
       svg: await renderStoredPageSvg({
         accountId: input.accountId,
+        ...createRasterRenderSettings(input),
         format: input.format,
         page,
-        preset: input.preset,
         repositories: input.repositories,
         storage: input.storage,
       }),
@@ -93,5 +102,7 @@ export const renderBookExport = async (
     );
   }
 
-  return rasterizeBookSheet(renderedPages, input.format, input.preset);
+  return input.format === "png"
+    ? rasterizeBookPngZip(renderedPages, createRasterRenderSettings(input))
+    : rasterizeBookSheet(renderedPages, input.format, createRasterRenderSettings(input));
 };

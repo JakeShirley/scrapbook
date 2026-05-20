@@ -31,6 +31,7 @@ import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
 import type { EmbellishmentPreset } from "./embellishments";
 import { PageCanvas } from "./PageCanvas";
+import { PngExportSettingsModal } from "./PngExportSettingsModal";
 
 export function EditorView() {
   const { pageId } = useParams();
@@ -41,6 +42,7 @@ export function EditorView() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
+  const [isPngExportSettingsOpen, setIsPngExportSettingsOpen] = useState(false);
   const [status, setStatus] = useState<EditorSaveStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 
@@ -160,14 +162,26 @@ export function EditorView() {
       setError(getErrorMessage(deleteError));
     }
   };
-  const exportPage = async (format: "pdf" | "png") => {
+  const exportPage = async (format: "pdf" | "png", dpi?: number) => {
     if (!page) return;
     setError(null);
     try {
-      setExportJob(await apiClient.createExport({ format, pageId: page.id, preset: "print" }));
+      setExportJob(
+        await apiClient.createExport({
+          ...(dpi === undefined ? {} : { dpi }),
+          format,
+          pageId: page.id,
+          preset: "print",
+        }),
+      );
     } catch (exportError: unknown) {
       setError(getErrorMessage(exportError));
     }
+  };
+
+  const submitPngExport = (dpi: number) => {
+    setIsPngExportSettingsOpen(false);
+    void exportPage("png", dpi);
   };
 
   if (status === "loading" || !document || !page) {
@@ -216,7 +230,7 @@ export function EditorView() {
           type="button"
           className="secondary-button"
           icon={<ArrowDownloadRegular />}
-          onClick={() => exportPage("png")}
+          onClick={() => setIsPngExportSettingsOpen(true)}
         >
           Export PNG
         </Button>
@@ -239,6 +253,13 @@ export function EditorView() {
           {status === "saving" ? "Saving" : "Save"}
         </Button>
       </WorkspaceHeader>
+      {isPngExportSettingsOpen ? (
+        <PngExportSettingsModal
+          eyebrow={page.title}
+          onClose={() => setIsPngExportSettingsOpen(false)}
+          onSubmit={submitPngExport}
+        />
+      ) : null}
       {error ? (
         <p className="panel-alert" role="alert">
           {error}
