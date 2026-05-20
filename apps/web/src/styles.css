@@ -176,7 +176,7 @@ textarea:focus-visible {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 180px minmax(0, 1fr);
   min-height: 100vh;
   transition: grid-template-columns 180ms ease;
 }
@@ -2950,10 +2950,14 @@ body {
 }
 
 .app-shell[data-editor-layout="book"] {
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 180px minmax(0, 1fr);
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+}
+
+.app-shell[data-editor-layout="book"][data-sidebar-collapsed="true"] {
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .app-shell[data-editor-layout="book"] .sidebar {
@@ -2961,33 +2965,40 @@ body {
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
   height: 100dvh;
+  padding: 24px;
+  border-bottom: 0;
+  overflow-y: auto;
+}
+
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] {
+  gap: 20px;
   overflow: hidden;
   padding: 20px 12px;
 }
 
-.app-shell[data-editor-layout="book"] .brand-block,
-.app-shell[data-editor-layout="book"] .nav-list a,
-.app-shell[data-editor-layout="book"] .sidebar-footer {
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .brand-block,
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .nav-list a,
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .sidebar-footer {
   justify-content: center;
 }
 
-.app-shell[data-editor-layout="book"] .nav-list {
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .nav-list {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
 }
 
-.app-shell[data-editor-layout="book"] .sidebar-footer {
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .sidebar-footer {
   display: grid;
   gap: 10px;
   justify-items: center;
   margin-top: auto;
 }
 
-.app-shell[data-editor-layout="book"] .sidebar-copy,
-.app-shell[data-editor-layout="book"] .sidebar-label {
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .sidebar-copy,
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .sidebar-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -2997,8 +3008,11 @@ body {
   white-space: nowrap;
 }
 
-.app-shell[data-editor-layout="book"] .nav-list a,
-.app-shell[data-editor-layout="book"] .sidebar-footer .secondary-button {
+.app-shell[data-editor-layout="book"] .sidebar[data-collapsed="true"] .nav-list a,
+.app-shell[data-editor-layout="book"]
+  .sidebar[data-collapsed="true"]
+  .sidebar-footer
+  .secondary-button {
   width: 44px;
   min-width: 44px;
   min-height: 44px;
