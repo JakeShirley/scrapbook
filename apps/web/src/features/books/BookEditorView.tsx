@@ -11,6 +11,7 @@ import {
   DocumentPdfRegular,
   EditRegular,
   RenameRegular,
+  ReOrderDotsVerticalRegular,
 } from "@fluentui/react-icons";
 import {
   addLayer,
@@ -25,7 +26,7 @@ import {
   updateCanvas,
   updateLayer,
 } from "@scrapbook/editor-core";
-import type { FormEvent } from "react";
+import type { DragEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -39,6 +40,8 @@ import type { EmbellishmentPreset } from "../editor/embellishments";
 import { PageCanvas } from "../editor/PageCanvas";
 
 type ViewMode = "page" | "spread";
+
+type PageDropPosition = "before" | "after";
 
 type LoadedBook = {
   book: BookDetail;
@@ -225,6 +228,11 @@ export function BookEditorView() {
   const [viewMode, setViewMode] = useState<ViewMode>("spread");
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [pageDropTarget, setPageDropTarget] = useState<{
+    pageId: string;
+    position: PageDropPosition;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -326,29 +334,6 @@ export function BookEditorView() {
   const editingPage = editingPageId ? (pageDetails.get(editingPageId) ?? null) : null;
   const editingPageIndex = editingPageId ? orderedPageIds.indexOf(editingPageId) : -1;
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
-  const selectedLayerInfo = useMemo(() => {
-    if (!selectedLayerId) {
-      return null;
-    }
-
-    const candidatePageIds = [activePageId, ...visiblePageIds].filter(
-      (pageId, index, pageIds): pageId is string =>
-        Boolean(pageId) && pageIds.indexOf(pageId) === index,
-    );
-
-    for (const pageId of candidatePageIds) {
-      const page = pageDetails.get(pageId);
-      const layer = page?.document.layers.find(
-        (candidateLayer) => candidateLayer.id === selectedLayerId,
-      );
-
-      if (page && layer) {
-        return { layer, page };
-      }
-    }
-
-    return null;
-  }, [activePageId, pageDetails, selectedLayerId, visiblePageIds]);
   const selectPage = (pageId: string, layerId?: string | null) => {
     const page = pageDetails.get(pageId);
 
@@ -522,31 +507,6 @@ export function BookEditorView() {
       }),
       { selectContainingPage, selectedLayerId: sourceLayer.id },
     );
-  };
-
-  const updateActiveLayer = (update: Partial<PageLayer>) => {
-    if (!selectedLayerInfo) {
-      return;
-    }
-
-    const nextDocument = updateLayer(
-      selectedLayerInfo.page.document,
-      selectedLayerInfo.layer.id,
-      update,
-    );
-    const nextLayer = nextDocument.layers.find((layer) => layer.id === selectedLayerInfo.layer.id);
-
-    if (viewMode === "spread" && nextLayer && visiblePageIds.length > 1) {
-      updateSharedSpreadLayer({
-        removeNonOverlappingSource: true,
-        selectContainingPage: true,
-        sourceLayer: nextLayer,
-        sourcePageId: selectedLayerInfo.page.id,
-      });
-      return;
-    }
-
-    editPageDocument(selectedLayerInfo.page.id, nextDocument);
   };
 
   const updateLayerTransform = (pageId: string, layerId: string, update: Partial<PageLayer>) => {
@@ -767,8 +727,15 @@ export function BookEditorView() {
     }
   };
 
-  const duplicateActivePage = async () => {
-    if (!book || !activePage) {
+  const duplicateBookPage = async (pageId: string) => {
+    if (!book) {
+      return;
+    }
+
+    const page = pageDetails.get(pageId);
+    const pageIndex = orderedPageIds.indexOf(pageId);
+
+    if (!page || pageIndex < 0) {
       return;
     }
 
@@ -776,12 +743,13 @@ export function BookEditorView() {
     setError(null);
 
     try {
-      const duplicated = await apiClient.duplicatePage(activePage.id, {
-        title: `${activePage.title} copy`,
+      const duplicated = await apiClient.duplicatePage(page.id, {
+        title: `${page.title} copy`,
       });
       const nextPageIds = [...orderedPageIds];
-      nextPageIds.splice(activePageIndex + 1, 0, duplicated.id);
+      nextPageIds.splice(pageIndex + 1, 0, duplicated.id);
       await apiClient.setBookPages(book.id, { pageIds: nextPageIds });
+      setEditingPageId(duplicated.id);
       await reloadBook(duplicated.id);
     } catch (duplicateError: unknown) {
       setError(getErrorMessage(duplicateError));
@@ -790,22 +758,31 @@ export function BookEditorView() {
     }
   };
 
-  const deleteActivePage = async () => {
-    if (!book || !activePage) {
+  const deleteBookPage = async (pageId: string) => {
+    if (!book) {
       return;
     }
 
-    const nextPageIds = orderedPageIds.filter((pageId) => pageId !== activePage.id);
+    const page = pageDetails.get(pageId);
+    const pageIndex = orderedPageIds.indexOf(pageId);
+
+    if (!page || pageIndex < 0) {
+      return;
+    }
+
+    const nextPageIds = orderedPageIds.filter((orderedPageId) => orderedPageId !== pageId);
     const nextActivePageId =
-      nextPageIds[activePageIndex] ?? nextPageIds[activePageIndex - 1] ?? null;
+      activePageId === pageId
+        ? (nextPageIds[pageIndex] ?? nextPageIds[pageIndex - 1] ?? null)
+        : activePageId;
 
     setIsWorking(true);
     setError(null);
 
     try {
       await apiClient.setBookPages(book.id, { pageIds: nextPageIds });
-      await apiClient.deletePage(activePage.id);
-      setEditingPageId((currentPageId) => (currentPageId === activePage.id ? null : currentPageId));
+      await apiClient.deletePage(page.id);
+      setEditingPageId((currentPageId) => (currentPageId === page.id ? null : currentPageId));
       await reloadBook(nextActivePageId);
     } catch (deleteError: unknown) {
       setError(getErrorMessage(deleteError));
@@ -814,36 +791,98 @@ export function BookEditorView() {
     }
   };
 
-  const moveActivePage = async (direction: -1 | 1) => {
-    if (!book || !activePageId) {
+  const reorderBookPages = async (
+    sourcePageId: string,
+    targetPageId: string,
+    position: PageDropPosition,
+  ) => {
+    if (!book || sourcePageId === targetPageId) {
       return;
     }
 
-    const toIndex = activePageIndex + direction;
+    const sourceIndex = orderedPageIds.indexOf(sourcePageId);
+    const targetIndex = orderedPageIds.indexOf(targetPageId);
 
-    if (activePageIndex < 0 || toIndex < 0 || toIndex >= orderedPageIds.length) {
+    if (sourceIndex < 0 || targetIndex < 0) {
       return;
     }
 
+    const targetDropIndex = targetIndex + (position === "after" ? 1 : 0);
+    const insertionIndex = sourceIndex < targetDropIndex ? targetDropIndex - 1 : targetDropIndex;
     const nextPageIds = [...orderedPageIds];
-    const [movedPageId] = nextPageIds.splice(activePageIndex, 1);
+    const [movedPageId] = nextPageIds.splice(sourceIndex, 1);
 
     if (!movedPageId) {
       return;
     }
 
-    nextPageIds.splice(toIndex, 0, movedPageId);
+    nextPageIds.splice(Math.max(0, Math.min(insertionIndex, nextPageIds.length)), 0, movedPageId);
+
+    if (nextPageIds.every((pageId, index) => pageId === orderedPageIds[index])) {
+      return;
+    }
+
     setIsWorking(true);
     setError(null);
 
     try {
       await apiClient.setBookPages(book.id, { pageIds: nextPageIds });
       await reloadBook(activePageId);
-    } catch (moveError: unknown) {
-      setError(getErrorMessage(moveError));
+    } catch (reorderError: unknown) {
+      setError(getErrorMessage(reorderError));
     } finally {
       setIsWorking(false);
     }
+  };
+
+  const getPageDropPosition = (event: DragEvent<HTMLElement>): PageDropPosition => {
+    const targetBounds = event.currentTarget.getBoundingClientRect();
+
+    return event.clientX > targetBounds.left + targetBounds.width / 2 ? "after" : "before";
+  };
+
+  const handlePageDragStart = (event: DragEvent<HTMLLIElement>, pageId: string) => {
+    if (isWorking) {
+      event.preventDefault();
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", pageId);
+    setDraggedPageId(pageId);
+  };
+
+  const handlePageDragOver = (event: DragEvent<HTMLLIElement>, pageId: string) => {
+    const sourcePageId = draggedPageId ?? event.dataTransfer.getData("text/plain");
+
+    if (!sourcePageId || sourcePageId === pageId || isWorking) {
+      setPageDropTarget(null);
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setPageDropTarget({ pageId, position: getPageDropPosition(event) });
+  };
+
+  const handlePageDrop = async (event: DragEvent<HTMLLIElement>, pageId: string) => {
+    event.preventDefault();
+
+    const sourcePageId = draggedPageId ?? event.dataTransfer.getData("text/plain");
+    const position = getPageDropPosition(event);
+    setDraggedPageId(null);
+    setPageDropTarget(null);
+
+    if (!sourcePageId || isWorking) {
+      return;
+    }
+
+    await reorderBookPages(sourcePageId, pageId, position);
+  };
+
+  const clearPageDragState = () => {
+    setDraggedPageId(null);
+    setPageDropTarget(null);
   };
 
   const navigateBook = (direction: -1 | 1) => {
@@ -1072,55 +1111,6 @@ export function BookEditorView() {
                 Next
               </Button>
             </div>
-            <div className="book-page-actions-inline">
-              <Button
-                type="button"
-                className="secondary-button"
-                disabled={isWorking}
-                icon={<AddRegular />}
-                onClick={addPage}
-              >
-                Add page
-              </Button>
-              <Button
-                type="button"
-                className="secondary-button"
-                disabled={!activePage || isWorking}
-                icon={<CopyRegular />}
-                onClick={duplicateActivePage}
-              >
-                Duplicate
-              </Button>
-              <Button
-                type="button"
-                className="secondary-button"
-                disabled={activePageIndex <= 0 || isWorking}
-                icon={<ChevronLeftRegular />}
-                onClick={() => moveActivePage(-1)}
-              >
-                Move left
-              </Button>
-              <Button
-                type="button"
-                className="secondary-button"
-                disabled={
-                  activePageIndex < 0 || activePageIndex >= orderedPageIds.length - 1 || isWorking
-                }
-                icon={<ChevronRightRegular />}
-                onClick={() => moveActivePage(1)}
-              >
-                Move right
-              </Button>
-              <Button
-                type="button"
-                className="secondary-button"
-                disabled={!activePage || isWorking}
-                icon={<DeleteRegular />}
-                onClick={deleteActivePage}
-              >
-                Delete
-              </Button>
-            </div>
           </div>
           {activePage ? (
             <>
@@ -1145,7 +1135,6 @@ export function BookEditorView() {
                         document={page.document}
                         previewLayers={getSpreadPreviewLayers(pageId)}
                         selectedLayerId={pageId === activePage.id ? selectedLayerId : null}
-                        onChangeLayer={(_layerId, update) => updateActiveLayer(update)}
                         onDeleteLayer={(layerId) => deletePageLayer(pageId, layerId)}
                         onReorderLayer={(layerId, toIndex) =>
                           reorderPageLayer(pageId, layerId, toIndex)
@@ -1199,6 +1188,26 @@ export function BookEditorView() {
                       }
                     />
                   </label>
+                  <div className="page-card-editor-actions">
+                    <Button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isWorking}
+                      icon={<CopyRegular />}
+                      onClick={() => duplicateBookPage(editingPageId)}
+                    >
+                      Duplicate
+                    </Button>
+                    <Button
+                      type="button"
+                      className="secondary-button"
+                      disabled={isWorking}
+                      icon={<DeleteRegular />}
+                      onClick={() => deleteBookPage(editingPageId)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </form>
               ) : null}
               <ol className="book-filmstrip" aria-label="Book pages">
@@ -1207,7 +1216,19 @@ export function BookEditorView() {
                   const pageStatus = pageStatuses[pageId] ?? "saved";
 
                   return (
-                    <li key={pageId} data-editing={editingPageId === pageId}>
+                    <li
+                      key={pageId}
+                      data-dragging={draggedPageId === pageId}
+                      data-drop-position={
+                        pageDropTarget?.pageId === pageId ? pageDropTarget.position : undefined
+                      }
+                      data-editing={editingPageId === pageId}
+                      draggable={!isWorking}
+                      onDragEnd={clearPageDragState}
+                      onDragOver={(event) => handlePageDragOver(event, pageId)}
+                      onDragStart={(event) => handlePageDragStart(event, pageId)}
+                      onDrop={(event) => void handlePageDrop(event, pageId)}
+                    >
                       <button
                         type="button"
                         className="book-filmstrip-select"
@@ -1222,6 +1243,9 @@ export function BookEditorView() {
                           </span>
                         ) : null}
                       </button>
+                      <span className="book-filmstrip-drag-handle" aria-hidden="true">
+                        <ReOrderDotsVerticalRegular />
+                      </span>
                       {page ? (
                         <button
                           type="button"
@@ -1241,6 +1265,17 @@ export function BookEditorView() {
                     </li>
                   );
                 })}
+                <li className="book-filmstrip-add">
+                  <Button
+                    type="button"
+                    className="secondary-button book-filmstrip-add-button"
+                    disabled={isWorking}
+                    icon={<AddRegular />}
+                    onClick={addPage}
+                  >
+                    Add page
+                  </Button>
+                </li>
               </ol>
             </>
           ) : (
