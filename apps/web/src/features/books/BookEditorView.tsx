@@ -260,7 +260,6 @@ export function BookEditorView() {
       preferredPageId && orderedPageIds.includes(preferredPageId)
         ? preferredPageId
         : (orderedPageIds[0] ?? null);
-    const nextActivePage = nextActivePageId ? detailsById.get(nextActivePageId) : null;
 
     setBook(loadedBook.book);
     setBookTitleDraft(loadedBook.book.title);
@@ -268,7 +267,7 @@ export function BookEditorView() {
     setPageDetails(detailsById);
     setPageStatuses(Object.fromEntries(loadedBook.pages.map((page) => [page.id, "saved"])));
     setActivePageId(nextActivePageId);
-    setSelectedLayerId(nextActivePage?.document.layers[0]?.id ?? null);
+    setSelectedLayerId(null);
   }, []);
 
   useEffect(() => {
@@ -351,11 +350,9 @@ export function BookEditorView() {
   const editingPage = editingPageId ? (pageDetails.get(editingPageId) ?? null) : null;
   const editingPageIndex = editingPageId ? orderedPageIds.indexOf(editingPageId) : -1;
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
-  const selectPage = (pageId: string, layerId?: string | null) => {
-    const page = pageDetails.get(pageId);
-
+  const selectPage = (pageId: string, layerId: string | null = null) => {
     setActivePageId(pageId);
-    setSelectedLayerId(layerId ?? page?.document.layers[0]?.id ?? null);
+    setSelectedLayerId(layerId);
   };
 
   const updatePageDetail = (pageId: string, update: (page: PageDetail) => PageDetail) => {

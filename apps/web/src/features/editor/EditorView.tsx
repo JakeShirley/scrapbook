@@ -65,7 +65,7 @@ export function EditorView() {
           setDocument(loadedPage.document);
           setTitle(loadedPage.title);
           setAssets(assetResponse.assets);
-          setSelectedLayerId(loadedPage.document.layers[0]?.id ?? null);
+          setSelectedLayerId(null);
           setStatus("saved");
           setError(null);
         }
