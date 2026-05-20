@@ -7,12 +7,19 @@ import { apiClient } from "../../apiClient";
 import { Panel, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import type { BookSummary } from "../../types";
+import {
+  commonBookPageSizes,
+  defaultBookPageSize,
+  formatBookPageSize,
+  getBookPageSizeByKey,
+} from "./pageSizes";
 
 export function BooksView() {
   const navigate = useNavigate();
   const [books, setBooks] = useState<BookSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [newBookPageSizeKey, setNewBookPageSizeKey] = useState<string>(defaultBookPageSize.key);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,7 +54,12 @@ export function BooksView() {
     setError(null);
 
     try {
-      const book = await apiClient.createBook({ title: `Book ${books.length + 1}` });
+      const pageSize = getBookPageSizeByKey(newBookPageSizeKey);
+      const book = await apiClient.createBook({
+        title: `Book ${books.length + 1}`,
+        pageWidth: pageSize.width,
+        pageHeight: pageSize.height,
+      });
       navigate(`/books/${book.id}`);
     } catch (createError: unknown) {
       setError(getErrorMessage(createError));
@@ -59,16 +71,31 @@ export function BooksView() {
   return (
     <>
       <WorkspaceHeader title="Books">
-        <Button
-          appearance="primary"
-          className="primary-button"
-          disabled={isCreating}
-          icon={<AddRegular />}
-          type="button"
-          onClick={createBook}
-        >
-          New book
-        </Button>
+        <div className="book-create-controls">
+          <label className="book-size-picker">
+            <span>Page size</span>
+            <select
+              value={newBookPageSizeKey}
+              onChange={(event) => setNewBookPageSizeKey(event.currentTarget.value)}
+            >
+              {commonBookPageSizes.map((pageSize) => (
+                <option key={pageSize.key} value={pageSize.key}>
+                  {pageSize.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            appearance="primary"
+            className="primary-button"
+            disabled={isCreating}
+            icon={<AddRegular />}
+            type="button"
+            onClick={createBook}
+          >
+            New book
+          </Button>
+        </div>
       </WorkspaceHeader>
       {error ? (
         <p className="panel-alert" role="alert">
@@ -115,7 +142,7 @@ function BookList({ books }: { books: BookSummary[] }) {
             <span className="book-card-copy">
               <span>{book.title}</span>
               <span>
-                {book.pageCount} pages / {book.spreadCount} spreads
+                {book.pageCount} pages / {book.spreadCount} spreads / {formatBookPageSize(book)}
               </span>
             </span>
           </button>

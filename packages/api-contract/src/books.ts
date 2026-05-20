@@ -3,6 +3,36 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { pageSummaryResponseSchema } from "./pages.js";
 import { errorResponseSchema } from "./shared.js";
 
+export const defaultBookPageSize = {
+  key: "8x10-portrait",
+  label: "8 x 10 in portrait",
+  width: 2400,
+  height: 3000,
+} as const;
+
+export const commonBookPageSizes = [
+  { key: "8x8-square", label: "8 x 8 in square", width: 2400, height: 2400 },
+  defaultBookPageSize,
+  { key: "10x10-square", label: "10 x 10 in square", width: 3000, height: 3000 },
+  { key: "11x8_5-landscape", label: "11 x 8.5 in landscape", width: 3300, height: 2550 },
+  { key: "12x12-square", label: "12 x 12 in square", width: 3600, height: 3600 },
+] as const;
+
+const bookPageDimensionSchema = z.number().int().min(320).max(10000);
+
+const validateBookPageSizePair = (
+  input: { pageHeight?: number | undefined; pageWidth?: number | undefined },
+  context: z.RefinementCtx,
+) => {
+  if ((input.pageWidth === undefined) !== (input.pageHeight === undefined)) {
+    context.addIssue({
+      code: "custom",
+      message: "Page width and page height must be provided together",
+      path: [input.pageWidth === undefined ? "pageWidth" : "pageHeight"],
+    });
+  }
+};
+
 export const bookPageResponseSchema = z
   .object({
     id: z.string().openapi({ example: "book_page_018f4a0c-7b07-7f3d-9f37-3e67a0f5ad13" }),
@@ -29,6 +59,8 @@ export const bookSummaryResponseSchema = z
   .object({
     id: z.string().openapi({ example: "book_018f4a0c-7b07-7f3d-9f37-3e67a0f5ad13" }),
     title: z.string().openapi({ example: "Summer book" }),
+    pageWidth: bookPageDimensionSchema.openapi({ example: defaultBookPageSize.width }),
+    pageHeight: bookPageDimensionSchema.openapi({ example: defaultBookPageSize.height }),
     pageCount: z.number().int().nonnegative().openapi({ example: 8 }),
     spreadCount: z.number().int().nonnegative().openapi({ example: 5 }),
     createdAt: z.string().datetime().openapi({ example: "2026-05-17T12:00:00.000Z" }),
@@ -52,12 +84,31 @@ export const bookListResponseSchema = z
 export const bookCreateRequestSchema = z
   .object({
     title: z.string().trim().min(1).max(120),
+    pageWidth: bookPageDimensionSchema.optional(),
+    pageHeight: bookPageDimensionSchema.optional(),
   })
+  .superRefine(validateBookPageSizePair)
   .openapi("BookCreateRequest");
 
 export const bookPatchRequestSchema = z
   .object({
-    title: z.string().trim().min(1).max(120),
+    title: z.string().trim().min(1).max(120).optional(),
+    pageWidth: bookPageDimensionSchema.optional(),
+    pageHeight: bookPageDimensionSchema.optional(),
+  })
+  .superRefine((input, context) => {
+    validateBookPageSizePair(input, context);
+
+    if (
+      input.title === undefined &&
+      input.pageWidth === undefined &&
+      input.pageHeight === undefined
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "At least one field must be provided",
+      });
+    }
   })
   .openapi("BookPatchRequest");
 

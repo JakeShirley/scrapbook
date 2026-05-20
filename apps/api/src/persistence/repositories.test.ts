@@ -60,7 +60,12 @@ describe("repositories", () => {
         width: 2400,
         height: 2400,
       });
-      const book = repositories.books.create({ accountId: account.id, title: "Family book" });
+      const book = repositories.books.create({
+        accountId: account.id,
+        pageWidth: 2400,
+        pageHeight: 3000,
+        title: "Family book",
+      });
       const bookPage = repositories.books.addPage({
         accountId: account.id,
         bookId: book.id,
@@ -111,6 +116,8 @@ describe("repositories", () => {
       });
       const firstBook = repositories.books.create({
         accountId: firstAccount.id,
+        pageWidth: 2400,
+        pageHeight: 3000,
         title: "First book",
       });
       const secondPage = repositories.pages.create({

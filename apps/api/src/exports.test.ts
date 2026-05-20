@@ -455,6 +455,8 @@ describe("PNG page exports", () => {
       const book = fixture.repositories.books.create({
         accountId: testAccountId,
         id: "book_export_pixels",
+        pageWidth: 320,
+        pageHeight: 320,
         title: "Export pixels book",
       });
 

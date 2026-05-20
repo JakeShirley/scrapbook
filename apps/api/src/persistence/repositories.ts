@@ -448,12 +448,20 @@ export class BookRepository {
     private readonly clock: RepositoryClock = defaultClock,
   ) {}
 
-  create(input: { accountId: string; title: string; id?: string }): BookRecord {
+  create(input: {
+    accountId: string;
+    title: string;
+    pageWidth: number;
+    pageHeight: number;
+    id?: string;
+  }): BookRecord {
     const timestamp = now(this.clock);
     const record: BookRecord = {
       id: input.id ?? createEntityId("book"),
       accountId: input.accountId,
       title: input.title,
+      pageWidth: input.pageWidth,
+      pageHeight: input.pageHeight,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -485,7 +493,7 @@ export class BookRepository {
   updateForAccount(
     accountId: string,
     bookId: string,
-    input: Partial<Pick<BookRecord, "title">>,
+    input: Partial<Pick<BookRecord, "pageHeight" | "pageWidth" | "title">>,
   ): BookRecord | null {
     const existing = this.findByIdForAccount(accountId, bookId);
 
@@ -495,7 +503,12 @@ export class BookRepository {
 
     this.db
       .update(books)
-      .set({ title: input.title ?? existing.title, updatedAt: now(this.clock) })
+      .set({
+        title: input.title ?? existing.title,
+        pageWidth: input.pageWidth ?? existing.pageWidth,
+        pageHeight: input.pageHeight ?? existing.pageHeight,
+        updatedAt: now(this.clock),
+      })
       .where(and(eq(books.accountId, accountId), eq(books.id, bookId)))
       .run();
 

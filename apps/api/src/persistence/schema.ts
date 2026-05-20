@@ -147,6 +147,8 @@ export const books = sqliteTable(
       .notNull()
       .references(() => accounts.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
+    pageWidth: integer("page_width").notNull(),
+    pageHeight: integer("page_height").notNull(),
     ...timestampColumns(),
   },
   (table) => [index("books_account_id_idx").on(table.accountId)],

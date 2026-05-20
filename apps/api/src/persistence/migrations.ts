@@ -138,6 +138,13 @@ CREATE INDEX exports_page_id_idx ON exports (page_id);
 ALTER TABLE exports ADD COLUMN preset TEXT NOT NULL DEFAULT 'digital' CHECK (preset IN ('digital', 'print'));
 `,
   },
+  {
+    id: "0003_add_book_page_size",
+    sql: `
+ALTER TABLE books ADD COLUMN page_width INTEGER NOT NULL DEFAULT 2400 CHECK (page_width >= 320 AND page_width <= 10000);
+ALTER TABLE books ADD COLUMN page_height INTEGER NOT NULL DEFAULT 3000 CHECK (page_height >= 320 AND page_height <= 10000);
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

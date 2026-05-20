@@ -477,7 +477,7 @@ describe("api app", () => {
     const createBookResponse = await postJson(
       app,
       "/api/v1/books",
-      { title: "Family book" },
+      { title: "Family book", pageWidth: 2400, pageHeight: 2400 },
       firstCookie,
     );
 
@@ -493,6 +493,12 @@ describe("api app", () => {
     const detailResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
       headers: { cookie: firstCookie },
     });
+    const resizedResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
+      body: JSON.stringify({ pageWidth: 3300, pageHeight: 2550 }),
+      headers: { cookie: firstCookie, "content-type": "application/json" },
+      method: "PATCH",
+    });
+    const resizedBook = bookResponseSchema.parse(await resizedResponse.json());
     const secondDetailResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
       headers: { cookie: secondCookie },
     });
@@ -503,6 +509,7 @@ describe("api app", () => {
     });
 
     expect(orderedResponse.status).toBe(200);
+    expect(createdBook).toMatchObject({ pageWidth: 2400, pageHeight: 2400 });
     expect(orderedBook.pages.map((bookPage) => bookPage.page.title)).toEqual([
       "First",
       "Second",
@@ -514,6 +521,8 @@ describe("api app", () => {
     ]);
     expect(detailResponse.status).toBe(200);
     expect(bookResponseSchema.parse(await detailResponse.json()).pageCount).toBe(3);
+    expect(resizedResponse.status).toBe(200);
+    expect(resizedBook).toMatchObject({ pageWidth: 3300, pageHeight: 2550 });
     expect(secondDetailResponse.status).toBe(404);
     expect(crossAccountPageResponse.status).toBe(400);
   });

@@ -662,6 +662,31 @@ export const updateCanvas = (
   });
 };
 
+export const resizePageDocument = (
+  document: PageDocument,
+  canvas: Pick<PageDocument["canvas"], "height" | "width">,
+): PageDocument => {
+  const parsedDocument = parseDocument(document);
+  const scaleX = canvas.width / parsedDocument.canvas.width;
+  const scaleY = canvas.height / parsedDocument.canvas.height;
+  const textScale = Math.min(scaleX, scaleY);
+
+  return parseDocument({
+    ...parsedDocument,
+    canvas: { ...parsedDocument.canvas, ...canvas },
+    layers: parsedDocument.layers.map((layer) =>
+      pageLayerSchema.parse({
+        ...layer,
+        x: layer.x * scaleX,
+        y: layer.y * scaleY,
+        width: layer.width * scaleX,
+        height: layer.height * scaleY,
+        ...(layer.kind === "text" ? { fontSize: layer.fontSize * textScale } : {}),
+      }),
+    ),
+  });
+};
+
 export const createBookSpreads = (pages: OrderedBookPage[]): BookSpread[] => {
   const sortedPages = [...pages].sort((first, second) => first.sortOrder - second.sortOrder);
 

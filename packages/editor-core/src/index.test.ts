@@ -13,6 +13,7 @@ import {
   renderPageDocumentSvg,
   reorderLayer,
   resetPhotoLayerEdits,
+  resizePageDocument,
   updateCanvas,
   updateLayer,
 } from "./index.js";
@@ -91,6 +92,48 @@ describe("page document helpers", () => {
 
     expect(updated.canvas.backgroundColor).toBe("#ffffff");
     expect(updated.layers).toEqual(document.layers);
+  });
+
+  it("resizes a page document and scales layer geometry", () => {
+    const text = createTextLayer({
+      id: "text_1",
+      text: "Caption",
+      x: 120,
+      y: 90,
+      width: 600,
+      height: 120,
+      fontSize: 48,
+    });
+    const photo = createPhotoLayer({
+      assetId: "asset_1",
+      id: "photo_1",
+      x: 300,
+      y: 180,
+      width: 240,
+      height: 180,
+    });
+    const document = createPageDocument({
+      canvas: { width: 1200, height: 900 },
+      layers: [text, photo],
+    });
+    const resized = resizePageDocument(document, { width: 2400, height: 1800 });
+
+    expect(resized.canvas).toMatchObject({ width: 2400, height: 1800 });
+    expect(resized.layers[0]).toMatchObject({
+      id: "text_1",
+      x: 240,
+      y: 180,
+      width: 1200,
+      height: 240,
+      fontSize: 96,
+    });
+    expect(resized.layers[1]).toMatchObject({
+      id: "photo_1",
+      x: 600,
+      y: 360,
+      width: 480,
+      height: 360,
+    });
   });
 
   it("adds non-destructive photo edit metadata without changing the asset reference", () => {

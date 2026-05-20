@@ -602,6 +602,32 @@ textarea:focus-visible {
   font-size: 0.9rem;
 }
 
+.book-create-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.book-size-picker {
+  display: grid;
+  gap: 4px;
+  color: #4f595c;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.book-size-picker select,
+.book-size-select {
+  min-height: 38px;
+  border: 1px solid #cbd2cf;
+  border-radius: 8px;
+  padding: 0 34px 0 10px;
+  color: #202426;
+  background: #ffffff;
+}
+
 .book-card-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -807,7 +833,7 @@ textarea:focus-visible {
 
 .book-title-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px) auto;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -822,7 +848,8 @@ textarea:focus-visible {
   font-weight: 700;
 }
 
-.book-title-form input {
+.book-title-form input,
+.book-title-form select {
   width: 100%;
   min-height: 38px;
   border: 1px solid #cbd2cf;
@@ -2609,6 +2636,7 @@ body {
 
 .auth-form label,
 .compact-form label,
+.book-size-picker,
 .book-title-form label,
 .editor-toolbar label,
 .inspector-form label,
@@ -2620,7 +2648,9 @@ body {
 
 .auth-form input,
 .compact-form input,
+.book-size-picker select,
 .book-title-form input,
+.book-title-form select,
 .editor-toolbar input,
 .inspector-form input,
 .inspector-form select,
@@ -2636,7 +2666,9 @@ body {
 
 .auth-form input:hover,
 .compact-form input:hover,
+.book-size-picker select:hover,
 .book-title-form input:hover,
+.book-title-form select:hover,
 .editor-toolbar input:hover,
 .inspector-form input:hover,
 .inspector-form select:hover,
@@ -3010,6 +3042,7 @@ body {
 }
 
 .book-editor-page .book-title-form input,
+.book-editor-page .book-title-form select,
 .book-editor-page .fui-Input {
   min-height: 32px;
 }

@@ -23,6 +23,7 @@ import {
   bookSetPagesRoute,
   bookSummaryResponseSchema,
   currentSessionRoute,
+  defaultBookPageSize,
   type ErrorResponse,
   type ExportJobResponse,
   exportContentRoute,
@@ -229,6 +230,8 @@ const toBookSummaryResponse = (
   bookSummaryResponseSchema.parse({
     id: book.id,
     title: book.title,
+    pageWidth: book.pageWidth,
+    pageHeight: book.pageHeight,
     pageCount: pages.length,
     spreadCount: createBookSpreads(
       pages.map(({ bookPage }) => ({ pageId: bookPage.pageId, sortOrder: bookPage.sortOrder })),
@@ -923,6 +926,8 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     const book = options.repositories.books.create({
       accountId: authSession.account.id,
       title: input.title.trim(),
+      pageWidth: input.pageWidth ?? defaultBookPageSize.width,
+      pageHeight: input.pageHeight ?? defaultBookPageSize.height,
     });
 
     return context.json(toBookResponse(book, options.repositories), 201);
@@ -1003,9 +1008,22 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
 
     const { bookId } = context.req.valid("param");
     const input = context.req.valid("json");
-    const book = options.repositories.books.updateForAccount(authSession.account.id, bookId, {
-      title: input.title.trim(),
-    });
+    const bookUpdate: Partial<Pick<BookRecord, "pageHeight" | "pageWidth" | "title">> = {};
+
+    if (input.title !== undefined) {
+      bookUpdate.title = input.title.trim();
+    }
+
+    if (input.pageWidth !== undefined && input.pageHeight !== undefined) {
+      bookUpdate.pageWidth = input.pageWidth;
+      bookUpdate.pageHeight = input.pageHeight;
+    }
+
+    const book = options.repositories.books.updateForAccount(
+      authSession.account.id,
+      bookId,
+      bookUpdate,
+    );
 
     if (!book) {
       return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);

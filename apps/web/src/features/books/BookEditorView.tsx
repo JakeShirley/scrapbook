@@ -23,6 +23,7 @@ import {
   type PageDocument,
   type PageLayer,
   reorderLayer,
+  resizePageDocument,
   updateCanvas,
   updateLayer,
 } from "@scrapbook/editor-core";
@@ -38,6 +39,14 @@ import { AssetRail } from "../editor/AssetRail";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
 import { PageCanvas } from "../editor/PageCanvas";
+import {
+  commonBookPageSizes,
+  customBookPageSizeKey,
+  defaultBookPageSize,
+  formatBookPageSize,
+  getBookPageSizeByKey,
+  getBookPageSizeKey,
+} from "./pageSizes";
 
 type ViewMode = "page" | "spread";
 
@@ -220,6 +229,7 @@ export function BookEditorView() {
   const navigate = useNavigate();
   const [book, setBook] = useState<BookDetail | null>(null);
   const [bookTitleDraft, setBookTitleDraft] = useState("");
+  const [bookPageSizeDraft, setBookPageSizeDraft] = useState<string>(defaultBookPageSize.key);
   const [pageDetails, setPageDetails] = useState<Map<string, PageDetail>>(new Map());
   const [pageStatuses, setPageStatuses] = useState<Record<string, EditorSaveStatus>>({});
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -248,6 +258,7 @@ export function BookEditorView() {
 
     setBook(loadedBook.book);
     setBookTitleDraft(loadedBook.book.title);
+    setBookPageSizeDraft(getBookPageSizeKey(loadedBook.book));
     setPageDetails(detailsById);
     setPageStatuses(Object.fromEntries(loadedBook.pages.map((page) => [page.id, "saved"])));
     setActivePageId(nextActivePageId);
@@ -693,9 +704,67 @@ export function BookEditorView() {
     setError(null);
 
     try {
-      const updatedBook = await apiClient.updateBook(book.id, { title: bookTitleDraft });
+      const pageSize = getBookPageSizeByKey(bookPageSizeDraft);
+      const nextPageSize =
+        bookPageSizeDraft === customBookPageSizeKey
+          ? null
+          : { width: pageSize.width, height: pageSize.height };
+      const pageSizeChanged = Boolean(
+        nextPageSize &&
+          (book.pageWidth !== nextPageSize.width || book.pageHeight !== nextPageSize.height),
+      );
+      const updatedBook = await apiClient.updateBook(book.id, {
+        title: bookTitleDraft,
+        ...(bookPageSizeDraft === customBookPageSizeKey
+          ? {}
+          : { pageWidth: pageSize.width, pageHeight: pageSize.height }),
+      });
+
+      if (pageSizeChanged && nextPageSize) {
+        const resizedPages = orderedPageIds
+          .map((pageId) => pageDetails.get(pageId))
+          .filter((page): page is PageDetail => Boolean(page))
+          .map((page) =>
+            replacePageDocument(
+              page,
+              resizePageDocument(page.document, {
+                width: nextPageSize.width,
+                height: nextPageSize.height,
+              }),
+            ),
+          );
+
+        setPageDetails((currentDetails) => {
+          const nextDetails = new Map(currentDetails);
+
+          for (const page of resizedPages) {
+            nextDetails.set(page.id, page);
+          }
+
+          return nextDetails;
+        });
+        setPagesStatus(
+          resizedPages.map((page) => page.id),
+          "saving",
+        );
+
+        await Promise.all(
+          resizedPages.map((page) =>
+            apiClient.updatePage(page.id, {
+              document: page.document,
+              title: page.title,
+            }),
+          ),
+        );
+        setPagesStatus(
+          resizedPages.map((page) => page.id),
+          "saved",
+        );
+      }
+
       setBook(updatedBook);
       setBookTitleDraft(updatedBook.title);
+      setBookPageSizeDraft(getBookPageSizeKey(updatedBook));
     } catch (renameError: unknown) {
       setError(getErrorMessage(renameError));
     } finally {
@@ -713,7 +782,9 @@ export function BookEditorView() {
 
     try {
       const page = await apiClient.createPage({
-        document: createPageDocument(),
+        document: createPageDocument({
+          canvas: { width: book.pageWidth, height: book.pageHeight },
+        }),
         title: `Page ${book.pages.length + 1}`,
       });
       await apiClient.setBookPages(book.id, {
@@ -1071,13 +1142,29 @@ export function BookEditorView() {
                 onChange={(event) => setBookTitleDraft(event.currentTarget.value)}
               />
             </Field>
+            <Field label="Page size">
+              <select
+                className="book-size-select"
+                value={bookPageSizeDraft}
+                onChange={(event) => setBookPageSizeDraft(event.currentTarget.value)}
+              >
+                {getBookPageSizeKey(book) === customBookPageSizeKey ? (
+                  <option value={customBookPageSizeKey}>{formatBookPageSize(book)}</option>
+                ) : null}
+                {commonBookPageSizes.map((pageSize) => (
+                  <option key={pageSize.key} value={pageSize.key}>
+                    {pageSize.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Button
               type="submit"
               className="secondary-button"
               disabled={isWorking}
               icon={<RenameRegular />}
             >
-              Rename
+              Save
             </Button>
           </form>
           <div className="book-modebar">
