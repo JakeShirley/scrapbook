@@ -2,7 +2,6 @@ import { Button, Field, Input, Tab, TabList } from "@fluentui/react-components";
 import {
   AddRegular,
   ArrowDownloadRegular,
-  ArrowLeftRegular,
   ChevronLeftRegular,
   ChevronRightRegular,
   CopyRegular,
@@ -1054,16 +1053,7 @@ export function BookEditorView() {
   if (isLoading || !book) {
     return (
       <>
-        <WorkspaceHeader title="Book editor">
-          <Button
-            type="button"
-            className="secondary-button"
-            icon={<ArrowLeftRegular />}
-            onClick={() => navigate("/books")}
-          >
-            Books
-          </Button>
-        </WorkspaceHeader>
+        <WorkspaceHeader title="Book editor" />
         {error ? (
           <p className="panel-alert" role="alert">
             {error}
@@ -1091,14 +1081,6 @@ export function BookEditorView() {
           />
         }
       >
-        <Button
-          type="button"
-          className="secondary-button"
-          icon={<ArrowLeftRegular />}
-          onClick={() => navigate("/books")}
-        >
-          Books
-        </Button>
         <Button
           type="button"
           className="secondary-button"
