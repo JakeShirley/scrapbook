@@ -7,9 +7,10 @@ import {
   ChevronRightRegular,
   CopyRegular,
   DeleteRegular,
+  DismissRegular,
   DocumentPdfRegular,
+  EditRegular,
   RenameRegular,
-  SaveRegular,
 } from "@fluentui/react-icons";
 import {
   addLayer,
@@ -33,7 +34,6 @@ import { WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
-import { EditorToolbar } from "../editor/EditorToolbar";
 import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
 import { PageCanvas } from "../editor/PageCanvas";
@@ -224,6 +224,7 @@ export function BookEditorView() {
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("spread");
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -298,7 +299,6 @@ export function BookEditorView() {
   );
   const activePageIndex = activePageId ? orderedPageIds.indexOf(activePageId) : -1;
   const activePage = activePageId ? (pageDetails.get(activePageId) ?? null) : null;
-  const activeStatus = activePageId ? (pageStatuses[activePageId] ?? "saved") : "saved";
   const activeSpreadIndex =
     book?.spreads.findIndex((spread) => activePageId && spread.pageIds.includes(activePageId)) ??
     -1;
@@ -323,17 +323,8 @@ export function BookEditorView() {
       : activePageIndex >= 0
         ? `Page ${activePageIndex + 1} of ${orderedPageIds.length}`
         : "No pages";
-  const currentSaveStatuses =
-    viewMode === "spread" && visiblePageIds.length > 1
-      ? visiblePageIds.map((pageId) => pageStatuses[pageId] ?? "saved")
-      : [activeStatus];
-  const currentSaveStatus: EditorSaveStatus = currentSaveStatuses.includes("saving")
-    ? "saving"
-    : currentSaveStatuses.includes("error")
-      ? "error"
-      : currentSaveStatuses.includes("unsaved")
-        ? "unsaved"
-        : "saved";
+  const editingPage = editingPageId ? (pageDetails.get(editingPageId) ?? null) : null;
+  const editingPageIndex = editingPageId ? orderedPageIds.indexOf(editingPageId) : -1;
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
   const selectedLayerInfo = useMemo(() => {
     if (!selectedLayerId) {
@@ -399,6 +390,100 @@ export function BookEditorView() {
     updatePageDetail(pageId, (page) => replacePageDocument(page, nextDocument));
     setPageStatus(pageId, "unsaved");
   };
+
+  const changePageTitle = (pageId: string, title: string) => {
+    updatePageDetail(pageId, (page) => ({ ...page, title }));
+    setPageStatus(pageId, "unsaved");
+  };
+
+  const changePageBackground = (pageId: string, backgroundColor: string) => {
+    const page = pageDetails.get(pageId);
+
+    if (!page) {
+      return;
+    }
+
+    editPageDocument(pageId, updateCanvas(page.document, { backgroundColor }));
+  };
+
+  useEffect(() => {
+    const unsavedPageIds = Object.entries(pageStatuses)
+      .filter(([pageId, status]) => status === "unsaved" && pageDetails.has(pageId))
+      .map(([pageId]) => pageId);
+
+    if (unsavedPageIds.length === 0) {
+      return;
+    }
+
+    const autosaveTimer = window.setTimeout(() => {
+      const pagesToSave = unsavedPageIds
+        .map((pageId) => pageDetails.get(pageId))
+        .filter((page): page is PageDetail => Boolean(page));
+
+      if (pagesToSave.length === 0) {
+        return;
+      }
+
+      setPageStatuses((currentStatuses) => ({
+        ...currentStatuses,
+        ...Object.fromEntries(pagesToSave.map((page) => [page.id, "saving"])),
+      }));
+
+      void Promise.allSettled(
+        pagesToSave.map((page) =>
+          apiClient.updatePage(page.id, {
+            document: page.document,
+            title: page.title,
+          }),
+        ),
+      ).then((saveResults) => {
+        const savedPageIds: string[] = [];
+        const failedPageIds: string[] = [];
+        const firstFailure = saveResults.find(
+          (result): result is PromiseRejectedResult => result.status === "rejected",
+        );
+
+        for (const [index, saveResult] of saveResults.entries()) {
+          const page = pagesToSave[index];
+
+          if (!page) {
+            continue;
+          }
+
+          if (saveResult.status === "fulfilled") {
+            savedPageIds.push(page.id);
+          } else {
+            failedPageIds.push(page.id);
+          }
+        }
+
+        if (savedPageIds.length > 0) {
+          setPageStatuses((currentStatuses) => ({
+            ...currentStatuses,
+            ...Object.fromEntries(
+              savedPageIds
+                .filter((pageId) => currentStatuses[pageId] === "saving")
+                .map((pageId) => [pageId, "saved"]),
+            ),
+          }));
+        }
+
+        if (failedPageIds.length > 0) {
+          setPageStatuses((currentStatuses) => ({
+            ...currentStatuses,
+            ...Object.fromEntries(
+              failedPageIds
+                .filter((pageId) => currentStatuses[pageId] === "saving")
+                .map((pageId) => [pageId, "error"]),
+            ),
+          }));
+          setError(getErrorMessage(firstFailure?.reason ?? "Failed to save page"));
+        }
+      });
+    }, 700);
+
+    return () => window.clearTimeout(autosaveTimer);
+  }, [pageDetails, pageStatuses]);
 
   const applySpreadLayerSync = (
     result: SpreadLayerSyncResult,
@@ -658,77 +743,6 @@ export function BookEditorView() {
     }
   };
 
-  const saveCurrentPages = async () => {
-    const pageIdsToSave =
-      viewMode === "spread" && visiblePageIds.length > 1
-        ? visiblePageIds
-        : activePage
-          ? [activePage.id]
-          : [];
-    const pagesToSave = pageIdsToSave
-      .map((pageId) => pageDetails.get(pageId))
-      .filter((page): page is PageDetail => Boolean(page));
-
-    if (pagesToSave.length === 0) {
-      return;
-    }
-
-    setPagesStatus(
-      pagesToSave.map((page) => page.id),
-      "saving",
-    );
-    setError(null);
-
-    const saveResults = await Promise.allSettled(
-      pagesToSave.map((page) =>
-        apiClient.updatePage(page.id, {
-          document: page.document,
-          title: page.title,
-        }),
-      ),
-    );
-    const savedPages: PageDetail[] = [];
-    const failedPageIds: string[] = [];
-    const firstFailure = saveResults.find(
-      (result): result is PromiseRejectedResult => result.status === "rejected",
-    );
-
-    for (const [index, saveResult] of saveResults.entries()) {
-      const page = pagesToSave[index];
-
-      if (!page) {
-        continue;
-      }
-
-      if (saveResult.status === "fulfilled") {
-        savedPages.push(saveResult.value);
-      } else {
-        failedPageIds.push(page.id);
-      }
-    }
-
-    if (savedPages.length > 0) {
-      setPageDetails((currentDetails) => {
-        const nextDetails = new Map(currentDetails);
-
-        for (const savedPage of savedPages) {
-          nextDetails.set(savedPage.id, savedPage);
-        }
-
-        return nextDetails;
-      });
-      setPagesStatus(
-        savedPages.map((page) => page.id),
-        "saved",
-      );
-    }
-
-    if (failedPageIds.length > 0) {
-      setPagesStatus(failedPageIds, "error");
-      setError(getErrorMessage(firstFailure?.reason ?? "Failed to save page"));
-    }
-  };
-
   const addPage = async () => {
     if (!book) {
       return;
@@ -791,6 +805,7 @@ export function BookEditorView() {
     try {
       await apiClient.setBookPages(book.id, { pageIds: nextPageIds });
       await apiClient.deletePage(activePage.id);
+      setEditingPageId((currentPageId) => (currentPageId === activePage.id ? null : currentPageId));
       await reloadBook(nextActivePageId);
     } catch (deleteError: unknown) {
       setError(getErrorMessage(deleteError));
@@ -949,7 +964,7 @@ export function BookEditorView() {
   }
 
   return (
-    <>
+    <div className="book-editor-page">
       <WorkspaceHeader title={book.title}>
         <Button
           type="button"
@@ -986,35 +1001,28 @@ export function BookEditorView() {
         >
           Export book PDF
         </Button>
-        <Button
-          appearance="primary"
-          type="button"
-          className="primary-button"
-          disabled={!activePage || currentSaveStatus === "saving"}
-          icon={<SaveRegular />}
-          onClick={saveCurrentPages}
-        >
-          {currentSaveStatus === "saving"
-            ? "Saving"
-            : viewMode === "spread" && visiblePageIds.length > 1
-              ? "Save spread"
-              : "Save page"}
-        </Button>
       </WorkspaceHeader>
-      {error ? (
-        <p className="panel-alert" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {exportJob?.outputContentUrl ? (
-        <p className="download-banner">
-          <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">
-            Download {exportJob.targetKind} {exportJob.format.toUpperCase()}
-          </a>
-        </p>
-      ) : null}
+      <div className="book-editor-notices">
+        {error ? (
+          <p className="panel-alert" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {exportJob?.outputContentUrl ? (
+          <p className="download-banner">
+            <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">
+              Download {exportJob.targetKind} {exportJob.format.toUpperCase()}
+            </a>
+          </p>
+        ) : null}
+      </div>
       <div className="book-editor-shell">
-        <AssetRail assets={assets} onAddEmbellishment={addEmbellishment} onAddPhoto={addPhoto} />
+        <AssetRail
+          assets={assets}
+          onAddEmbellishment={addEmbellishment}
+          onAddPhoto={addPhoto}
+          onAddText={addText}
+        />
         <section className="book-editor-stage" aria-label="Book editor">
           <form className="book-title-form" onSubmit={renameBook}>
             <Field label="Book title">
@@ -1116,22 +1124,6 @@ export function BookEditorView() {
           </div>
           {activePage ? (
             <>
-              <EditorToolbar
-                document={activePage.document}
-                status={activeStatus}
-                title={activePage.title}
-                onAddText={addText}
-                onChangeBackground={(backgroundColor) =>
-                  editPageDocument(
-                    activePage.id,
-                    updateCanvas(activePage.document, { backgroundColor }),
-                  )
-                }
-                onChangeTitle={(nextTitle) => {
-                  updatePageDetail(activePage.id, (page) => ({ ...page, title: nextTitle }));
-                  setPageStatus(activePage.id, "unsaved");
-                }}
-              />
               <div className="book-canvas-deck" data-mode={viewMode}>
                 {visiblePageIds.map((pageId) => {
                   const page = pageDetails.get(pageId);
@@ -1148,15 +1140,6 @@ export function BookEditorView() {
                       key={pageId}
                       aria-label={`Page ${pageIndex + 1}`}
                     >
-                      <button
-                        type="button"
-                        className="book-page-tab"
-                        aria-current={pageId === activePage.id ? "page" : undefined}
-                        onClick={() => selectPage(pageId)}
-                      >
-                        <span>{`Page ${pageIndex + 1}`}</span>
-                        <span>{page.title}</span>
-                      </button>
                       <PageCanvas
                         assetById={assetById}
                         document={page.document}
@@ -1179,20 +1162,82 @@ export function BookEditorView() {
                   );
                 })}
               </div>
+              {editingPage && editingPageId ? (
+                <form
+                  className="page-card-editor"
+                  aria-label={`Edit page ${editingPageIndex + 1}`}
+                  onSubmit={(event) => event.preventDefault()}
+                >
+                  <div className="page-card-editor-heading">
+                    <span>{`Page ${editingPageIndex + 1} settings`}</span>
+                    <button
+                      type="button"
+                      aria-label="Close page settings"
+                      title="Close"
+                      onClick={() => setEditingPageId(null)}
+                    >
+                      <DismissRegular />
+                    </button>
+                  </div>
+                  <label>
+                    <span>Title</span>
+                    <input
+                      maxLength={120}
+                      value={editingPage.title}
+                      onChange={(event) =>
+                        changePageTitle(editingPageId, event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Background</span>
+                    <input
+                      type="color"
+                      value={editingPage.document.canvas.backgroundColor}
+                      onChange={(event) =>
+                        changePageBackground(editingPageId, event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                </form>
+              ) : null}
               <ol className="book-filmstrip" aria-label="Book pages">
                 {orderedPageIds.map((pageId, index) => {
                   const page = pageDetails.get(pageId);
+                  const pageStatus = pageStatuses[pageId] ?? "saved";
 
                   return (
-                    <li key={pageId}>
+                    <li key={pageId} data-editing={editingPageId === pageId}>
                       <button
                         type="button"
+                        className="book-filmstrip-select"
                         aria-current={pageId === activePage.id ? "page" : undefined}
                         onClick={() => selectPage(pageId)}
                       >
-                        <span>{index + 1}</span>
-                        <span>{page?.title ?? "Page"}</span>
+                        <span className="book-filmstrip-index">{index + 1}</span>
+                        <span className="book-filmstrip-title">{page?.title ?? "Page"}</span>
+                        {pageStatus !== "saved" ? (
+                          <span className={`book-filmstrip-status ${pageStatus}`}>
+                            {pageStatus}
+                          </span>
+                        ) : null}
                       </button>
+                      {page ? (
+                        <button
+                          type="button"
+                          className="book-filmstrip-edit"
+                          aria-label={`Edit page ${index + 1}`}
+                          title="Edit page"
+                          onClick={() => {
+                            selectPage(pageId);
+                            setEditingPageId((currentPageId) =>
+                              currentPageId === pageId ? null : pageId,
+                            );
+                          }}
+                        >
+                          <EditRegular />
+                        </button>
+                      ) : null}
                     </li>
                   );
                 })}
@@ -1215,6 +1260,6 @@ export function BookEditorView() {
           )}
         </section>
       </div>
-    </>
+    </div>
   );
 }

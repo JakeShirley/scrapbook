@@ -9,7 +9,15 @@ import {
 } from "@fluentui/react-icons";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router";
+import {
+  BrowserRouter,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router";
 
 import { ApiClientError, apiClient } from "./apiClient";
 import { LoadingScreen } from "./components/layout";
@@ -143,7 +151,9 @@ function ProtectedShell({
 }) {
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialSidebarCollapsed);
+  const location = useLocation();
   const navigate = useNavigate();
+  const isBookEditorRoute = /^\/books\/[^/]+\/?$/.test(location.pathname);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed((currentValue) => {
@@ -166,7 +176,11 @@ function ProtectedShell({
   };
 
   return (
-    <main className="app-shell" data-sidebar-collapsed={isSidebarCollapsed}>
+    <main
+      className="app-shell"
+      data-editor-layout={isBookEditorRoute ? "book" : undefined}
+      data-sidebar-collapsed={isSidebarCollapsed}
+    >
       <aside
         className="sidebar"
         data-collapsed={isSidebarCollapsed}
@@ -223,7 +237,10 @@ function ProtectedShell({
         </div>
       </aside>
 
-      <section className="workspace" aria-label="Scrapbook workspace">
+      <section
+        className={isBookEditorRoute ? "workspace workspace-editor" : "workspace"}
+        aria-label="Scrapbook workspace"
+      >
         <Routes>
           <Route index element={<Navigate to="/books" replace />} />
           <Route path="library" element={<LibraryView />} />

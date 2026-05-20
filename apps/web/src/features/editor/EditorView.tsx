@@ -252,13 +252,17 @@ export function EditorView() {
         </p>
       ) : null}
       <div className="editor-shell">
-        <AssetRail assets={assets} onAddEmbellishment={addEmbellishment} onAddPhoto={addPhoto} />
+        <AssetRail
+          assets={assets}
+          onAddEmbellishment={addEmbellishment}
+          onAddPhoto={addPhoto}
+          onAddText={addText}
+        />
         <section className="editor-stage" aria-label="Page canvas">
           <EditorToolbar
             document={document}
             status={status}
             title={title}
-            onAddText={addText}
             onChangeBackground={(backgroundColor) =>
               editDocument(updateCanvas(document, { backgroundColor }))
             }

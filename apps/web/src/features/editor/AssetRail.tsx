@@ -1,3 +1,4 @@
+import { TextTRegular } from "@fluentui/react-icons";
 import type { CSSProperties } from "react";
 
 import type { Asset } from "../../types";
@@ -7,10 +8,12 @@ export function AssetRail({
   assets,
   onAddEmbellishment,
   onAddPhoto,
+  onAddText,
 }: {
   assets: Asset[];
   onAddEmbellishment: (preset: EmbellishmentPreset) => void;
   onAddPhoto: (asset: Asset) => void;
+  onAddText: () => void;
 }) {
   return (
     <aside className="editor-panel editor-asset-rail" aria-label="Assets">
@@ -34,9 +37,15 @@ export function AssetRail({
       </div>
       <div className="panel-heading compact-heading nested-heading">
         <h3>Elements</h3>
-        <span>{embellishmentPresets.length}</span>
+        <span>{embellishmentPresets.length + 1}</span>
       </div>
       <div className="asset-rail-list">
+        <button type="button" className="element-rail-item" onClick={onAddText}>
+          <span className="element-preview text-element-preview" aria-hidden="true">
+            <TextTRegular />
+          </span>
+          <span>Text</span>
+        </button>
         {embellishmentPresets.map((preset) => (
           <button
             type="button"
