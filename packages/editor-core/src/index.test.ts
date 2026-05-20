@@ -262,6 +262,18 @@ describe("page document helpers", () => {
     expect(svg).toContain('stroke-opacity="0.34"');
   });
 
+  it("prefixes reusable SVG ids for pages rendered in the same DOM", () => {
+    const photo = createPhotoLayer({ assetId: "asset_1", id: "photo_1" });
+    const document = createPageDocument({ layers: [photo] });
+    const svg = renderPageDocumentSvg(document, {
+      idPrefix: "canvas:page-1",
+      resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    expect(svg).toContain('id="canvas_page-1_photo_clip_0"');
+    expect(svg).toContain('clip-path="url(#canvas_page-1_photo_clip_0)"');
+  });
+
   it("groups ordered book pages into facing spreads without synthetic pages", () => {
     const spreads = createBookSpreads([
       { pageId: "page_3", sortOrder: 3 },

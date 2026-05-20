@@ -17,7 +17,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { Asset } from "../../types";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
@@ -96,6 +96,7 @@ export function PageCanvas({
   onTransformEnd?: (layerId: string, update: Partial<PageLayer> | null) => void;
   onTransformLayer: (layerId: string, update: Partial<PageLayer>) => void;
 }) {
+  const svgIdPrefix = useId();
   const canvasRef = useRef<HTMLFieldSetElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [activeTransform, setActiveTransform] = useState<ActiveTransform | null>(null);
@@ -124,11 +125,12 @@ export function PageCanvas({
   const renderedSvg = useMemo(
     () =>
       renderPageDocumentSvg(renderedDocument, {
+        idPrefix: svgIdPrefix,
         resolvePhotoHref: (layer) =>
           assetById.get(layer.assetId)?.originalContentUrl ??
           assetById.get(layer.assetId)?.thumbnailUrl,
       }),
-    [assetById, renderedDocument],
+    [assetById, renderedDocument, svgIdPrefix],
   );
   const contextLayerIndex = contextMenu
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)

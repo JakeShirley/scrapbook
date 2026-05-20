@@ -184,6 +184,7 @@ export type EmbellishmentLayer = z.infer<typeof embellishmentLayerSchema>;
 export type PageLayerKind = PageLayer["kind"];
 
 export type RenderPageSvgOptions = {
+  idPrefix?: string;
   resolvePhotoHref?: (layer: PhotoLayer) => string | null | undefined;
 };
 
@@ -281,6 +282,15 @@ const escapeXml = (value: string): string =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
 
+const svgIdPart = (value: string): string => {
+  const sanitized = value.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+  return sanitized.length > 0 ? sanitized : "svg";
+};
+
+const createSvgId = (...parts: Array<number | string>): string =>
+  parts.map((part) => svgIdPart(String(part))).join("_");
+
 const layerTransform = (layer: PageLayer): string => {
   const centerX = layer.x + layer.width / 2;
   const centerY = layer.y + layer.height / 2;
@@ -366,12 +376,15 @@ const renderPhotoLayerSvg = (
   layer: PhotoLayer,
   href: string | null | undefined,
   index: number,
+  idPrefix: string | undefined,
 ): { body: string; defs: string } | null => {
   if (!href) {
     return null;
   }
 
-  const clipId = `photo_clip_${index}`;
+  const clipId = idPrefix
+    ? createSvgId(idPrefix, "photo", "clip", index)
+    : createSvgId("photo", "clip", index);
   const frameInset = layer.border.width / 2;
   const imageWidth = layer.width / Math.max(layer.crop.width, 0.05);
   const imageHeight = layer.height / Math.max(layer.crop.height, 0.05);
@@ -462,7 +475,12 @@ export const renderPageDocumentSvg = (
 
   for (const [index, layer] of parsedDocument.layers.entries()) {
     if (layer.kind === "photo") {
-      const rendered = renderPhotoLayerSvg(layer, options.resolvePhotoHref?.(layer), index);
+      const rendered = renderPhotoLayerSvg(
+        layer,
+        options.resolvePhotoHref?.(layer),
+        index,
+        options.idPrefix,
+      );
 
       if (rendered) {
         defs.push(rendered.defs);
