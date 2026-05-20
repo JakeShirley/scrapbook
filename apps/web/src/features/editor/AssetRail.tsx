@@ -18,9 +18,9 @@ export function AssetRail({
   onOpenPhotoPicker: () => void;
 }) {
   return (
-    <aside className="editor-panel editor-asset-rail" aria-label="Assets">
+    <aside className="editor-panel editor-asset-rail" aria-label="Photos">
       <div className="panel-heading compact-heading">
-        <h3>Assets</h3>
+        <h3>Photos</h3>
         <span>{assetCount}</span>
       </div>
       <div className="asset-rail-actions">
