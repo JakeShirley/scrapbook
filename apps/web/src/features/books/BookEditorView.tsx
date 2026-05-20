@@ -1371,7 +1371,6 @@ export function BookEditorView() {
               <ol className="book-filmstrip" aria-label="Book pages">
                 {orderedPageIds.map((pageId, index) => {
                   const page = pageDetails.get(pageId);
-                  const pageStatus = pageStatuses[pageId] ?? "saved";
 
                   return (
                     <li
@@ -1395,11 +1394,6 @@ export function BookEditorView() {
                       >
                         <span className="book-filmstrip-index">{index + 1}</span>
                         <span className="book-filmstrip-title">{page?.title ?? "Page"}</span>
-                        {pageStatus !== "saved" ? (
-                          <span className={`book-filmstrip-status ${pageStatus}`}>
-                            {pageStatus}
-                          </span>
-                        ) : null}
                       </button>
                       <span className="book-filmstrip-drag-handle" aria-hidden="true">
                         <ReOrderDotsVerticalRegular />

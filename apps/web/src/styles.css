@@ -1205,23 +1205,12 @@ textarea:focus-visible {
   font-weight: 800;
 }
 
-.book-filmstrip-title,
-.book-filmstrip-status {
+.book-filmstrip-title {
   overflow: hidden;
   color: #4f595c;
   font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.book-filmstrip-status {
-  color: #763c2b;
-  font-weight: 800;
-  text-transform: capitalize;
-}
-
-.book-filmstrip-status.saving {
-  color: #4f595c;
 }
 
 .book-filmstrip-drag-handle {
