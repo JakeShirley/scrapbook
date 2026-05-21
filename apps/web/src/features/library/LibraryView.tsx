@@ -1,8 +1,7 @@
 import { Button } from "@fluentui/react-components";
-import { AddRegular, ArrowUploadRegular } from "@fluentui/react-icons";
+import { ArrowUploadRegular } from "@fluentui/react-icons";
 import type { ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 
 import { apiClient } from "../../apiClient";
 import { Panel, WorkspaceHeader } from "../../components/layout";
@@ -16,7 +15,6 @@ export function LibraryView() {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -45,28 +43,46 @@ export function LibraryView() {
     };
   }, []);
 
-  const uploadAsset = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
+  const uploadAssets = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = "";
 
-    if (!file) {
+    if (files.length === 0) {
       return;
     }
 
     setError(null);
     setUploadProgress(0);
 
-    try {
-      const asset = await apiClient.uploadAsset(file, setUploadProgress);
-      setAssets((currentAssets) => [
-        asset,
-        ...currentAssets.filter((item) => item.id !== asset.id),
-      ]);
-    } catch (uploadError: unknown) {
-      setError(getErrorMessage(uploadError));
-    } finally {
-      setUploadProgress(null);
+    const uploadedAssets: Asset[] = [];
+    const failures: string[] = [];
+
+    for (const [fileIndex, file] of files.entries()) {
+      try {
+        const asset = await apiClient.uploadAsset(file, (fileProgress) => {
+          setUploadProgress((fileIndex + (fileProgress ?? 0)) / files.length);
+        });
+
+        uploadedAssets.push(asset);
+      } catch (uploadError: unknown) {
+        failures.push(`${file.name}: ${getErrorMessage(uploadError)}`);
+      } finally {
+        setUploadProgress((fileIndex + 1) / files.length);
+      }
     }
+
+    if (uploadedAssets.length > 0) {
+      const uploadedAssetIds = new Set(uploadedAssets.map((asset) => asset.id));
+      const uploadedAssetsNewestFirst = [...uploadedAssets].reverse();
+
+      setAssets((currentAssets) => [
+        ...uploadedAssetsNewestFirst,
+        ...currentAssets.filter((asset) => !uploadedAssetIds.has(asset.id)),
+      ]);
+    }
+
+    setError(failures.length > 0 ? failures.join(" ") : null);
+    setUploadProgress(null);
   };
 
   return (
@@ -76,8 +92,9 @@ export function LibraryView() {
           ref={fileInputRef}
           accept="image/heic,image/heif,image/jpeg,image/png,image/webp,.heic,.heif"
           className="visually-hidden"
+          multiple
           type="file"
-          onChange={uploadAsset}
+          onChange={uploadAssets}
         />
         <Button
           type="button"
@@ -87,15 +104,6 @@ export function LibraryView() {
           onClick={() => fileInputRef.current?.click()}
         >
           Upload
-        </Button>
-        <Button
-          appearance="primary"
-          type="button"
-          className="primary-button"
-          icon={<AddRegular />}
-          onClick={() => navigate("/pages")}
-        >
-          New page
         </Button>
       </WorkspaceHeader>
 
