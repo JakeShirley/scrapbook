@@ -36,18 +36,35 @@ type SelectionPanel = "edit" | "frame";
 export type CanvasPreviewLayer = {
   layer: PageLayer;
   sourcePageId: string;
+  stackIndex: number;
 };
 
 type InteractiveCanvasLayer =
   | {
       kind: "document";
       layer: PageLayer;
+      stackIndex: number;
     }
   | {
       kind: "preview";
       layer: PageLayer;
       sourcePageId: string;
+      stackIndex: number;
     };
+
+const mergeCanvasLayers = (
+  layers: PageLayer[],
+  previewLayers: CanvasPreviewLayer[],
+): InteractiveCanvasLayer[] =>
+  [
+    ...layers.map((layer, stackIndex) => ({ kind: "document" as const, layer, stackIndex })),
+    ...previewLayers.map(({ layer, sourcePageId, stackIndex }) => ({
+      kind: "preview" as const,
+      layer,
+      sourcePageId,
+      stackIndex,
+    })),
+  ].sort((left, right) => left.stackIndex - right.stackIndex);
 
 const framePresetOptions: PhotoLayer["border"]["framePreset"][] = [
   "none",
@@ -104,23 +121,13 @@ export function PageCanvas({
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
   );
-  const renderedDocument = useMemo(
-    () =>
-      previewLayers.length > 0
-        ? { ...document, layers: [...document.layers, ...previewLayers.map(({ layer }) => layer)] }
-        : document,
-    [document, previewLayers],
-  );
   const interactiveLayers = useMemo<InteractiveCanvasLayer[]>(
-    () => [
-      ...document.layers.map((layer) => ({ kind: "document" as const, layer })),
-      ...previewLayers.map(({ layer, sourcePageId }) => ({
-        kind: "preview" as const,
-        layer,
-        sourcePageId,
-      })),
-    ],
+    () => mergeCanvasLayers(document.layers, previewLayers),
     [document.layers, previewLayers],
+  );
+  const renderedDocument = useMemo(
+    () => ({ ...document, layers: interactiveLayers.map(({ layer }) => layer) }),
+    [document, interactiveLayers],
   );
   const renderedSvg = useMemo(
     () =>

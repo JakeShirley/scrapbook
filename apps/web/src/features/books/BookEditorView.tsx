@@ -540,35 +540,28 @@ export function BookEditorView() {
       return;
     }
 
-    const layer = page.document.layers.find((candidateLayer) => candidateLayer.id === layerId);
+    const nextDocument = reorderLayer(page.document, layerId, toIndex);
+    const layer = nextDocument.layers.find((candidateLayer) => candidateLayer.id === layerId);
 
     if (viewMode === "spread" && layer && visiblePageIds.length > 1) {
       const nextDetails = new Map(pageDetails);
-      const changedPageIds: string[] = [];
-
-      for (const spreadPage of visibleSpreadPages) {
-        const currentPage = nextDetails.get(spreadPage.pageId);
-
-        if (!currentPage?.document.layers.some((candidateLayer) => candidateLayer.id === layerId)) {
-          continue;
-        }
-
-        nextDetails.set(
-          spreadPage.pageId,
-          replacePageDocument(currentPage, reorderLayer(currentPage.document, layerId, toIndex)),
-        );
-        changedPageIds.push(spreadPage.pageId);
-      }
+      nextDetails.set(pageId, replacePageDocument(page, nextDocument));
 
       applySpreadLayerSync(
-        { changedPageIds, containingPageId: pageId, details: nextDetails },
+        syncLayerAcrossSpread({
+          details: nextDetails,
+          removeNonOverlappingSource: false,
+          sourceLayer: layer,
+          sourcePageId: pageId,
+          spreadPageIds: visiblePageIds,
+        }),
         { selectedLayerId: layerId },
       );
       setActivePageId(pageId);
       return;
     }
 
-    editPageDocument(pageId, reorderLayer(page.document, layerId, toIndex));
+    editPageDocument(pageId, nextDocument);
     setActivePageId(pageId);
     setSelectedLayerId(layerId);
   };
@@ -1025,7 +1018,7 @@ export function BookEditorView() {
         continue;
       }
 
-      for (const layer of sourcePage.page.document.layers) {
+      for (const [stackIndex, layer] of sourcePage.page.document.layers.entries()) {
         if (existingLayerIds.has(layer.id)) {
           continue;
         }
@@ -1036,7 +1029,11 @@ export function BookEditorView() {
         };
 
         if (layerOverlapsPageCanvas(projectedLayer, targetPage.page.document)) {
-          previewLayers.push({ layer: projectedLayer, sourcePageId: sourcePage.pageId });
+          previewLayers.push({
+            layer: projectedLayer,
+            sourcePageId: sourcePage.pageId,
+            stackIndex,
+          });
         }
       }
     }

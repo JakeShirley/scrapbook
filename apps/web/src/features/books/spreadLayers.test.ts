@@ -1,0 +1,180 @@
+import {
+  createPageDocument,
+  createPhotoLayer,
+  createTextLayer,
+  type PageDocument,
+} from "@scrapbook/editor-core";
+import { describe, expect, it } from "vitest";
+
+import type { PageDetail } from "../../types";
+import { syncLayerAcrossSpread } from "./spreadLayers";
+
+const pageDetail = (id: string, document: PageDocument): PageDetail => ({
+  id,
+  title: id,
+  width: document.canvas.width,
+  height: document.canvas.height,
+  layerCount: document.layers.length,
+  createdAt: "2026-05-20T00:00:00.000Z",
+  updatedAt: "2026-05-20T00:00:00.000Z",
+  document,
+});
+
+const layerIds = (page: PageDetail): string[] => page.document.layers.map((layer) => layer.id);
+
+describe("spread layer syncing", () => {
+  it("keeps existing spread layer copies at the source stack index", () => {
+    const sharedLeft = createPhotoLayer({
+      assetId: "asset_1",
+      id: "shared_photo",
+      x: 300,
+      y: 100,
+      width: 360,
+      height: 240,
+    });
+    const sharedRight = createPhotoLayer({ ...sharedLeft, x: -300 });
+    const left = pageDetail(
+      "left",
+      createPageDocument({
+        canvas: { width: 600, height: 400 },
+        layers: [
+          createTextLayer({ id: "left_background", text: "background" }),
+          sharedLeft,
+          createTextLayer({ id: "left_foreground", text: "foreground" }),
+        ],
+      }),
+    );
+    const right = pageDetail(
+      "right",
+      createPageDocument({
+        canvas: { width: 600, height: 400 },
+        layers: [
+          sharedRight,
+          createTextLayer({ id: "right_background", text: "background" }),
+          createTextLayer({ id: "right_foreground", text: "foreground" }),
+        ],
+      }),
+    );
+
+    const result = syncLayerAcrossSpread({
+      details: new Map([
+        [left.id, left],
+        [right.id, right],
+      ]),
+      removeNonOverlappingSource: false,
+      sourceLayer: sharedLeft,
+      sourcePageId: left.id,
+      spreadPageIds: [left.id, right.id],
+    });
+
+    expect(layerIds(result.details.get(left.id) ?? left)).toEqual([
+      "left_background",
+      "shared_photo",
+      "left_foreground",
+    ]);
+    expect(layerIds(result.details.get(right.id) ?? right)).toEqual([
+      "right_background",
+      "shared_photo",
+      "right_foreground",
+    ]);
+  });
+
+  it("inserts new spread layer copies at the source stack index", () => {
+    const shared = createPhotoLayer({
+      assetId: "asset_1",
+      id: "shared_photo",
+      x: 300,
+      y: 100,
+      width: 360,
+      height: 240,
+    });
+    const left = pageDetail(
+      "left",
+      createPageDocument({
+        canvas: { width: 600, height: 400 },
+        layers: [
+          createTextLayer({ id: "left_background", text: "background" }),
+          shared,
+          createTextLayer({ id: "left_foreground", text: "foreground" }),
+        ],
+      }),
+    );
+    const right = pageDetail(
+      "right",
+      createPageDocument({
+        canvas: { width: 600, height: 400 },
+        layers: [
+          createTextLayer({ id: "right_background", text: "background" }),
+          createTextLayer({ id: "right_foreground", text: "foreground" }),
+        ],
+      }),
+    );
+
+    const result = syncLayerAcrossSpread({
+      details: new Map([
+        [left.id, left],
+        [right.id, right],
+      ]),
+      removeNonOverlappingSource: false,
+      sourceLayer: shared,
+      sourcePageId: left.id,
+      spreadPageIds: [left.id, right.id],
+    });
+
+    expect(layerIds(result.details.get(right.id) ?? right)).toEqual([
+      "right_background",
+      "shared_photo",
+      "right_foreground",
+    ]);
+  });
+
+  it("moves spread layer copies to the top of pages with more layers", () => {
+    const sharedRight = createPhotoLayer({
+      assetId: "asset_1",
+      id: "shared_photo",
+      x: -60,
+      y: 100,
+      width: 360,
+      height: 240,
+    });
+    const sharedLeft = createPhotoLayer({ ...sharedRight, x: 540 });
+    const left = pageDetail(
+      "left",
+      createPageDocument({
+        canvas: { width: 600, height: 400 },
+        layers: [
+          sharedLeft,
+          createTextLayer({ id: "left_one", text: "one" }),
+          createTextLayer({ id: "left_two", text: "two" }),
+          createTextLayer({ id: "left_three", text: "three" }),
+        ],
+      }),
+    );
+    const right = pageDetail(
+      "right",
+      createPageDocument({
+        canvas: { width: 600, height: 400 },
+        layers: [createTextLayer({ id: "right_one", text: "one" }), sharedRight],
+      }),
+    );
+
+    const result = syncLayerAcrossSpread({
+      details: new Map([
+        [left.id, left],
+        [right.id, right],
+      ]),
+      removeNonOverlappingSource: false,
+      sourceLayer: sharedRight,
+      sourcePageId: right.id,
+      spreadPageIds: [left.id, right.id],
+    });
+
+    expect(layerIds(result.details.get(left.id) ?? left)).toEqual([
+      "left_one",
+      "left_two",
+      "left_three",
+      "shared_photo",
+    ]);
+    expect(layerIds(result.details.get(right.id) ?? right)).toEqual(["right_one", "shared_photo"]);
+  });
+});

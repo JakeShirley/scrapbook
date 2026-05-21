@@ -3,6 +3,7 @@ import {
   deleteLayer,
   type PageDocument,
   type PageLayer,
+  reorderLayer,
   updateLayer,
 } from "@scrapbook/editor-core";
 
@@ -55,6 +56,43 @@ export const layerOverlapsPageCanvas = (layer: PageLayer, document: PageDocument
   layer.y < document.canvas.height &&
   layer.y + layer.height > 0;
 
+type SpreadLayerStackPlacement =
+  | { kind: "bottom" }
+  | { index: number; kind: "index" }
+  | { kind: "top" };
+
+const getLayerStackPlacement = (
+  document: PageDocument,
+  layerId: string,
+): SpreadLayerStackPlacement => {
+  const layerIndex = document.layers.findIndex((layer) => layer.id === layerId);
+
+  if (layerIndex <= 0) {
+    return { kind: "bottom" };
+  }
+
+  if (layerIndex >= document.layers.length - 1) {
+    return { kind: "top" };
+  }
+
+  return { index: layerIndex, kind: "index" };
+};
+
+const getLayerStackIndex = (
+  document: PageDocument,
+  placement: SpreadLayerStackPlacement,
+): number => {
+  if (placement.kind === "bottom") {
+    return 0;
+  }
+
+  if (placement.kind === "top") {
+    return Math.max(0, document.layers.length - 1);
+  }
+
+  return Math.max(0, Math.min(placement.index, document.layers.length - 1));
+};
+
 export const syncLayerAcrossSpread = ({
   details,
   removeNonOverlappingSource,
@@ -95,6 +133,12 @@ export const syncLayerAcrossSpread = ({
   const changedPageIds = new Set<string>();
   const sourceLayerIndex = sourceContext.page.document.layers.findIndex(
     (layer) => layer.id === sourceLayer.id,
+  );
+  const sourceLayerStackIndex =
+    sourceLayerIndex >= 0 ? sourceLayerIndex : sourceContext.page.document.layers.length;
+  const sourceLayerStackPlacement = getLayerStackPlacement(
+    sourceContext.page.document,
+    sourceLayer.id,
   );
   const spreadX = sourceContext.offsetX + sourceLayer.x;
   const spreadCenterX = spreadX + sourceLayer.width / 2;
@@ -149,8 +193,13 @@ export const syncLayerAcrossSpread = ({
         : addLayer(
             currentPage.document,
             localLayer,
-            Math.max(0, Math.min(sourceLayerIndex, currentPage.document.layers.length)),
+            Math.max(0, Math.min(sourceLayerStackIndex, currentPage.document.layers.length)),
           );
+      nextDocument = reorderLayer(
+        nextDocument,
+        sourceLayer.id,
+        getLayerStackIndex(nextDocument, sourceLayerStackPlacement),
+      );
     } else if (existingLayer) {
       nextDocument = deleteLayer(currentPage.document, sourceLayer.id);
     }
