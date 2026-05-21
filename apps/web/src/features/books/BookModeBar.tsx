@@ -7,7 +7,9 @@ type BookModeBarProps = {
   canNavigateNext: boolean;
   canNavigatePrevious: boolean;
   isWorking: boolean;
+  leftPageName: string;
   navigationLabel: string;
+  rightPageName: string;
   viewMode: ViewMode;
   onNavigate: (direction: -1 | 1) => void;
   onViewModeChange: (viewMode: ViewMode) => void;
@@ -17,23 +19,16 @@ export function BookModeBar({
   canNavigateNext,
   canNavigatePrevious,
   isWorking,
+  leftPageName,
   navigationLabel,
+  rightPageName,
   viewMode,
   onNavigate,
   onViewModeChange,
 }: BookModeBarProps) {
   return (
     <div className="book-modebar">
-      <TabList
-        className="book-view-toggle"
-        aria-label="Editor view"
-        selectedValue={viewMode}
-        onTabSelect={(_, data) => onViewModeChange(data.value as ViewMode)}
-      >
-        <Tab value="page">Page</Tab>
-        <Tab value="spread">Spread</Tab>
-      </TabList>
-      <div className="book-page-actions-inline">
+      <div className="book-modebar-nav book-modebar-nav-previous">
         <Button
           type="button"
           className="secondary-button compact-icon-button"
@@ -43,7 +38,23 @@ export function BookModeBar({
           icon={<ChevronLeftRegular />}
           onClick={() => onNavigate(-1)}
         />
-        <span>{navigationLabel}</span>
+        <span className="book-modebar-page-name" title={leftPageName}>
+          {leftPageName}
+        </span>
+      </div>
+      <TabList
+        className="book-view-toggle"
+        aria-label="Editor view"
+        selectedValue={viewMode}
+        onTabSelect={(_, data) => onViewModeChange(data.value as ViewMode)}
+      >
+        <Tab value="page">Page</Tab>
+        <Tab value="spread">Spread</Tab>
+      </TabList>
+      <div className="book-modebar-nav book-modebar-nav-next">
+        <span className="book-modebar-page-name" title={rightPageName}>
+          {rightPageName}
+        </span>
         <Button
           type="button"
           className="secondary-button compact-icon-button"
@@ -54,6 +65,7 @@ export function BookModeBar({
           onClick={() => onNavigate(1)}
         />
       </div>
+      <span className="book-modebar-status">{navigationLabel}</span>
     </div>
   );
 }

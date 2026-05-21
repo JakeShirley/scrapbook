@@ -272,6 +272,10 @@ export type BookSpread = {
   pageIds: string[];
 };
 
+export type CreateBookSpreadsOptions = {
+  coverSpreadEnabled?: boolean;
+};
+
 export type CreatePageDocumentInput = {
   canvas?: Partial<PageDocument["canvas"]>;
   layers?: PageLayer[];
@@ -1142,21 +1146,24 @@ export const resizePageDocument = (
   });
 };
 
-export const createBookSpreads = (pages: OrderedBookPage[]): BookSpread[] => {
-  const sortedPages = [...pages].sort((first, second) => first.sortOrder - second.sortOrder);
+const createSingleBookSpread = (page: OrderedBookPage, spreadIndex: number): BookSpread => ({
+  spreadIndex,
+  kind: "single",
+  leftPageId: page.pageId,
+  rightPageId: null,
+  pageIds: [page.pageId],
+});
 
-  return sortedPages.reduce<BookSpread[]>((spreads, page, index) => {
-    const spreadIndex = Math.floor(index / 2);
+const createSequentialBookSpreads = (
+  pages: OrderedBookPage[],
+  startingSpreadIndex: number,
+): BookSpread[] =>
+  pages.reduce<BookSpread[]>((spreads, page, index) => {
+    const spreadIndex = startingSpreadIndex + Math.floor(index / 2);
     const isLeftPage = index % 2 === 0;
 
     if (isLeftPage) {
-      spreads.push({
-        spreadIndex,
-        kind: "single",
-        leftPageId: page.pageId,
-        rightPageId: null,
-        pageIds: [page.pageId],
-      });
+      spreads.push(createSingleBookSpread(page, spreadIndex));
 
       return spreads;
     }
@@ -1175,4 +1182,41 @@ export const createBookSpreads = (pages: OrderedBookPage[]): BookSpread[] => {
 
     return spreads;
   }, []);
+
+export const createBookSpreads = (
+  pages: OrderedBookPage[],
+  options: CreateBookSpreadsOptions = {},
+): BookSpread[] => {
+  const sortedPages = [...pages].sort((first, second) => first.sortOrder - second.sortOrder);
+
+  if (sortedPages.length <= 1) {
+    return createSequentialBookSpreads(sortedPages, 0);
+  }
+
+  const frontCover = sortedPages[0];
+  const backCover = sortedPages[sortedPages.length - 1];
+  const interiorPages = sortedPages.slice(1, -1);
+
+  if (!frontCover || !backCover) {
+    return [];
+  }
+
+  if (options.coverSpreadEnabled ?? true) {
+    return [
+      {
+        spreadIndex: 0,
+        kind: "facing",
+        leftPageId: frontCover.pageId,
+        rightPageId: backCover.pageId,
+        pageIds: [frontCover.pageId, backCover.pageId],
+      },
+      ...createSequentialBookSpreads(interiorPages, 1),
+    ];
+  }
+
+  return [
+    createSingleBookSpread(frontCover, 0),
+    ...createSequentialBookSpreads(interiorPages, 1),
+    createSingleBookSpread(backCover, Math.ceil(interiorPages.length / 2) + 1),
+  ];
 };

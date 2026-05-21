@@ -284,9 +284,11 @@ const toBookSummaryResponse = (
     title: book.title,
     pageWidth: book.pageWidth,
     pageHeight: book.pageHeight,
+    coverSpreadEnabled: book.coverSpreadEnabled,
     pageCount: pages.length,
     spreadCount: createBookSpreads(
       pages.map(({ bookPage }) => ({ pageId: bookPage.pageId, sortOrder: bookPage.sortOrder })),
+      { coverSpreadEnabled: book.coverSpreadEnabled },
     ).length,
     createdAt: book.createdAt,
     updatedAt: book.updatedAt,
@@ -296,6 +298,7 @@ const toBookResponse = (book: BookRecord, repositories: Repositories): BookRespo
   const pages = repositories.books.listPagesForBook(book.accountId, book.id);
   const spreads = createBookSpreads(
     pages.map(({ bookPage }) => ({ pageId: bookPage.pageId, sortOrder: bookPage.sortOrder })),
+    { coverSpreadEnabled: book.coverSpreadEnabled },
   );
 
   return bookResponseSchema.parse({
@@ -1071,11 +1074,39 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     const input = context.req.valid("json");
+    const pageWidth = input.pageWidth ?? defaultBookPageSize.width;
+    const pageHeight = input.pageHeight ?? defaultBookPageSize.height;
     const book = options.repositories.books.create({
       accountId: authSession.account.id,
       title: input.title.trim(),
-      pageWidth: input.pageWidth ?? defaultBookPageSize.width,
-      pageHeight: input.pageHeight ?? defaultBookPageSize.height,
+      pageWidth,
+      pageHeight,
+      coverSpreadEnabled: input.coverSpreadEnabled ?? true,
+    });
+    const frontCover = options.repositories.pages.create({
+      accountId: authSession.account.id,
+      title: "Front cover",
+      width: pageWidth,
+      height: pageHeight,
+    });
+    const backCover = options.repositories.pages.create({
+      accountId: authSession.account.id,
+      title: "Back cover",
+      width: pageWidth,
+      height: pageHeight,
+    });
+
+    options.repositories.books.addPage({
+      accountId: authSession.account.id,
+      bookId: book.id,
+      pageId: frontCover.id,
+      sortOrder: 0,
+    });
+    options.repositories.books.addPage({
+      accountId: authSession.account.id,
+      bookId: book.id,
+      pageId: backCover.id,
+      sortOrder: 1,
     });
 
     return context.json(toBookResponse(book, options.repositories), 201);
@@ -1156,7 +1187,9 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
 
     const { bookId } = context.req.valid("param");
     const input = context.req.valid("json");
-    const bookUpdate: Partial<Pick<BookRecord, "pageHeight" | "pageWidth" | "title">> = {};
+    const bookUpdate: Partial<
+      Pick<BookRecord, "coverSpreadEnabled" | "pageHeight" | "pageWidth" | "title">
+    > = {};
 
     if (input.title !== undefined) {
       bookUpdate.title = input.title.trim();
@@ -1165,6 +1198,10 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     if (input.pageWidth !== undefined && input.pageHeight !== undefined) {
       bookUpdate.pageWidth = input.pageWidth;
       bookUpdate.pageHeight = input.pageHeight;
+    }
+
+    if (input.coverSpreadEnabled !== undefined) {
+      bookUpdate.coverSpreadEnabled = input.coverSpreadEnabled;
     }
 
     const book = options.repositories.books.updateForAccount(

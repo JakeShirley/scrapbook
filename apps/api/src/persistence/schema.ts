@@ -153,6 +153,9 @@ export const books = sqliteTable(
     title: text("title").notNull(),
     pageWidth: integer("page_width").notNull(),
     pageHeight: integer("page_height").notNull(),
+    coverSpreadEnabled: integer("cover_spread_enabled", { mode: "boolean" })
+      .notNull()
+      .default(true),
     ...timestampColumns(),
   },
   (table) => [index("books_account_id_idx").on(table.accountId)],

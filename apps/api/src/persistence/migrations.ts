@@ -152,6 +152,12 @@ ALTER TABLE pages ADD COLUMN document_storage_key TEXT;
 CREATE UNIQUE INDEX pages_document_storage_key_unique ON pages (document_storage_key) WHERE document_storage_key IS NOT NULL;
 `,
   },
+  {
+    id: "0005_add_book_cover_spread_enabled",
+    sql: `
+ALTER TABLE books ADD COLUMN cover_spread_enabled INTEGER NOT NULL DEFAULT 1 CHECK (cover_spread_enabled IN (0, 1));
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

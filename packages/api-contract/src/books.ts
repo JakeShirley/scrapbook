@@ -61,6 +61,7 @@ export const bookSummaryResponseSchema = z
     title: z.string().openapi({ example: "Summer book" }),
     pageWidth: bookPageDimensionSchema.openapi({ example: defaultBookPageSize.width }),
     pageHeight: bookPageDimensionSchema.openapi({ example: defaultBookPageSize.height }),
+    coverSpreadEnabled: z.boolean().openapi({ example: true }),
     pageCount: z.number().int().nonnegative().openapi({ example: 8 }),
     spreadCount: z.number().int().nonnegative().openapi({ example: 5 }),
     createdAt: z.string().datetime().openapi({ example: "2026-05-17T12:00:00.000Z" }),
@@ -86,6 +87,7 @@ export const bookCreateRequestSchema = z
     title: z.string().trim().min(1).max(120),
     pageWidth: bookPageDimensionSchema.optional(),
     pageHeight: bookPageDimensionSchema.optional(),
+    coverSpreadEnabled: z.boolean().optional(),
   })
   .superRefine(validateBookPageSizePair)
   .openapi("BookCreateRequest");
@@ -95,6 +97,7 @@ export const bookPatchRequestSchema = z
     title: z.string().trim().min(1).max(120).optional(),
     pageWidth: bookPageDimensionSchema.optional(),
     pageHeight: bookPageDimensionSchema.optional(),
+    coverSpreadEnabled: z.boolean().optional(),
   })
   .superRefine((input, context) => {
     validateBookPageSizePair(input, context);
@@ -102,7 +105,8 @@ export const bookPatchRequestSchema = z
     if (
       input.title === undefined &&
       input.pageWidth === undefined &&
-      input.pageHeight === undefined
+      input.pageHeight === undefined &&
+      input.coverSpreadEnabled === undefined
     ) {
       context.addIssue({
         code: "custom",

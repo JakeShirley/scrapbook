@@ -1046,17 +1046,56 @@ textarea:focus-visible {
 
 .book-modebar {
   display: grid;
-  grid-template-columns: minmax(200px, 300px) minmax(360px, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 10px 12px;
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid #edf0ed;
 }
 
+.book-modebar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.book-modebar-nav-previous {
+  justify-self: start;
+}
+
+.book-modebar-nav-next {
+  justify-self: end;
+}
+
+.book-modebar-page-name {
+  min-width: 0;
+  max-width: min(28vw, 280px);
+  overflow: hidden;
+  color: #4f595c;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.book-modebar-nav-next .book-modebar-page-name {
+  text-align: right;
+}
+
+.book-modebar-status {
+  grid-column: 2;
+  justify-self: center;
+  color: #6b7477;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .book-view-toggle {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(82px, 1fr));
   gap: 2px;
+  justify-self: center;
   width: max-content;
   min-inline-size: 0;
   margin: 0;
@@ -2570,7 +2609,7 @@ textarea:focus-visible {
   }
 
   .book-modebar {
-    grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   }
 
   .book-canvas-deck[data-mode="spread"] {
@@ -2599,6 +2638,23 @@ textarea:focus-visible {
   .book-page-row,
   .book-modebar {
     grid-template-columns: 1fr;
+  }
+
+  .book-modebar-nav,
+  .book-modebar-nav-next {
+    justify-self: stretch;
+  }
+
+  .book-modebar-nav-next {
+    justify-content: flex-end;
+  }
+
+  .book-modebar-status {
+    grid-column: 1;
+  }
+
+  .book-modebar-page-name {
+    max-width: none;
   }
 
   .book-page-actions-inline,
@@ -3835,8 +3891,12 @@ body {
 }
 
 .book-editor-page .book-modebar {
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 8px;
+}
+
+.book-editor-page .book-modebar-nav {
+  gap: 6px;
 }
 
 .book-editor-page .book-page-actions-inline {

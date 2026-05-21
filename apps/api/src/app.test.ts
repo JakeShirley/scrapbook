@@ -583,6 +583,22 @@ describe("api app", () => {
     expect(createBookResponse.status).toBe(201);
 
     const createdBook = bookResponseSchema.parse(await createBookResponse.json());
+    expect(createdBook).toMatchObject({
+      pageCount: 2,
+      spreadCount: 1,
+      coverSpreadEnabled: true,
+    });
+    expect(createdBook.pages.map((bookPage) => bookPage.page.title)).toEqual([
+      "Front cover",
+      "Back cover",
+    ]);
+    expect(createdBook.spreads).toMatchObject([
+      {
+        kind: "facing",
+        leftPageId: createdBook.pages[0]?.pageId,
+        rightPageId: createdBook.pages[1]?.pageId,
+      },
+    ]);
     const orderedResponse = await app.request(`/api/v1/books/${createdBook.id}/pages`, {
       body: JSON.stringify({ pageIds: pages.map((page) => page.id) }),
       headers: { cookie: firstCookie, "content-type": "application/json" },
@@ -593,7 +609,7 @@ describe("api app", () => {
       headers: { cookie: firstCookie },
     });
     const resizedResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
-      body: JSON.stringify({ pageWidth: 3300, pageHeight: 2550 }),
+      body: JSON.stringify({ pageWidth: 3300, pageHeight: 2550, coverSpreadEnabled: false }),
       headers: { cookie: firstCookie, "content-type": "application/json" },
       method: "PATCH",
     });
@@ -615,13 +631,22 @@ describe("api app", () => {
       "Third",
     ]);
     expect(orderedBook.spreads).toMatchObject([
-      { kind: "facing", leftPageId: pages[0]?.id, rightPageId: pages[1]?.id },
-      { kind: "single", leftPageId: pages[2]?.id, rightPageId: null },
+      { kind: "facing", leftPageId: pages[0]?.id, rightPageId: pages[2]?.id },
+      { kind: "single", leftPageId: pages[1]?.id, rightPageId: null },
     ]);
     expect(detailResponse.status).toBe(200);
     expect(bookResponseSchema.parse(await detailResponse.json()).pageCount).toBe(3);
     expect(resizedResponse.status).toBe(200);
-    expect(resizedBook).toMatchObject({ pageWidth: 3300, pageHeight: 2550 });
+    expect(resizedBook).toMatchObject({
+      coverSpreadEnabled: false,
+      pageWidth: 3300,
+      pageHeight: 2550,
+    });
+    expect(resizedBook.spreads).toMatchObject([
+      { kind: "single", leftPageId: pages[0]?.id, rightPageId: null },
+      { kind: "single", leftPageId: pages[1]?.id, rightPageId: null },
+      { kind: "single", leftPageId: pages[2]?.id, rightPageId: null },
+    ]);
     expect(secondDetailResponse.status).toBe(404);
     expect(crossAccountPageResponse.status).toBe(400);
   });

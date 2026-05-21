@@ -71,6 +71,7 @@ export function BookEditorView() {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [bookTitleDraft, setBookTitleDraft] = useState("");
   const [bookPageSizeDraft, setBookPageSizeDraft] = useState<string>(defaultBookPageSize.key);
+  const [coverSpreadEnabledDraft, setCoverSpreadEnabledDraft] = useState(true);
   const [pageDetails, setPageDetails] = useState<Map<string, PageDetail>>(new Map());
   const [pageStatuses, setPageStatuses] = useState<Record<string, EditorSaveStatus>>({});
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -103,6 +104,7 @@ export function BookEditorView() {
       setBook(loadedBook.book);
       setBookTitleDraft(loadedBook.book.title);
       setBookPageSizeDraft(getBookPageSizeKey(loadedBook.book));
+      setCoverSpreadEnabledDraft(loadedBook.book.coverSpreadEnabled);
       setPageDetails(detailsById);
       resetHistory();
       setPageStatuses(Object.fromEntries(loadedBook.pages.map((page) => [page.id, "saved"])));
@@ -189,6 +191,11 @@ export function BookEditorView() {
       : activePageIndex >= 0
         ? `Page ${activePageIndex + 1} of ${orderedPageIds.length}`
         : "No pages";
+  const visiblePageNames = visiblePageIds
+    .map((pageId) => pageDetails.get(pageId)?.title)
+    .filter((title): title is string => Boolean(title));
+  const leftPageName = visiblePageNames[0] ?? navigationLabel;
+  const rightPageName = visiblePageNames[visiblePageNames.length - 1] ?? leftPageName;
   const editingPage = editingPageId ? (pageDetails.get(editingPageId) ?? null) : null;
   const editingPageIndex = editingPageId ? orderedPageIds.indexOf(editingPageId) : -1;
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
@@ -702,6 +709,7 @@ export function BookEditorView() {
       );
       const updatedBook = await apiClient.updateBook(book.id, {
         title: bookTitleDraft,
+        coverSpreadEnabled: coverSpreadEnabledDraft,
         ...(bookPageSizeDraft === customBookPageSizeKey
           ? {}
           : { pageWidth: pageSize.width, pageHeight: pageSize.height }),
@@ -752,6 +760,7 @@ export function BookEditorView() {
       setBook(updatedBook);
       setBookTitleDraft(updatedBook.title);
       setBookPageSizeDraft(getBookPageSizeKey(updatedBook));
+      setCoverSpreadEnabledDraft(updatedBook.coverSpreadEnabled);
       setIsBookSettingsOpen(false);
     } catch (renameError: unknown) {
       setError(getErrorMessage(renameError));
@@ -775,8 +784,12 @@ export function BookEditorView() {
         }),
         title: `Page ${book.pages.length + 1}`,
       });
+      const nextPageIds = [...orderedPageIds];
+      const insertionIndex = Math.max(0, nextPageIds.length - 1);
+
+      nextPageIds.splice(insertionIndex, 0, page.id);
       await apiClient.setBookPages(book.id, {
-        pageIds: [...orderedPageIds, page.id],
+        pageIds: nextPageIds,
       });
       await reloadBook(page.id);
     } catch (addError: unknown) {
@@ -1127,9 +1140,11 @@ export function BookEditorView() {
         <BookSettingsModal
           book={book}
           closeDisabled={isWorking}
+          coverSpreadEnabledDraft={coverSpreadEnabledDraft}
           pageSizeDraft={bookPageSizeDraft}
           titleDraft={bookTitleDraft}
           onClose={() => setIsBookSettingsOpen(false)}
+          onCoverSpreadEnabledDraftChange={setCoverSpreadEnabledDraft}
           onPageSizeDraftChange={setBookPageSizeDraft}
           onSubmit={renameBook}
           onTitleDraftChange={setBookTitleDraft}
@@ -1164,7 +1179,9 @@ export function BookEditorView() {
             canNavigateNext={canNavigateNext}
             canNavigatePrevious={canNavigatePrevious}
             isWorking={isWorking}
+            leftPageName={leftPageName}
             navigationLabel={navigationLabel}
+            rightPageName={rightPageName}
             viewMode={viewMode}
             onNavigate={navigateBook}
             onViewModeChange={setViewMode}
@@ -1207,6 +1224,7 @@ export function BookEditorView() {
                 orderedPageIds={orderedPageIds}
                 pageDetails={pageDetails}
                 pageDropTarget={pageDropTarget}
+                selectedPageIds={visiblePageIds}
                 onAddPage={addPage}
                 onClearDragState={clearPageDragState}
                 onDragOver={handlePageDragOver}

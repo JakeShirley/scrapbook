@@ -517,6 +517,7 @@ export class BookRepository {
     title: string;
     pageWidth: number;
     pageHeight: number;
+    coverSpreadEnabled?: boolean;
     id?: string;
   }): BookRecord {
     const timestamp = now(this.clock);
@@ -526,6 +527,7 @@ export class BookRepository {
       title: input.title,
       pageWidth: input.pageWidth,
       pageHeight: input.pageHeight,
+      coverSpreadEnabled: input.coverSpreadEnabled ?? true,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -557,7 +559,7 @@ export class BookRepository {
   updateForAccount(
     accountId: string,
     bookId: string,
-    input: Partial<Pick<BookRecord, "pageHeight" | "pageWidth" | "title">>,
+    input: Partial<Pick<BookRecord, "coverSpreadEnabled" | "pageHeight" | "pageWidth" | "title">>,
   ): BookRecord | null {
     const existing = this.findByIdForAccount(accountId, bookId);
 
@@ -571,6 +573,7 @@ export class BookRepository {
         title: input.title ?? existing.title,
         pageWidth: input.pageWidth ?? existing.pageWidth,
         pageHeight: input.pageHeight ?? existing.pageHeight,
+        coverSpreadEnabled: input.coverSpreadEnabled ?? existing.coverSpreadEnabled,
         updatedAt: now(this.clock),
       })
       .where(and(eq(books.accountId, accountId), eq(books.id, bookId)))

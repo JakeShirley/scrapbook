@@ -14,9 +14,11 @@ import {
 type BookSettingsModalProps = {
   book: BookDetail;
   closeDisabled: boolean;
+  coverSpreadEnabledDraft: boolean;
   pageSizeDraft: string;
   titleDraft: string;
   onClose: () => void;
+  onCoverSpreadEnabledDraftChange: (enabled: boolean) => void;
   onPageSizeDraftChange: (pageSizeKey: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onTitleDraftChange: (title: string) => void;
@@ -25,9 +27,11 @@ type BookSettingsModalProps = {
 export function BookSettingsModal({
   book,
   closeDisabled,
+  coverSpreadEnabledDraft,
   pageSizeDraft,
   titleDraft,
   onClose,
+  onCoverSpreadEnabledDraftChange,
   onPageSizeDraftChange,
   onSubmit,
   onTitleDraftChange,
@@ -64,6 +68,14 @@ export function BookSettingsModal({
             ))}
           </select>
         </Field>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={coverSpreadEnabledDraft}
+            onChange={(event) => onCoverSpreadEnabledDraftChange(event.currentTarget.checked)}
+          />
+          <span>Keep front and back covers together</span>
+        </label>
         <div className="book-settings-actions">
           <Button
             type="button"

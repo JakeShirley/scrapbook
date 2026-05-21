@@ -468,7 +468,7 @@ describe("page document helpers", () => {
     expect(svg).toContain('clip-path="url(#canvas_page-1_photo_clip_0)"');
   });
 
-  it("groups ordered book pages into facing spreads without synthetic pages", () => {
+  it("groups the first and last ordered book pages into a cover spread by default", () => {
     const spreads = createBookSpreads([
       { pageId: "page_3", sortOrder: 3 },
       { pageId: "page_0", sortOrder: 0 },
@@ -481,20 +481,20 @@ describe("page document helpers", () => {
         spreadIndex: 0,
         kind: "facing",
         leftPageId: "page_0",
-        rightPageId: "page_1",
-        pageIds: ["page_0", "page_1"],
+        rightPageId: "page_3",
+        pageIds: ["page_0", "page_3"],
       },
       {
         spreadIndex: 1,
         kind: "facing",
-        leftPageId: "page_2",
-        rightPageId: "page_3",
-        pageIds: ["page_2", "page_3"],
+        leftPageId: "page_1",
+        rightPageId: "page_2",
+        pageIds: ["page_1", "page_2"],
       },
     ]);
   });
 
-  it("keeps an unpaired final book page as a single real page", () => {
+  it("keeps an unpaired interior book page as a single real page", () => {
     const spreads = createBookSpreads([
       { pageId: "page_2", sortOrder: 2 },
       { pageId: "page_0", sortOrder: 0 },
@@ -506,15 +506,51 @@ describe("page document helpers", () => {
         spreadIndex: 0,
         kind: "facing",
         leftPageId: "page_0",
-        rightPageId: "page_1",
-        pageIds: ["page_0", "page_1"],
+        rightPageId: "page_2",
+        pageIds: ["page_0", "page_2"],
       },
       {
         spreadIndex: 1,
         kind: "single",
-        leftPageId: "page_2",
+        leftPageId: "page_1",
         rightPageId: null,
-        pageIds: ["page_2"],
+        pageIds: ["page_1"],
+      },
+    ]);
+  });
+
+  it("breaks the cover spread into single first and last pages", () => {
+    const spreads = createBookSpreads(
+      [
+        { pageId: "page_3", sortOrder: 3 },
+        { pageId: "page_0", sortOrder: 0 },
+        { pageId: "page_2", sortOrder: 2 },
+        { pageId: "page_1", sortOrder: 1 },
+      ],
+      { coverSpreadEnabled: false },
+    );
+
+    expect(spreads).toEqual([
+      {
+        spreadIndex: 0,
+        kind: "single",
+        leftPageId: "page_0",
+        rightPageId: null,
+        pageIds: ["page_0"],
+      },
+      {
+        spreadIndex: 1,
+        kind: "facing",
+        leftPageId: "page_1",
+        rightPageId: "page_2",
+        pageIds: ["page_1", "page_2"],
+      },
+      {
+        spreadIndex: 2,
+        kind: "single",
+        leftPageId: "page_3",
+        rightPageId: null,
+        pageIds: ["page_3"],
       },
     ]);
   });

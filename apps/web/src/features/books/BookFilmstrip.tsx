@@ -13,6 +13,7 @@ type BookFilmstripProps = {
   orderedPageIds: string[];
   pageDetails: Map<string, PageDetail>;
   pageDropTarget: PageDropTarget | null;
+  selectedPageIds: string[];
   onAddPage: () => void;
   onClearDragState: () => void;
   onDragOver: (event: DragEvent<HTMLLIElement>, pageId: string) => void;
@@ -30,6 +31,7 @@ export function BookFilmstrip({
   orderedPageIds,
   pageDetails,
   pageDropTarget,
+  selectedPageIds,
   onAddPage,
   onClearDragState,
   onDragOver,
@@ -38,6 +40,8 @@ export function BookFilmstrip({
   onSelectPage,
   onTogglePageSettings,
 }: BookFilmstripProps) {
+  const selectedPageIdSet = new Set(selectedPageIds.length > 0 ? selectedPageIds : [activePageId]);
+
   return (
     <ol className="book-filmstrip" aria-label="Book pages">
       {orderedPageIds.map((pageId, index) => {
@@ -60,7 +64,7 @@ export function BookFilmstrip({
             <button
               type="button"
               className="book-filmstrip-select"
-              aria-current={pageId === activePageId ? "page" : undefined}
+              aria-current={selectedPageIdSet.has(pageId) ? "page" : undefined}
               onClick={() => onSelectPage(pageId)}
             >
               <span className="book-filmstrip-index">{index + 1}</span>
