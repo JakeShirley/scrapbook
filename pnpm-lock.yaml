@@ -153,9 +153,16 @@ importers:
       '@iconify/utils':
         specifier: ^3.1.3
         version: 3.1.3
+      opentype.js:
+        specifier: ^2.0.0
+        version: 2.0.0
       zod:
         specifier: 4.4.3
         version: 4.4.3
+    devDependencies:
+      '@types/opentype.js':
+        specifier: ^1.3.9
+        version: 1.3.9
 
   packages/test-utils: {}
 
@@ -1421,6 +1428,9 @@ packages:
   '@types/normalize-package-data@2.4.4':
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
 
+  '@types/opentype.js@1.3.9':
+    resolution: {integrity: sha512-KOGywvDPncA4/tTWV5xKNhjpsoSSAHIx3mHOhL5l3XX+c6Xu2dQnHvGs7mRNQsQRte1EqmQ0cPQQ8Z14lkv+yw==}
+
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
@@ -2393,6 +2403,10 @@ packages:
 
   openapi3-ts@4.5.0:
     resolution: {integrity: sha512-jaL+HgTq2Gj5jRcfdutgRGLosCy/hT8sQf6VOy+P+g36cZOjI1iukdPnijC+4CmeRzg/jEllJUboEic2FhxhtQ==}
+
+  opentype.js@2.0.0:
+    resolution: {integrity: sha512-kCyjv6xdDY1W/jLWZ/L3QhhTlKUqDZMQ5+Jdlw12b3dXkKNpYBqqlMMj0YDQPShWFTMwgZI1hG14kN3XUDSg/A==}
+    hasBin: true
 
   p-each-series@3.0.0:
     resolution: {integrity: sha512-lastgtAdoH9YaLyDa5i5z64q+kzOcQHsQ5SsZJD3q0VEyI8mq872S3geuNbRUQLVAE9siMfgKrpj7MloKFHruw==}
@@ -4800,6 +4814,8 @@ snapshots:
 
   '@types/normalize-package-data@2.4.4': {}
 
+  '@types/opentype.js@1.3.9': {}
+
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
       '@types/react': 19.2.14
@@ -5556,6 +5572,8 @@ snapshots:
   openapi3-ts@4.5.0:
     dependencies:
       yaml: 2.9.0
+
+  opentype.js@2.0.0: {}
 
   p-each-series@3.0.0: {}
 

@@ -1,5 +1,7 @@
 import type { PageLayer } from "@scrapbook/editor-core";
 
+import { FontFamilySelect } from "./FontFamilySelect";
+
 export function TextControls({
   layer,
   onChange,
@@ -14,6 +16,14 @@ export function TextControls({
         <textarea
           value={layer.text}
           onChange={(event) => onChange({ text: event.currentTarget.value } as Partial<PageLayer>)}
+        />
+      </label>
+      <label htmlFor="text-layer-font-family">
+        <span>Font</span>
+        <FontFamilySelect
+          id="text-layer-font-family"
+          value={layer.fontFamily}
+          onChange={(fontFamily) => onChange({ fontFamily } as Partial<PageLayer>)}
         />
       </label>
       <label>

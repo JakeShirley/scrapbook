@@ -23,6 +23,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { Asset } from "../../types";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
+import { FontFamilySelect } from "./FontFamilySelect";
 import { LayerInspector } from "./LayerInspector";
 import {
   getAngle,
@@ -174,17 +175,19 @@ export function PageCanvas({
     selectedSelectionFrame && selectedSelectionFrame.y > document.canvas.height * 0.16
       ? "above"
       : "below";
+  const selectedLayerMenuHalfWidth = selectedLayer
+    ? selectedLayer.kind === "text"
+      ? 148
+      : selectedLayer.kind === "photo"
+        ? 100
+        : 68
+    : 68;
   const selectedLayerMenuStyle: CSSProperties | undefined = selectedSelectionFrame
     ? {
-        left: `${Math.min(
-          92,
-          Math.max(
-            8,
-            ((selectedSelectionFrame.x + selectedSelectionFrame.width / 2) /
-              document.canvas.width) *
-              100,
-          ),
-        )}%`,
+        left: `clamp(${selectedLayerMenuHalfWidth + 8}px, ${
+          ((selectedSelectionFrame.x + selectedSelectionFrame.width / 2) / document.canvas.width) *
+          100
+        }%, calc(100% - ${selectedLayerMenuHalfWidth + 8}px))`,
         top: `${
           ((selectedLayerMenuPlacement === "above"
             ? selectedSelectionFrame.y
@@ -574,17 +577,36 @@ export function PageCanvas({
               <EditRegular />
               <span>Edit</span>
             </button>
-            <button
-              type="button"
-              aria-label="Frame photo"
-              aria-pressed={activeSelectionPanel === "frame"}
-              disabled={selectedLayer.kind !== "photo"}
-              title={selectedLayer.kind === "photo" ? "Frame" : "Frames are available for photos"}
-              onClick={() => toggleSelectionPanel("frame")}
-            >
-              <ImageBorderRegular />
-              <span>Frame</span>
-            </button>
+            {selectedLayer.kind === "photo" ? (
+              <button
+                type="button"
+                aria-label="Frame photo"
+                aria-pressed={activeSelectionPanel === "frame"}
+                title="Frame"
+                onClick={() => toggleSelectionPanel("frame")}
+              >
+                <ImageBorderRegular />
+                <span>Frame</span>
+              </button>
+            ) : null}
+            {selectedLayer.kind === "text" ? (
+              <label
+                className="selected-layer-font-control"
+                htmlFor={`selected-layer-font-${selectedLayer.id}`}
+              >
+                <span className="visually-hidden">Font</span>
+                <FontFamilySelect
+                  compact
+                  id={`selected-layer-font-${selectedLayer.id}`}
+                  value={selectedLayer.fontFamily}
+                  onChange={(fontFamily) =>
+                    changeLayer(selectedLayer.id, {
+                      fontFamily,
+                    } as Partial<PageLayer>)
+                  }
+                />
+              </label>
+            ) : null}
             <button
               type="button"
               aria-label="Delete layer"

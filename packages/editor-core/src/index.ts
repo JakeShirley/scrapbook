@@ -1,4 +1,17 @@
+import type { Font } from "opentype.js";
 import { z } from "zod";
+
+import { defaultTextFontFamily, getBundledEditorFont } from "./fonts.js";
+
+export {
+  defaultTextFontFamily,
+  type EditorFontDefinition,
+  type EditorFontId,
+  editorFontDefinitions,
+  editorFontFaceCss,
+  getEditorFontByFamily,
+  loveYaLikeASisterFontFamily,
+} from "./fonts.js";
 
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const layerIdSchema = z.string().min(1).max(160);
@@ -681,6 +694,12 @@ const renderPhotoFrameOverlaySvg = (layer: PhotoLayer, layout: PhotoFrameLayout)
 };
 
 const renderTextLayerSvg = (layer: TextLayer): string => {
+  const bundledFont = getBundledEditorFont(layer.fontFamily);
+
+  if (bundledFont) {
+    return renderBundledFontTextLayerSvg(layer, bundledFont);
+  }
+
   const lines = layer.text.split(/\r?\n/).slice(0, 20);
   const lineHeight = layer.fontSize * 1.2;
   const anchor = layer.align === "center" ? "middle" : layer.align === "right" ? "end" : "start";
@@ -697,6 +716,34 @@ const renderTextLayerSvg = (layer: TextLayer): string => {
         `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
     )
     .join("")}</text></g>`;
+};
+
+const renderBundledFontTextLayerSvg = (layer: TextLayer, bundledFont: Font): string => {
+  const lines = layer.text.split(/\r?\n/).slice(0, 20);
+  const lineHeight = layer.fontSize * 1.2;
+  const anchorX =
+    layer.align === "center"
+      ? layer.x + layer.width / 2
+      : layer.align === "right"
+        ? layer.x + layer.width
+        : layer.x;
+  const paths = lines
+    .map((line, lineIndex) => {
+      const advanceWidth = bundledFont.getAdvanceWidth(line, layer.fontSize);
+      const lineX =
+        layer.align === "center"
+          ? anchorX - advanceWidth / 2
+          : layer.align === "right"
+            ? anchorX - advanceWidth
+            : anchorX;
+      const baselineY = layer.y + layer.fontSize + lineIndex * lineHeight;
+      const pathData = bundledFont.getPath(line, lineX, baselineY, layer.fontSize).toPathData(2);
+
+      return pathData ? `<path d="${pathData}" />` : "";
+    })
+    .join("");
+
+  return `<g data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" fill="${escapeXml(layer.color)}" transform="${layerTransform(layer)}">${paths}</g>`;
 };
 
 const renderPhotoLayerSvg = (
@@ -888,7 +935,7 @@ export const createTextLayer = (input: CreateTextLayerInput): TextLayer =>
     rotation: input.rotation ?? 0,
     opacity: input.opacity ?? 1,
     locked: input.locked ?? false,
-    fontFamily: input.fontFamily ?? "Inter, sans-serif",
+    fontFamily: input.fontFamily ?? defaultTextFontFamily,
     fontSize: input.fontSize ?? 72,
     color: input.color ?? "#202426",
     align: input.align ?? "left",

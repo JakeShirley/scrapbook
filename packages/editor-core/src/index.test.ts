@@ -10,7 +10,9 @@ import {
   createTextLayer,
   deleteLayer,
   duplicateLayer,
+  editorFontDefinitions,
   getPhotoFrameLayout,
+  loveYaLikeASisterFontFamily,
   pageDocumentSchema,
   renderPageDocumentSvg,
   reorderLayer,
@@ -280,6 +282,23 @@ describe("page document helpers", () => {
     expect(svg).toContain("/assets/asset_1/content");
     expect(svg).toContain('stroke-opacity="0.34"');
     expect(svg).toContain('fill="#f4bd3f"');
+  });
+
+  it("renders bundled editor fonts as SVG paths", () => {
+    const text = createTextLayer({
+      fontFamily: loveYaLikeASisterFontFamily,
+      id: "text_1",
+      text: "Playful",
+    });
+    const document = createPageDocument({ layers: [text] });
+    const svg = renderPageDocumentSvg(document);
+
+    expect(editorFontDefinitions).toContainEqual(
+      expect.objectContaining({ family: loveYaLikeASisterFontFamily }),
+    );
+    expect(svg).toContain(`data-font-family="${loveYaLikeASisterFontFamily}"`);
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("Playful");
   });
 
   it("renders photo frame presets as visible frame geometry", () => {

@@ -3,29 +3,20 @@ import {
   BookRegular,
   ChevronLeftRegular,
   ChevronRightRegular,
-  GridRegular,
   ImageRegular,
   SettingsRegular,
   SignOutRegular,
 } from "@fluentui/react-icons";
+import { editorFontFaceCss } from "@scrapbook/editor-core";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import {
-  BrowserRouter,
-  Navigate,
-  NavLink,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from "react-router";
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useNavigate } from "react-router";
 
 import { ApiClientError, apiClient } from "./apiClient";
 import { LoadingScreen } from "./components/layout";
 import { AuthPage } from "./features/auth/AuthPage";
 import { BookEditorView } from "./features/books/BookEditorView";
 import { BooksView } from "./features/books/BooksView";
-import { ImageGridView } from "./features/image-grid/ImageGridView";
 import { LibraryView } from "./features/library/LibraryView";
 import { SettingsView } from "./features/settings/SettingsView";
 import { getErrorMessage } from "./lib/errors";
@@ -34,7 +25,6 @@ import type { AuthMode, AuthSession, SessionState } from "./types";
 const navItems = [
   { to: "/books", label: "Books", icon: <BookRegular /> },
   { to: "/library", label: "Photos", icon: <ImageRegular /> },
-  { to: "/image-grid", label: "Grid", icon: <GridRegular /> },
   { to: "/settings", label: "Settings", icon: <SettingsRegular /> },
 ] satisfies { to: string; label: string; icon: ReactNode }[];
 
@@ -59,6 +49,7 @@ function saveSidebarCollapsedPreference(isCollapsed: boolean) {
 export function App() {
   return (
     <BrowserRouter>
+      <style>{editorFontFaceCss}</style>
       <AppRoutes />
     </BrowserRouter>
   );
@@ -154,9 +145,7 @@ function ProtectedShell({
 }) {
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialSidebarCollapsed);
-  const location = useLocation();
   const navigate = useNavigate();
-  const isBookEditorRoute = /^\/books\/[^/]+\/?$/.test(location.pathname);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed((currentValue) => {
@@ -179,11 +168,7 @@ function ProtectedShell({
   };
 
   return (
-    <main
-      className="app-shell"
-      data-editor-layout={isBookEditorRoute ? "book" : undefined}
-      data-sidebar-collapsed={isSidebarCollapsed}
-    >
+    <main className="app-shell" data-sidebar-collapsed={isSidebarCollapsed}>
       <aside
         className="sidebar"
         data-collapsed={isSidebarCollapsed}
@@ -240,14 +225,10 @@ function ProtectedShell({
         </div>
       </aside>
 
-      <section
-        className={isBookEditorRoute ? "workspace workspace-editor" : "workspace"}
-        aria-label="Scrapbook workspace"
-      >
+      <section className="workspace" aria-label="Scrapbook workspace">
         <Routes>
           <Route index element={<Navigate to="/books" replace />} />
           <Route path="library" element={<LibraryView />} />
-          <Route path="image-grid" element={<ImageGridView />} />
           <Route path="books" element={<BooksView />} />
           <Route path="books/:bookId" element={<BookEditorView />} />
           <Route path="pages/*" element={<Navigate to="/books" replace />} />

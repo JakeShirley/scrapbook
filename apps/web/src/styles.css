@@ -1704,19 +1704,19 @@ textarea:focus-visible {
 
 .selected-layer-action-bar {
   display: inline-flex;
-  align-items: stretch;
-  gap: 2px;
+  align-items: center;
+  gap: 4px;
   border: 1px solid var(--sb-neutral-stroke-2);
   border-radius: 8px;
-  padding: 5px;
+  padding: 6px;
   background: var(--sb-neutral-background);
   box-shadow: var(--sb-shadow-8);
 }
 
-.selected-layer-action-bar button {
+.selected-layer-action-bar > button {
   display: grid;
-  min-width: 58px;
-  min-height: 52px;
+  min-width: 56px;
+  min-height: 50px;
   align-content: center;
   justify-items: center;
   gap: 3px;
@@ -1729,23 +1729,107 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
-.selected-layer-action-bar button:hover:not(:disabled),
-.selected-layer-action-bar button[aria-pressed="true"] {
+.selected-layer-action-bar > button:hover:not(:disabled),
+.selected-layer-action-bar > button[aria-pressed="true"] {
   color: var(--sb-brand);
   background: var(--sb-brand-tint);
 }
 
-.selected-layer-action-bar button:disabled {
+.selected-layer-action-bar > button:disabled {
   cursor: default;
   opacity: 0.42;
 }
 
-.selected-layer-action-bar svg {
+.selected-layer-font-control {
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+  padding: 0 4px;
+}
+
+.font-family-select {
+  position: relative;
+  min-width: 0;
+}
+
+.font-family-select-trigger {
+  width: clamp(132px, 18vw, 164px);
+  min-height: 42px;
+  border: 1px solid var(--sb-neutral-stroke);
+  border-radius: 6px;
+  padding: 0 30px 0 10px;
+  color: var(--sb-neutral-foreground);
+  text-align: left;
+  background: var(--sb-neutral-background);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.font-family-select-trigger::after {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: "";
+  transform: translateY(-70%) rotate(45deg);
+}
+
+.font-family-select-trigger span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-family-select-listbox {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  width: max(100%, 190px);
+  gap: 2px;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 8px;
+  padding: 5px;
+  background: var(--sb-neutral-background);
+  box-shadow: var(--sb-shadow-8);
+}
+
+.font-family-select-option {
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--sb-neutral-foreground);
+  text-align: left;
+  background: transparent;
+  font-size: 0.95rem;
+}
+
+.font-family-select-option:hover,
+.font-family-select-option[aria-selected="true"] {
+  color: var(--sb-brand);
+  background: var(--sb-brand-tint);
+}
+
+.inspector-form .font-family-select-trigger {
+  width: 100%;
+}
+
+.inspector-form .font-family-select-listbox {
+  width: 100%;
+}
+
+.selected-layer-action-bar > button svg {
   width: 21px;
   height: 21px;
 }
 
-.selected-layer-action-bar .danger-action:hover:not(:disabled) {
+.selected-layer-action-bar > .danger-action:hover:not(:disabled) {
   color: var(--sb-danger-foreground);
   background: var(--sb-danger-background);
 }
