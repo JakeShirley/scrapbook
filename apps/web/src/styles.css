@@ -1545,24 +1545,34 @@ textarea:focus-visible {
 }
 
 .transform-rotate-handle {
-  left: 50%;
-  top: -42px;
-  width: 20px;
-  height: 20px;
+  display: grid;
+  top: 50%;
+  left: -48px;
+  width: 24px;
+  height: 24px;
+  place-items: center;
   border-radius: 999px;
+  color: #24766e;
   cursor: grab;
-  transform: translateX(-50%);
+  transform: translateY(-50%);
+}
+
+.transform-rotate-handle svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
 }
 
 .transform-rotate-handle::before {
   position: absolute;
-  top: 18px;
-  left: 50%;
-  width: 2px;
-  height: 24px;
+  top: 50%;
+  left: 22px;
+  width: 26px;
+  height: 2px;
   background: #24766e;
   content: "";
-  transform: translateX(-50%);
+  transform: translateY(-50%);
 }
 
 .transform-resize-handle[data-handle="nw"] {
@@ -3236,6 +3246,7 @@ body {
 .transform-resize-handle,
 .transform-rotate-handle {
   border-color: var(--sb-brand);
+  color: var(--sb-brand);
   background: var(--sb-neutral-background);
   box-shadow: var(--sb-shadow-4);
 }

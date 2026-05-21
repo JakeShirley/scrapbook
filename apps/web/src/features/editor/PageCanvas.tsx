@@ -1,4 +1,5 @@
 import {
+  ArrowClockwiseRegular,
   ArrowDownRegular,
   ArrowUpRegular,
   DeleteRegular,
@@ -521,7 +522,9 @@ export function PageCanvas({
                     className="transform-rotate-handle"
                     title="Rotate"
                     onPointerDown={(event) => startTransform(event, layer, "rotate")}
-                  />
+                  >
+                    <ArrowClockwiseRegular />
+                  </button>
                   {resizeHandles.map(({ handle, label }) => (
                     <button
                       type="button"
