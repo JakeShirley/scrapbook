@@ -10,6 +10,7 @@ import {
   createTextLayer,
   deleteLayer,
   duplicateLayer,
+  getPhotoFrameLayout,
   pageDocumentSchema,
   renderPageDocumentSvg,
   reorderLayer,
@@ -279,6 +280,74 @@ describe("page document helpers", () => {
     expect(svg).toContain("/assets/asset_1/content");
     expect(svg).toContain('stroke-opacity="0.34"');
     expect(svg).toContain('fill="#f4bd3f"');
+  });
+
+  it("renders photo frame presets as visible frame geometry", () => {
+    const matPhoto = createPhotoLayer({
+      assetId: "asset_mat",
+      id: "photo_mat",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 400,
+      border: { color: "#ffffff", framePreset: "mat", radius: 0, style: "solid", width: 0 },
+    });
+    const document = createPageDocument({
+      canvas: { width: 1600, height: 400 },
+      layers: [
+        matPhoto,
+        createPhotoLayer({
+          assetId: "asset_polaroid",
+          id: "photo_polaroid",
+          x: 400,
+          y: 0,
+          width: 400,
+          height: 400,
+          border: {
+            color: "#ffffff",
+            framePreset: "polaroid",
+            radius: 0,
+            style: "solid",
+            width: 0,
+          },
+        }),
+        createPhotoLayer({
+          assetId: "asset_film",
+          id: "photo_film",
+          x: 800,
+          y: 0,
+          width: 400,
+          height: 400,
+          border: { color: "#ffffff", framePreset: "film", radius: 0, style: "solid", width: 0 },
+        }),
+        createPhotoLayer({
+          assetId: "asset_paper",
+          id: "photo_paper",
+          x: 1200,
+          y: 0,
+          width: 400,
+          height: 400,
+          border: { color: "#ffffff", framePreset: "paper", radius: 0, style: "solid", width: 0 },
+        }),
+      ],
+    });
+    const svg = renderPageDocumentSvg(document, {
+      resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    expect(getPhotoFrameLayout(matPhoto).image).toMatchObject({
+      height: 320,
+      width: 320,
+      x: 40,
+      y: 40,
+    });
+    expect(svg).toContain('data-frame-preset="mat"');
+    expect(svg).toContain('data-frame-preset="polaroid"');
+    expect(svg).toContain('data-frame-detail="polaroid-caption"');
+    expect(svg).toContain('data-frame-preset="film"');
+    expect(svg).toContain('data-frame-detail="film-sprocket"');
+    expect(svg).toContain('data-frame-preset="paper"');
+    expect(svg).toContain('data-frame-detail="paper-fiber"');
   });
 
   it("prefixes reusable SVG ids for pages rendered in the same DOM", () => {

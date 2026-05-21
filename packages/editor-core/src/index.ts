@@ -375,16 +375,163 @@ const layerPolygon = (
   points: Array<[number, number]>,
 ) => points.map(([x, y]) => layerPoint(layer, x, y)).join(" ");
 
-const photoClipPath = (layer: PhotoLayer, clipId: string): string => {
+export type PhotoFrameRect = Pick<PageLayer, "height" | "width" | "x" | "y"> & {
+  radius: number;
+};
+
+export type PhotoFrameInsets = {
+  bottom: number;
+  left: number;
+  right: number;
+  top: number;
+};
+
+export type PhotoFrameLayout = {
+  image: PhotoFrameRect;
+  insets: PhotoFrameInsets;
+  outer: PhotoFrameRect;
+};
+
+const minimumPhotoFrameImageSize = 1;
+
+const roundSvgNumber = (value: number): number => {
+  const rounded = Math.round(value * 10) / 10;
+
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
+
+const createPhotoFrameRect = ({ height, radius, width, x, y }: PhotoFrameRect): PhotoFrameRect => ({
+  height: roundSvgNumber(Math.max(0, height)),
+  radius: roundSvgNumber(Math.max(0, radius)),
+  width: roundSvgNumber(Math.max(0, width)),
+  x: roundSvgNumber(x),
+  y: roundSvgNumber(y),
+});
+
+const constrainPhotoFrameInsets = (
+  layer: PhotoLayer,
+  insets: PhotoFrameInsets,
+): PhotoFrameInsets => {
+  const horizontalInset = insets.left + insets.right;
+  const verticalInset = insets.top + insets.bottom;
+  const horizontalScale =
+    horizontalInset > layer.width - minimumPhotoFrameImageSize
+      ? Math.max(0, layer.width - minimumPhotoFrameImageSize) / horizontalInset
+      : 1;
+  const verticalScale =
+    verticalInset > layer.height - minimumPhotoFrameImageSize
+      ? Math.max(0, layer.height - minimumPhotoFrameImageSize) / verticalInset
+      : 1;
+
+  return {
+    bottom: roundSvgNumber(Math.max(0, insets.bottom * verticalScale)),
+    left: roundSvgNumber(Math.max(0, insets.left * horizontalScale)),
+    right: roundSvgNumber(Math.max(0, insets.right * horizontalScale)),
+    top: roundSvgNumber(Math.max(0, insets.top * verticalScale)),
+  };
+};
+
+const createPhotoFrameLayout = (layer: PhotoLayer, insets: PhotoFrameInsets): PhotoFrameLayout => {
+  const constrainedInsets = constrainPhotoFrameInsets(layer, insets);
+  const largestInset = Math.max(
+    constrainedInsets.bottom,
+    constrainedInsets.left,
+    constrainedInsets.right,
+    constrainedInsets.top,
+  );
+  const image = createPhotoFrameRect({
+    height: Math.max(
+      minimumPhotoFrameImageSize,
+      layer.height - constrainedInsets.top - constrainedInsets.bottom,
+    ),
+    radius: Math.max(0, layer.border.radius - largestInset * 0.4),
+    width: Math.max(
+      minimumPhotoFrameImageSize,
+      layer.width - constrainedInsets.left - constrainedInsets.right,
+    ),
+    x: layer.x + constrainedInsets.left,
+    y: layer.y + constrainedInsets.top,
+  });
+
+  return {
+    image,
+    insets: constrainedInsets,
+    outer: createPhotoFrameRect({
+      height: layer.height,
+      radius: layer.border.radius,
+      width: layer.width,
+      x: layer.x,
+      y: layer.y,
+    }),
+  };
+};
+
+export const getPhotoFrameLayout = (layer: PhotoLayer): PhotoFrameLayout => {
+  const minimumDimension = Math.min(layer.width, layer.height);
+  const explicitWidth = layer.border.width > 0;
+
+  switch (layer.border.framePreset) {
+    case "mat": {
+      const inset = explicitWidth ? layer.border.width : minimumDimension * 0.1;
+
+      return createPhotoFrameLayout(layer, {
+        bottom: inset,
+        left: inset,
+        right: inset,
+        top: inset,
+      });
+    }
+    case "polaroid": {
+      const sideInset = explicitWidth ? layer.border.width : minimumDimension * 0.07;
+      const bottomInset = explicitWidth
+        ? Math.max(layer.border.width * 2.3, layer.border.width + minimumDimension * 0.04)
+        : Math.max(sideInset * 2.4, layer.height * 0.18);
+
+      return createPhotoFrameLayout(layer, {
+        bottom: bottomInset,
+        left: sideInset,
+        right: sideInset,
+        top: sideInset,
+      });
+    }
+    case "film": {
+      const sideInset = explicitWidth ? layer.border.width : minimumDimension * 0.11;
+      const verticalInset = explicitWidth
+        ? Math.max(layer.border.width * 0.62, minimumDimension * 0.035)
+        : minimumDimension * 0.06;
+
+      return createPhotoFrameLayout(layer, {
+        bottom: verticalInset,
+        left: sideInset,
+        right: sideInset,
+        top: verticalInset,
+      });
+    }
+    case "paper": {
+      const inset = explicitWidth ? layer.border.width : minimumDimension * 0.055;
+
+      return createPhotoFrameLayout(layer, {
+        bottom: inset,
+        left: inset,
+        right: inset,
+        top: inset,
+      });
+    }
+    case "none":
+      return createPhotoFrameLayout(layer, { bottom: 0, left: 0, right: 0, top: 0 });
+  }
+};
+
+const photoClipPath = (layer: PhotoLayer, clipId: string, imageFrame: PhotoFrameRect): string => {
   const inset = layer.mask.inset;
 
   switch (layer.mask.shape) {
     case "rectangle":
-      return `<clipPath id="${clipId}"><rect x="${layer.x + layer.width * inset}" y="${layer.y + layer.height * inset}" width="${layer.width * (1 - inset * 2)}" height="${layer.height * (1 - inset * 2)}" rx="${layer.border.radius}" /></clipPath>`;
+      return `<clipPath id="${clipId}"><rect x="${imageFrame.x + imageFrame.width * inset}" y="${imageFrame.y + imageFrame.height * inset}" width="${imageFrame.width * (1 - inset * 2)}" height="${imageFrame.height * (1 - inset * 2)}" rx="${imageFrame.radius}" /></clipPath>`;
     case "ellipse":
-      return `<clipPath id="${clipId}"><ellipse cx="${layer.x + layer.width / 2}" cy="${layer.y + layer.height / 2}" rx="${layer.width * (0.5 - inset)}" ry="${layer.height * (0.5 - inset)}" /></clipPath>`;
+      return `<clipPath id="${clipId}"><ellipse cx="${imageFrame.x + imageFrame.width / 2}" cy="${imageFrame.y + imageFrame.height / 2}" rx="${imageFrame.width * (0.5 - inset)}" ry="${imageFrame.height * (0.5 - inset)}" /></clipPath>`;
     case "arch":
-      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(layer, [
+      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(imageFrame, [
         [inset, 1],
         [inset, 0.36],
         [0.18, 0.08],
@@ -394,14 +541,14 @@ const photoClipPath = (layer: PhotoLayer, clipId: string): string => {
         [1 - inset, 1],
       ])}" /></clipPath>`;
     case "diamond":
-      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(layer, [
+      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(imageFrame, [
         [0.5, inset],
         [1 - inset, 0.5],
         [0.5, 1 - inset],
         [inset, 0.5],
       ])}" /></clipPath>`;
     case "ticket":
-      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(layer, [
+      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(imageFrame, [
         [inset, inset],
         [0.42, inset],
         [0.5, 0.1],
@@ -419,6 +566,125 @@ const photoClipPath = (layer: PhotoLayer, clipId: string): string => {
         [0.1, 0.5],
         [inset, 0.42],
       ])}" /></clipPath>`;
+  }
+};
+
+const defaultPhotoFrameColor = "#ffffff";
+
+const photoFrameFill = (layer: PhotoLayer): string => {
+  if (
+    layer.border.framePreset === "film" &&
+    layer.border.color.toLowerCase() === defaultPhotoFrameColor
+  ) {
+    return "#202426";
+  }
+
+  if (
+    layer.border.framePreset === "paper" &&
+    layer.border.color.toLowerCase() === defaultPhotoFrameColor
+  ) {
+    return "#fffdf7";
+  }
+
+  return layer.border.color;
+};
+
+const borderStrokeDasharray = (style: PhotoLayer["border"]["style"]): string =>
+  style === "dashed" ? "24 18" : style === "dotted" ? "4 14" : "";
+
+const rectSvg = (rect: PhotoFrameRect): string =>
+  `x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" rx="${rect.radius}"`;
+
+const renderFilmSprocketHolesSvg = (layer: PhotoLayer, layout: PhotoFrameLayout): string => {
+  const sideInset = Math.max(layout.insets.left, layout.insets.right);
+
+  if (sideInset <= 0) {
+    return "";
+  }
+
+  const holeWidth = Math.max(2, Math.min(sideInset * 0.42, layer.width * 0.05));
+  const holeHeight = Math.max(3, Math.min(holeWidth * 1.45, layer.height * 0.1));
+  const availableHeight = Math.max(1, layout.image.height);
+  const holeCount = Math.max(2, Math.min(12, Math.floor(availableHeight / (holeHeight * 1.65))));
+  const step = availableHeight / holeCount;
+  const leftX = layer.x + Math.max(0, (layout.insets.left - holeWidth) / 2);
+  const rightX =
+    layer.x +
+    layer.width -
+    layout.insets.right +
+    Math.max(0, (layout.insets.right - holeWidth) / 2);
+  const holes: string[] = [];
+
+  for (let index = 0; index < holeCount; index += 1) {
+    const holeY = layout.image.y + step * index + Math.max(0, (step - holeHeight) / 2);
+
+    holes.push(
+      `<rect data-frame-detail="film-sprocket" x="${leftX}" y="${holeY}" width="${holeWidth}" height="${holeHeight}" rx="${Math.min(holeWidth, holeHeight) * 0.18}" fill="#fffdf7" opacity="0.92" />`,
+      `<rect data-frame-detail="film-sprocket" x="${rightX}" y="${holeY}" width="${holeWidth}" height="${holeHeight}" rx="${Math.min(holeWidth, holeHeight) * 0.18}" fill="#fffdf7" opacity="0.92" />`,
+    );
+  }
+
+  return holes.join("");
+};
+
+const renderPaperTextureSvg = (layer: PhotoLayer): string => {
+  const stroke =
+    layer.border.color.toLowerCase() === defaultPhotoFrameColor ? "#d8ddd8" : "#ffffff";
+  const opacity = layer.border.color.toLowerCase() === defaultPhotoFrameColor ? 0.38 : 0.28;
+  const strokeWidth = Math.max(1, Math.min(layer.width, layer.height) * 0.004);
+  const paths = [
+    `M ${layer.x + layer.width * 0.05} ${layer.y + layer.height * 0.18} C ${layer.x + layer.width * 0.24} ${layer.y + layer.height * 0.1}, ${layer.x + layer.width * 0.34} ${layer.y + layer.height * 0.24}, ${layer.x + layer.width * 0.48} ${layer.y + layer.height * 0.15}`,
+    `M ${layer.x + layer.width * 0.68} ${layer.y + layer.height * 0.08} C ${layer.x + layer.width * 0.78} ${layer.y + layer.height * 0.18}, ${layer.x + layer.width * 0.84} ${layer.y + layer.height * 0.1}, ${layer.x + layer.width * 0.94} ${layer.y + layer.height * 0.2}`,
+    `M ${layer.x + layer.width * 0.12} ${layer.y + layer.height * 0.86} C ${layer.x + layer.width * 0.28} ${layer.y + layer.height * 0.78}, ${layer.x + layer.width * 0.42} ${layer.y + layer.height * 0.93}, ${layer.x + layer.width * 0.58} ${layer.y + layer.height * 0.84}`,
+    `M ${layer.x + layer.width * 0.72} ${layer.y + layer.height * 0.9} C ${layer.x + layer.width * 0.82} ${layer.y + layer.height * 0.82}, ${layer.x + layer.width * 0.9} ${layer.y + layer.height * 0.94}, ${layer.x + layer.width * 0.98} ${layer.y + layer.height * 0.84}`,
+  ];
+
+  return paths
+    .map(
+      (path) =>
+        `<path data-frame-detail="paper-fiber" d="${path}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}" />`,
+    )
+    .join("");
+};
+
+const renderPhotoFrameBackgroundSvg = (layer: PhotoLayer, layout: PhotoFrameLayout): string => {
+  const fill = escapeXml(photoFrameFill(layer));
+
+  switch (layer.border.framePreset) {
+    case "none":
+      return `<rect data-frame-preset="none" ${rectSvg(layout.outer)} fill="${escapeXml(layer.border.color)}" opacity="${layer.border.width > 0 ? 1 : 0}" />`;
+    case "film":
+      return `<rect data-frame-preset="film" ${rectSvg(layout.outer)} fill="${fill}" />${renderFilmSprocketHolesSvg(layer, layout)}`;
+    case "paper":
+      return `<rect data-frame-preset="paper" ${rectSvg(layout.outer)} fill="${fill}" />${renderPaperTextureSvg(layer)}`;
+    case "mat":
+    case "polaroid":
+      return `<rect data-frame-preset="${layer.border.framePreset}" ${rectSvg(layout.outer)} fill="${fill}" />`;
+  }
+};
+
+const renderPhotoFrameOverlaySvg = (layer: PhotoLayer, layout: PhotoFrameLayout): string => {
+  const dasharray = borderStrokeDasharray(layer.border.style);
+  const shortestSide = Math.min(layer.width, layer.height);
+  const apertureStrokeWidth = Math.max(1, shortestSide * 0.008);
+  const outerStrokeWidth = Math.max(1, layer.border.width * 0.12);
+  const frameInset = layer.border.width / 2;
+
+  switch (layer.border.framePreset) {
+    case "none":
+      return `<rect x="${layer.x + frameInset}" y="${layer.y + frameInset}" width="${Math.max(0, layer.width - layer.border.width)}" height="${Math.max(0, layer.height - layer.border.width)}" rx="${layer.border.radius}" fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${layer.border.width}" stroke-dasharray="${dasharray}" />`;
+    case "mat":
+      return `<rect data-frame-detail="mat-window" ${rectSvg(layout.image)} fill="none" stroke="#202426" stroke-opacity="0.12" stroke-width="${apertureStrokeWidth}" /><rect ${rectSvg(layout.outer)} fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${outerStrokeWidth}" stroke-dasharray="${dasharray}" opacity="${layer.border.width > 0 ? 0.7 : 0}" />`;
+    case "polaroid": {
+      const captionLineY = layer.y + layer.height - layout.insets.bottom * 0.42;
+      const captionInset = Math.max(layout.insets.left, shortestSide * 0.05);
+
+      return `<rect data-frame-detail="polaroid-window" ${rectSvg(layout.image)} fill="none" stroke="#202426" stroke-opacity="0.1" stroke-width="${apertureStrokeWidth}" /><path data-frame-detail="polaroid-caption" d="M ${layer.x + captionInset} ${captionLineY} L ${layer.x + layer.width - captionInset} ${captionLineY}" stroke="#202426" stroke-opacity="0.12" stroke-width="${Math.max(1, shortestSide * 0.006)}" stroke-linecap="round" />`;
+    }
+    case "film":
+      return `<rect data-frame-detail="film-window" ${rectSvg(layout.image)} fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="${apertureStrokeWidth}" /><rect ${rectSvg(layout.outer)} fill="none" stroke="#000000" stroke-opacity="0.18" stroke-width="${Math.max(1, shortestSide * 0.006)}" />`;
+    case "paper":
+      return `<rect data-frame-detail="paper-window" ${rectSvg(layout.image)} fill="none" stroke="#202426" stroke-opacity="0.1" stroke-width="${apertureStrokeWidth}" /><rect ${rectSvg(layout.outer)} fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${Math.max(1, shortestSide * 0.01)}" stroke-dasharray="${Math.max(4, shortestSide * 0.035)} ${Math.max(5, shortestSide * 0.028)}" stroke-linecap="round" opacity="0.62" />`;
   }
 };
 
@@ -454,15 +720,19 @@ const renderPhotoLayerSvg = (
   const clipId = idPrefix
     ? createSvgId(idPrefix, "photo", "clip", index)
     : createSvgId("photo", "clip", index);
-  const frameInset = layer.border.width / 2;
-  const imageWidth = layer.width / Math.max(layer.crop.width, 0.05);
-  const imageHeight = layer.height / Math.max(layer.crop.height, 0.05);
+  const frameLayout = getPhotoFrameLayout(layer);
+  const imageWidth = frameLayout.image.width / Math.max(layer.crop.width, 0.05);
+  const imageHeight = frameLayout.image.height / Math.max(layer.crop.height, 0.05);
   const imageX =
-    layer.x - layer.crop.x * imageWidth + layer.photoTransform.offsetX * imageWidth * 0.5;
+    frameLayout.image.x -
+    layer.crop.x * imageWidth +
+    layer.photoTransform.offsetX * imageWidth * 0.5;
   const imageY =
-    layer.y - layer.crop.y * imageHeight + layer.photoTransform.offsetY * imageHeight * 0.5;
-  const imageCenterX = layer.x + layer.width / 2;
-  const imageCenterY = layer.y + layer.height / 2;
+    frameLayout.image.y -
+    layer.crop.y * imageHeight +
+    layer.photoTransform.offsetY * imageHeight * 0.5;
+  const imageCenterX = frameLayout.image.x + frameLayout.image.width / 2;
+  const imageCenterY = frameLayout.image.y + frameLayout.image.height / 2;
   const scaleX = layer.photoTransform.flipX
     ? -layer.photoTransform.scale
     : layer.photoTransform.scale;
@@ -471,8 +741,8 @@ const renderPhotoLayerSvg = (
     : layer.photoTransform.scale;
 
   return {
-    defs: photoClipPath(layer, clipId),
-    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="${layer.border.radius}" fill="${escapeXml(layer.border.color)}" opacity="${layer.border.width > 0 ? 1 : 0}" /><image href="${escapeXml(href)}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}" clip-path="url(#${clipId})" transform="translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})" /><rect x="${layer.x + frameInset}" y="${layer.y + frameInset}" width="${Math.max(0, layer.width - layer.border.width)}" height="${Math.max(0, layer.height - layer.border.width)}" rx="${layer.border.radius}" fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${layer.border.width}" stroke-dasharray="${layer.border.style === "dashed" ? "24 18" : layer.border.style === "dotted" ? "4 14" : ""}" /></g>`,
+    defs: photoClipPath(layer, clipId, frameLayout.image),
+    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${renderPhotoFrameBackgroundSvg(layer, frameLayout)}<image href="${escapeXml(href)}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}" clip-path="url(#${clipId})" transform="translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})" />${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
   };
 };
 
