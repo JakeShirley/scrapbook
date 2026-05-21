@@ -21,14 +21,6 @@ export function LayerInspector({
 
   return (
     <form className="inspector-form">
-      <label>
-        <span>Name</span>
-        <input
-          value={layer.name}
-          maxLength={120}
-          onChange={(event) => onChange({ name: event.currentTarget.value })}
-        />
-      </label>
       <div className="inspector-grid">
         <label>
           <span>X</span>

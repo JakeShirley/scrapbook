@@ -2,7 +2,6 @@ import { z } from "zod";
 
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const layerIdSchema = z.string().min(1).max(160);
-const layerNameSchema = z.string().min(1).max(120);
 const roundToNearestTenth = (value: number): number => {
   const rounded = Math.round(value * 10) / 10;
 
@@ -122,7 +121,6 @@ export type StickerSvg = {
 
 const pageLayerBaseSchema = z.object({
   id: layerIdSchema,
-  name: layerNameSchema,
   x: coordinateSchema,
   y: coordinateSchema,
   width: positiveSizeSchema,
@@ -277,7 +275,6 @@ export type CreatePhotoLayerInput = Partial<
     | "id"
     | "locked"
     | "mask"
-    | "name"
     | "opacity"
     | "photoTransform"
     | "rotation"
@@ -300,7 +297,6 @@ export type CreateTextLayerInput = Partial<
     | "height"
     | "id"
     | "locked"
-    | "name"
     | "opacity"
     | "rotation"
     | "width"
@@ -321,7 +317,6 @@ export type CreateEmbellishmentLayerInput = Partial<
     | "id"
     | "label"
     | "locked"
-    | "name"
     | "opacity"
     | "rotation"
     | "width"
@@ -331,10 +326,7 @@ export type CreateEmbellishmentLayerInput = Partial<
 >;
 
 export type CreateStickerLayerInput = Partial<
-  Pick<
-    StickerLayer,
-    "height" | "id" | "locked" | "name" | "opacity" | "rotation" | "width" | "x" | "y"
-  >
+  Pick<StickerLayer, "height" | "id" | "locked" | "opacity" | "rotation" | "width" | "x" | "y">
 > & {
   stickerId?: string;
 };
@@ -867,7 +859,6 @@ export const createPhotoLayer = (input: CreatePhotoLayerInput): PhotoLayer =>
   photoLayerSchema.parse({
     id: input.id ?? createLayerId(),
     kind: "photo",
-    name: input.name ?? "Photo",
     assetId: input.assetId,
     x: input.x ?? 240,
     y: input.y ?? 240,
@@ -889,7 +880,6 @@ export const createTextLayer = (input: CreateTextLayerInput): TextLayer =>
   textLayerSchema.parse({
     id: input.id ?? createLayerId(),
     kind: "text",
-    name: input.name ?? "Text",
     text: input.text,
     x: input.x ?? 240,
     y: input.y ?? 1080,
@@ -910,7 +900,6 @@ export const createEmbellishmentLayer = (
   embellishmentLayerSchema.parse({
     id: input.id ?? createLayerId(),
     kind: "embellishment",
-    name: input.name ?? "Embellishment",
     x: input.x ?? 320,
     y: input.y ?? 320,
     width: input.width ?? 420,
@@ -928,7 +917,6 @@ export const createStickerLayer = (input: CreateStickerLayerInput = {}): Sticker
   stickerLayerSchema.parse({
     id: input.id ?? createLayerId(),
     kind: "sticker",
-    name: input.name ?? "Sticker",
     x: input.x ?? 360,
     y: input.y ?? 360,
     width: input.width ?? 360,
@@ -1029,7 +1017,6 @@ export const duplicateLayer = (
   const duplicate = pageLayerSchema.parse({
     ...layer,
     id: newLayerId,
-    name: `${layer.name} copy`,
     x: layer.x + 80,
     y: layer.y + 80,
   });

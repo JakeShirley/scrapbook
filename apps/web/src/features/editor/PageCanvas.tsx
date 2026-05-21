@@ -90,6 +90,15 @@ const formatFramePreset = (preset: PhotoLayer["border"]["framePreset"]) =>
 const formatMaskShape = (shape: PhotoLayer["mask"]["shape"]) =>
   shape.charAt(0).toUpperCase() + shape.slice(1);
 
+const formatLayerKind = (kind: PageLayer["kind"]): string =>
+  kind === "photo"
+    ? "Photo"
+    : kind === "text"
+      ? "Text"
+      : kind === "sticker"
+        ? "Sticker"
+        : "Embellishment";
+
 export function PageCanvas({
   assetById,
   document,
@@ -158,6 +167,8 @@ export function PageCanvas({
     : -1;
   const contextLayer = contextLayerIndex >= 0 ? document.layers[contextLayerIndex] : null;
   const selectedLayer = document.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const selectedLayerLabel = selectedLayer ? `${formatLayerKind(selectedLayer.kind)} layer` : null;
+  const contextLayerLabel = contextLayer ? `${formatLayerKind(contextLayer.kind)} layer` : null;
   const selectedSelectionFrame = selectedLayer ? getLayerSelectionFrame(selectedLayer) : null;
   const selectedLayerMenuPlacement =
     selectedSelectionFrame && selectedSelectionFrame.y > document.canvas.height * 0.16
@@ -463,6 +474,7 @@ export function PageCanvas({
           height: `${(selectionFrame.height / layer.height) * 100}%`,
           transform: `rotate(${selectionFrame.rotation}deg)`,
         };
+        const layerLabel = `${formatLayerKind(layer.kind)} layer`;
         return (
           <div
             key={isPreview ? `${interactiveLayer.sourcePageId}:${layer.id}` : layer.id}
@@ -476,9 +488,7 @@ export function PageCanvas({
           >
             <button
               type="button"
-              aria-label={`${layer.name} ${layer.kind} layer${
-                isPreview ? " from adjacent page" : ""
-              }`}
+              aria-label={`${layerLabel}${isPreview ? " from adjacent page" : ""}`}
               className="canvas-layer-hitbox"
               onClick={() => {
                 if (interactiveLayer.kind === "preview") {
@@ -550,7 +560,7 @@ export function PageCanvas({
           onPointerDown={(event) => event.stopPropagation()}
         >
           <div
-            aria-label={`${selectedLayer.name} actions`}
+            aria-label={`${selectedLayerLabel} actions`}
             className="selected-layer-action-bar"
             role="toolbar"
           >
@@ -656,15 +666,15 @@ export function PageCanvas({
           onPointerDown={(event) => event.stopPropagation()}
         >
           <section
-            aria-label={`Edit ${selectedLayer.name}`}
+            aria-label={`Edit ${selectedLayerLabel}`}
             aria-modal="true"
             className="selected-layer-edit-dialog"
             role="dialog"
           >
             <header className="selected-layer-edit-header">
               <div className="selected-layer-edit-title">
-                <span>{selectedLayer.kind}</span>
-                <h3>{selectedLayer.name}</h3>
+                <span>Layer</span>
+                <h3>{selectedLayerLabel}</h3>
               </div>
               <button
                 type="button"
@@ -688,7 +698,7 @@ export function PageCanvas({
       {contextMenu && contextLayer ? (
         <div
           ref={contextMenuRef}
-          aria-label={`${contextLayer.name} layer actions`}
+          aria-label={`${contextLayerLabel} actions`}
           className="layer-context-menu"
           role="menu"
           style={{ left: contextMenu.x, top: contextMenu.y }}

@@ -106,7 +106,7 @@ export function EditorView() {
   };
   const addText = () => {
     if (!document) return;
-    const layer = createTextLayer({ text: "New text", name: "Text" });
+    const layer = createTextLayer({ text: "New text" });
     editDocument(addLayer(document, layer));
     setSelectedLayerId(layer.id);
   };
@@ -114,7 +114,6 @@ export function EditorView() {
     if (!document) return;
     const layer = createPhotoLayer({
       assetId: asset.id,
-      name: asset.originalFilename,
       width: Math.min(document.canvas.width * 0.5, 1000),
       height: Math.min(document.canvas.height * 0.34, 760),
     });
@@ -138,7 +137,6 @@ export function EditorView() {
     const size = Math.min(document.canvas.width * 0.18, document.canvas.height * 0.18, 420);
     const layer = createStickerLayer({
       stickerId: sticker.id,
-      name: sticker.name,
       width: size,
       height: size,
       x: document.canvas.width * 0.12,

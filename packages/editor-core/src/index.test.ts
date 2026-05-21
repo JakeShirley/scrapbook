@@ -202,6 +202,7 @@ describe("page document helpers", () => {
     const layer = parsed.layers[0];
 
     expect(layer?.kind).toBe("photo");
+    expect(layer).not.toHaveProperty("name");
 
     if (layer?.kind !== "photo") {
       throw new Error("Expected a photo layer");
@@ -241,13 +242,12 @@ describe("page document helpers", () => {
   });
 
   it("creates package-backed sticker layers and normalizes legacy ids", () => {
-    const sticker = createStickerLayer({ id: "sticker_1", name: "Rainbow", stickerId: "rainbow" });
+    const sticker = createStickerLayer({ id: "sticker_1", stickerId: "rainbow" });
     const document = addLayer(createPageDocument(), sticker);
 
     expect(document.layers[0]).toMatchObject({
       id: "sticker_1",
       kind: "sticker",
-      name: "Rainbow",
       stickerId: "noto:rainbow",
     });
   });

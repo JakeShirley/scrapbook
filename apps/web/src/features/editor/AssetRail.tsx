@@ -83,7 +83,7 @@ export function AssetRail({
                 } as CSSProperties
               }
             />
-            <span>{preset.name}</span>
+            <span>{preset.displayName}</span>
           </button>
         ))}
       </div>

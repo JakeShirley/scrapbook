@@ -621,7 +621,7 @@ export function BookEditorView() {
       return;
     }
 
-    const layer = createTextLayer({ text: "New text", name: "Text" });
+    const layer = createTextLayer({ text: "New text" });
     editPageDocument(activePage.id, addLayer(activePage.document, layer));
     setSelectedLayerId(layer.id);
   };
@@ -633,7 +633,6 @@ export function BookEditorView() {
 
     const layer = createPhotoLayer({
       assetId: asset.id,
-      name: asset.originalFilename,
       width: Math.min(activePage.document.canvas.width * 0.5, 1000),
       height: Math.min(activePage.document.canvas.height * 0.34, 760),
     });
@@ -671,7 +670,6 @@ export function BookEditorView() {
     );
     const layer = createStickerLayer({
       stickerId: sticker.id,
-      name: sticker.name,
       width: size,
       height: size,
       x: activePage.document.canvas.width * 0.12,

@@ -2,43 +2,43 @@ import type { EmbellishmentLayer } from "@scrapbook/editor-core";
 
 export type EmbellishmentPreset = Pick<
   EmbellishmentLayer,
-  "accentColor" | "color" | "element" | "label" | "name"
->;
+  "accentColor" | "color" | "element" | "label"
+> & { displayName: string };
 
 export const embellishmentPresets: EmbellishmentPreset[] = [
   {
     accentColor: "#24766e",
     color: "#d6a537",
+    displayName: "Star sticker",
     element: "sticker-star",
     label: "",
-    name: "Star sticker",
   },
   {
     accentColor: "#d56d46",
     color: "#fffdf7",
+    displayName: "Paper label",
     element: "paper-label",
     label: "Memory",
-    name: "Paper label",
   },
   {
     accentColor: "#ffffff",
     color: "#79a9a4",
+    displayName: "Washi tape",
     element: "washi-tape",
     label: "",
-    name: "Washi tape",
   },
   {
     accentColor: "#202426",
     color: "#fffdf7",
+    displayName: "Photo corner",
     element: "photo-corner",
     label: "",
-    name: "Photo corner",
   },
   {
     accentColor: "#d6a537",
     color: "#f2d7c9",
+    displayName: "Pattern paper",
     element: "pattern-paper",
     label: "",
-    name: "Pattern paper",
   },
 ];
