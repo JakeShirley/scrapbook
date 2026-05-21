@@ -233,7 +233,7 @@ Goal: authenticated users can upload photos, preserve originals, and browse thei
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
 | E08.1 | Add asset API schemas | `Done` | E04.5, E05.2 | Asset DTOs and route schemas | Asset API ownership is documented in `docs/local-data.md`. |
-| E08.2 | Add upload endpoint | `Done` | E08.1, E05.5, E06.3 | `POST /api/v1/assets/uploads` | JPEG, PNG, and WebP uploads succeed; invalid files and oversized images return documented errors. |
+| E08.2 | Add upload endpoint | `Done` | E08.1, E05.5, E06.3 | `POST /api/v1/assets/uploads` | JPEG, PNG, WebP, and HEIC uploads succeed; invalid files and oversized images return documented errors. |
 | E08.3 | Add metadata extraction | `Done` | E08.2 | Sharp-backed metadata pipeline | Width, height, MIME, size, and checksum are stored. |
 | E08.4 | Add thumbnail generation | `Done` | E08.3 | Asset variant files and records | Thumbnail derivatives are generated without mutating originals. |
 | E08.5 | Add asset list/detail/content routes | `Done` | E08.4 | Library and streaming endpoints | Users can only access their own assets. |

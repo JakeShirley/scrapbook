@@ -3,6 +3,7 @@ import { type PageDocument, type PhotoLayer, renderPageDocumentSvg } from "@scra
 import { getStickerSvg } from "@scrapbook/editor-core/stickers";
 import sharp from "sharp";
 
+import { createSharpInputBuffer } from "../image-decoding.js";
 import type { Repositories } from "../persistence/repositories.js";
 import type { PageRecord } from "../persistence/schema.js";
 import { type RasterRenderSettings, renderScaleForSettings } from "./raster.js";
@@ -34,11 +35,12 @@ const createPhotoDataUri = async (input: {
     return `data:${input.mimeType};base64,${input.buffer.toString("base64")}`;
   }
 
-  const metadata = await sharp(input.buffer, {
+  const sharpInputBuffer = await createSharpInputBuffer(input.buffer);
+  const metadata = await sharp(sharpInputBuffer, {
     failOn: "warning",
     limitInputPixels: false,
   }).metadata();
-  const image = sharp(input.buffer, { failOn: "warning", limitInputPixels: false })
+  const image = sharp(sharpInputBuffer, { failOn: "warning", limitInputPixels: false })
     .rotate()
     .resize({
       fit: "inside",

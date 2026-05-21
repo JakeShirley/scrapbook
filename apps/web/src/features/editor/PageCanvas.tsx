@@ -111,6 +111,18 @@ const formatLayerKind = (kind: PageLayer["kind"]): string =>
         ? "Sticker"
         : "Embellishment";
 
+const nativeBrowserImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const resolveBrowserPhotoHref = (asset: Asset | undefined): string | undefined => {
+  if (!asset) {
+    return undefined;
+  }
+
+  return nativeBrowserImageMimeTypes.has(asset.mimeType)
+    ? (asset.originalContentUrl ?? asset.thumbnailUrl)
+    : (asset.thumbnailUrl ?? asset.originalContentUrl);
+};
+
 export function PageCanvas({
   assetById,
   document,
@@ -191,9 +203,7 @@ export function PageCanvas({
     () =>
       renderPageDocumentSvg(renderedDocument, {
         idPrefix: svgIdPrefix,
-        resolvePhotoHref: (layer) =>
-          assetById.get(layer.assetId)?.originalContentUrl ??
-          assetById.get(layer.assetId)?.thumbnailUrl,
+        resolvePhotoHref: (layer) => resolveBrowserPhotoHref(assetById.get(layer.assetId)),
         resolveStickerSvg: (layer) => stickerSvgById.get(layer.stickerId),
       }),
     [assetById, renderedDocument, stickerSvgById, svgIdPrefix],

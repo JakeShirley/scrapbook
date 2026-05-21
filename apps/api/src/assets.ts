@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import sharp from "sharp";
 
+import { createSharpInputBuffer, isHeicImage } from "./image-decoding.js";
 import type { Repositories } from "./persistence/repositories.js";
 import type { AssetRecord, AssetVariantRecord } from "./persistence/schema.js";
 import type { StorageArea, StoredObject } from "./storage/disk.js";
@@ -24,13 +25,14 @@ type UploadFile = {
   size?: number;
 };
 
-type SupportedImageFormat = "jpeg" | "png" | "webp";
+type SupportedImageFormat = "heic" | "jpeg" | "png" | "webp";
 
 const maxUploadByteSize = 20 * 1024 * 1024;
 const maxImageDimension = 20_000;
 const thumbnailMaxDimension = 360;
 
 const supportedImageTypes: Record<SupportedImageFormat, { mimeType: string; extension: string }> = {
+  heic: { mimeType: "image/heic", extension: ".heic" },
   jpeg: { mimeType: "image/jpeg", extension: ".jpg" },
   png: { mimeType: "image/png", extension: ".png" },
   webp: { mimeType: "image/webp", extension: ".webp" },
@@ -89,21 +91,34 @@ const readUploadBuffer = async (file: unknown): Promise<Buffer> => {
 };
 
 const readImageMetadata = async (buffer: Buffer) => {
-  let metadata: sharp.Metadata;
+  const isHeic = isHeicImage(buffer);
+  let sharpInputBuffer: Buffer;
 
   try {
-    metadata = await sharp(buffer, { failOn: "warning" }).metadata();
+    sharpInputBuffer = isHeic ? await createSharpInputBuffer(buffer) : buffer;
   } catch {
     throw new AssetUploadError("invalid_image", "Uploaded file is not a valid image");
   }
 
-  const format = metadata.format as SupportedImageFormat | undefined;
-  const imageType = format ? supportedImageTypes[format] : undefined;
+  let metadata: sharp.Metadata;
+
+  try {
+    metadata = await sharp(sharpInputBuffer, { failOn: "warning" }).metadata();
+  } catch {
+    throw new AssetUploadError("invalid_image", "Uploaded file is not a valid image");
+  }
+
+  const format = metadata.format as Exclude<SupportedImageFormat, "heic"> | "heif" | undefined;
+  const imageType = isHeic
+    ? supportedImageTypes.heic
+    : format && format !== "heif"
+      ? supportedImageTypes[format]
+      : undefined;
 
   if (!imageType) {
     throw new AssetUploadError(
       "unsupported_image_type",
-      "Uploaded image must be JPEG, PNG, or WebP",
+      "Uploaded image must be JPEG, PNG, WebP, or HEIC",
     );
   }
 
@@ -125,6 +140,7 @@ const readImageMetadata = async (buffer: Buffer) => {
     extension: imageType.extension,
     height: metadata.height,
     mimeType: imageType.mimeType,
+    sharpInputBuffer,
     width: metadata.width,
   };
 };
@@ -159,7 +175,7 @@ export const createAssetFromUpload = async (input: {
 }): Promise<{ asset: AssetRecord; variants: AssetVariantRecord[] }> => {
   const buffer = await readUploadBuffer(input.file);
   const metadata = await readImageMetadata(buffer);
-  const thumbnail = await createThumbnail(buffer);
+  const thumbnail = await createThumbnail(metadata.sharpInputBuffer);
   const originalStored = await input.storage.write("uploads", buffer, {
     extension: metadata.extension,
   });

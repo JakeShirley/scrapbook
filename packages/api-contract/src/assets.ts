@@ -64,7 +64,7 @@ const assetVariantParamsSchema = assetParamsSchema.extend({
 
 const assetUploadRequestSchema = z
   .object({
-    file: z.any().openapi({ type: "string", format: "binary" }),
+    file: z.instanceof(File).openapi({ type: "string", format: "binary" }),
   })
   .openapi("AssetUploadRequest");
 
@@ -96,6 +96,9 @@ const assetJsonResponses = {
 };
 
 const assetBinaryContent = {
+  "image/heic": {
+    schema: z.string().openapi({ type: "string", format: "binary" }),
+  },
   "image/jpeg": {
     schema: z.string().openapi({ type: "string", format: "binary" }),
   },

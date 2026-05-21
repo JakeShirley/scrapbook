@@ -106,6 +106,25 @@ const createPng = (): Promise<Buffer> =>
     .png()
     .toBuffer();
 
+const createHeic = (): Buffer =>
+  Buffer.from(
+    [
+      "AAAAGGZ0eXBoZWljAAAAAGhlaWNtaWYxAAAB7G1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAHBpY3QAAAAA",
+      "AAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAAADnBpdG0AAAAAAAEA",
+      "AAA4aWluZgAAAAAAAgAAABVpbmZlAgAAAAABAABodmMxAAAAABVpbmZlAgAAAQACAABFeGlmAAAAABpp",
+      "cmVmAAAAAAAAAA5jZHNjAAIAAQABAAABD2lwcnAAAADtaXBjbwAAABNjb2xybmNseAACAAIABoAAAAAM",
+      "Y2xsaQDLAEAAAAAUaXNwZQAAAAAAAAAMAAAACgAAAChjbGFwAAAADAAAAAEAAAAJAAAAAQAAAAAAAAAB",
+      "/8AAAACAAAAAAAAJaXJvdAAAAAAQcGl4aQAAAAADCAgIAAAAcWh2Y0MBA3AAAACwAAAAAAAe8AD8/fj4",
+      "AAALA6AAAQAXQAEMAf//A3AAAAMAsAAAAwAAAwAecCShAAEAI0IBAQNwAAADALAAAAMAAAMAHqAUIEHA",
+      "lw5iHuRZVNwICBgCogABAAlEAcBhcshEU2QAAAAaaXBtYQAAAAAAAAABAAEHgQIDBoeEhQAAACxpbG9j",
+      "AAAAAEQAAAIAAQAAAAEAAAJgAAAAUAACAAAAAQAAAhQAAABMAAAAAW1kYXQAAAAAAAAArAAAAAZFeGlm",
+      "AABNTQAqAAAACAADARoABQAAAAEAAAAyARsABQAAAAEAAAA6ASgAAwAAAAEAAgAAAAAAAAAAABkAAAAB",
+      "AAAAGQAAAAEAAABMKAGvo2MaYiP1H/7T9lW5yJFB0bfdB59DFNqitGvl+is14NCz4J1eZPfCbwd97Kyr",
+      "/QbEmTHgyBrtqYfta7a8U9/7jPch6LGnrxtCYA==",
+    ].join(""),
+    "base64",
+  );
+
 const toArrayBuffer = (buffer: Buffer): ArrayBuffer =>
   buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
@@ -297,6 +316,47 @@ describe("api app", () => {
     expect((await detailResponse.json()).id).toBe(uploaded.id);
     expect(originalResponse.status).toBe(200);
     expect(originalResponse.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await originalResponse.arrayBuffer())).toEqual(image);
+    expect(thumbnailResponse.status).toBe(200);
+    expect(thumbnailResponse.headers.get("content-type")).toBe("image/jpeg");
+    expect(Buffer.from(await thumbnailResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
+  it("uploads HEIC images and creates browser-readable thumbnails", async () => {
+    const app = await createTestAppWithStorage();
+    const cookie = await registerAccount(app, {
+      displayName: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+    const image = createHeic();
+    const uploadResponse = await uploadImage(
+      app,
+      cookie,
+      new File([toArrayBuffer(image)], "family.heic", { type: "image/heic" }),
+    );
+
+    expect(uploadResponse.status).toBe(201);
+
+    const uploaded = await uploadResponse.json();
+
+    expect(uploaded).toMatchObject({
+      originalFilename: "family.heic",
+      mimeType: "image/heic",
+      byteSize: image.byteLength,
+      width: 12,
+      height: 9,
+    });
+
+    const originalResponse = await app.request(`/api/v1/assets/${uploaded.id}/content`, {
+      headers: { cookie },
+    });
+    const thumbnailResponse = await app.request(
+      `/api/v1/assets/${uploaded.id}/variants/${uploaded.variants[0].id}`,
+      { headers: { cookie } },
+    );
+
+    expect(originalResponse.status).toBe(200);
+    expect(originalResponse.headers.get("content-type")).toBe("image/heic");
     expect(Buffer.from(await originalResponse.arrayBuffer())).toEqual(image);
     expect(thumbnailResponse.status).toBe(200);
     expect(thumbnailResponse.headers.get("content-type")).toBe("image/jpeg");

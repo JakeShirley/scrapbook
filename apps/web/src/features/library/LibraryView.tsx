@@ -74,7 +74,7 @@ export function LibraryView() {
       <WorkspaceHeader title="Library">
         <input
           ref={fileInputRef}
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/heic,image/heif,image/jpeg,image/png,image/webp,.heic,.heif"
           className="visually-hidden"
           type="file"
           onChange={uploadAsset}
