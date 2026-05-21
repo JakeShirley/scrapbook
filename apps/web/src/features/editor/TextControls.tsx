@@ -1,6 +1,7 @@
 import type { PageLayer } from "@scrapbook/editor-core";
 
 import { FontFamilySelect } from "./FontFamilySelect";
+import { TextAlignmentControl } from "./TextAlignmentControl";
 
 export function TextControls({
   layer,
@@ -46,17 +47,13 @@ export function TextControls({
           onChange={(event) => onChange({ color: event.currentTarget.value } as Partial<PageLayer>)}
         />
       </label>
-      <label>
+      <div className="text-alignment-field">
         <span>Align</span>
-        <select
+        <TextAlignmentControl
           value={layer.align}
-          onChange={(event) => onChange({ align: event.currentTarget.value } as Partial<PageLayer>)}
-        >
-          <option value="left">Left</option>
-          <option value="center">Center</option>
-          <option value="right">Right</option>
-        </select>
-      </label>
+          onChange={(align) => onChange({ align } as Partial<PageLayer>)}
+        />
+      </div>
     </>
   );
 }

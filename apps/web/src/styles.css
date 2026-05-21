@@ -1374,7 +1374,8 @@ textarea:focus-visible {
 }
 
 .editor-toolbar label,
-.inspector-form label {
+.inspector-form label,
+.inspector-form .text-alignment-field {
   display: grid;
   gap: 5px;
   color: #4f595c;
@@ -1745,6 +1746,50 @@ textarea:focus-visible {
   align-items: center;
   min-height: 50px;
   padding: 0 4px;
+}
+
+.text-alignment-selector {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 8px;
+  padding: 3px;
+  background: var(--sb-neutral-background-4);
+}
+
+.text-alignment-selector button {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  padding: 0;
+  color: var(--sb-neutral-foreground-2);
+  background: transparent;
+}
+
+.text-alignment-selector button:hover,
+.text-alignment-selector button[aria-pressed="true"] {
+  color: var(--sb-brand);
+  background: var(--sb-neutral-background);
+  box-shadow: var(--sb-shadow-4);
+}
+
+.text-alignment-selector button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.text-alignment-selector[data-compact="true"] {
+  grid-template-columns: repeat(3, 30px);
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
+.text-alignment-selector[data-compact="true"] button {
+  min-width: 30px;
+  min-height: 42px;
 }
 
 .font-family-select {
@@ -3153,6 +3198,7 @@ body {
 .book-settings-form label,
 .editor-toolbar label,
 .inspector-form label,
+.inspector-form .text-alignment-field,
 .fui-Field__label {
   color: var(--sb-neutral-foreground-2);
   font-size: 0.82rem;

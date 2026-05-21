@@ -25,6 +25,7 @@ import type { Asset } from "../../types";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
 import { FontFamilySelect } from "./FontFamilySelect";
 import { LayerInspector } from "./LayerInspector";
+import { TextAlignmentControl } from "./TextAlignmentControl";
 import {
   getAngle,
   getLayerCenter,
@@ -177,7 +178,7 @@ export function PageCanvas({
       : "below";
   const selectedLayerMenuHalfWidth = selectedLayer
     ? selectedLayer.kind === "text"
-      ? 148
+      ? 208
       : selectedLayer.kind === "photo"
         ? 100
         : 68
@@ -606,6 +607,18 @@ export function PageCanvas({
                   }
                 />
               </label>
+            ) : null}
+            {selectedLayer.kind === "text" ? (
+              <TextAlignmentControl
+                compact
+                className="selected-layer-align-control"
+                value={selectedLayer.align}
+                onChange={(align) =>
+                  changeLayer(selectedLayer.id, {
+                    align,
+                  } as Partial<PageLayer>)
+                }
+              />
             ) : null}
             <button
               type="button"
