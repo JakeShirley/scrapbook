@@ -1,20 +1,38 @@
 import opentype, { type Font } from "opentype.js";
 
-import { loveYaLikeASisterFontBase64 } from "./generated/loveYaLikeASisterFont.js";
+import { googleFontBase64ById } from "./generated/googleFonts.js";
+import { type GoogleFontDefinition, type GoogleFontId, googleFonts } from "./google-fonts.js";
 
 export const defaultTextFontFamily = "Inter, sans-serif";
 export const loveYaLikeASisterFontFamily = "Love Ya Like A Sister";
 
-export type EditorFontId = "system" | "love-ya-like-a-sister";
+export type EditorFontId = "system" | GoogleFontId;
+export type EditorFontCategory = "system" | GoogleFontDefinition["category"];
+export type EditorFontMatchKind = GoogleFontDefinition["matchKind"] | "bundled";
 
 export type EditorFontDefinition = {
-  category: "system" | "playful";
+  category: EditorFontCategory;
   family: string;
+  googleFamily?: string;
   id: EditorFontId;
   label: string;
   license: string;
+  matchKind: EditorFontMatchKind;
   source: string;
+  vendorPath?: string;
 };
+
+const googleFontDefinitions: readonly EditorFontDefinition[] = googleFonts.map((font) => ({
+  category: font.category,
+  family: font.family,
+  googleFamily: font.googleFamily,
+  id: font.id,
+  label: font.label,
+  license: font.license,
+  matchKind: font.matchKind,
+  source: `Google Fonts: ${font.googleFamily}`,
+  vendorPath: font.vendorPath,
+}));
 
 export const editorFontDefinitions: readonly EditorFontDefinition[] = [
   {
@@ -23,21 +41,29 @@ export const editorFontDefinitions: readonly EditorFontDefinition[] = [
     id: "system",
     label: "Inter",
     license: "System font stack",
+    matchKind: "bundled",
     source: "Bundled app default",
   },
-  {
-    category: "playful",
-    family: loveYaLikeASisterFontFamily,
-    id: "love-ya-like-a-sister",
-    label: "Love Ya Like A Sister",
-    license: "SIL Open Font License 1.1",
-    source: "Google Fonts",
-  },
+  ...googleFontDefinitions,
 ];
 
-export const editorFontFaceCss = `@font-face{font-family:'${loveYaLikeASisterFontFamily}';font-style:normal;font-weight:400;font-display:swap;src:url(data:font/truetype;base64,${loveYaLikeASisterFontBase64}) format('truetype');}`;
+const cssString = (value: string): string => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-const fontBase64ByFamily = new Map([[loveYaLikeASisterFontFamily, loveYaLikeASisterFontBase64]]);
+const fontFaceCss = (family: string, fontBase64: string): string =>
+  `@font-face{font-family:'${cssString(family)}';font-style:normal;font-weight:400;font-display:swap;src:url(data:font/truetype;base64,${fontBase64}) format('truetype');}`;
+
+const googleFontFaceCss = googleFonts
+  .map((font) => fontFaceCss(font.family, googleFontBase64ById[font.id]))
+  .join("");
+
+export const editorFontFaceCss = googleFontFaceCss;
+
+const googleFontBase64ByFamily = googleFonts.map(
+  (font) =>
+    [font.family, googleFontBase64ById[font.id]] as const satisfies readonly [string, string],
+);
+
+const fontBase64ByFamily = new Map<string, string>(googleFontBase64ByFamily);
 const parsedFontByFamily = new Map<string, Font>();
 
 const primaryFontFamily = (fontFamily: string): string =>

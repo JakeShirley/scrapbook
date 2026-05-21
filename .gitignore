@@ -5,6 +5,8 @@ coverage/
 .vite/
 *.tsbuildinfo
 
+packages/editor-core/src/generated/googleFonts.ts
+
 .env*
 !.env.example
 

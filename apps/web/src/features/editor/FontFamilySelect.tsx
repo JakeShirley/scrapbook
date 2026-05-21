@@ -2,7 +2,7 @@ import { editorFontDefinitions } from "@scrapbook/editor-core";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const quickFontLabels = new Map([["love-ya-like-a-sister", "Love Ya Sister"]]);
+const quickFontLabels = new Map([["google-love-ya-like-a-sister", "Love Ya Sister"]]);
 
 const fontStyle = (fontFamily: string): CSSProperties => ({ fontFamily });
 

@@ -11,6 +11,7 @@ import {
   deleteLayer,
   duplicateLayer,
   editorFontDefinitions,
+  editorFontFaceCss,
   getPhotoFrameLayout,
   loveYaLikeASisterFontFamily,
   pageDocumentSchema,
@@ -299,6 +300,49 @@ describe("page document helpers", () => {
     expect(svg).toContain(`data-font-family="${loveYaLikeASisterFontFamily}"`);
     expect(svg).toContain("<path");
     expect(svg).not.toContain("Playful");
+  });
+
+  it("exposes Google Fonts loose-match entries", () => {
+    const googleFontDefinitions = editorFontDefinitions.filter((fontDefinition) =>
+      fontDefinition.id.startsWith("google-"),
+    );
+
+    expect(googleFontDefinitions).toHaveLength(53);
+    expect(googleFontDefinitions).toContainEqual(
+      expect.objectContaining({
+        family: loveYaLikeASisterFontFamily,
+        googleFamily: loveYaLikeASisterFontFamily,
+        matchKind: "exact",
+      }),
+    );
+    expect(googleFontDefinitions).toContainEqual(
+      expect.objectContaining({
+        family: "Caslon Bold",
+        googleFamily: "Libre Caslon Text",
+        matchKind: "near",
+      }),
+    );
+    expect(googleFontDefinitions).toContainEqual(
+      expect.objectContaining({
+        family: "Helvetica Neue",
+        googleFamily: "Roboto",
+        matchKind: "substitute",
+      }),
+    );
+    expect(editorFontFaceCss).toContain("font-family:'Caslon Bold'");
+    expect(editorFontFaceCss).toContain("data:font/truetype;base64");
+    expect(editorFontFaceCss).not.toContain("fonts.gstatic.com");
+
+    const text = createTextLayer({
+      fontFamily: "Caslon Bold",
+      id: "text_1",
+      text: "Bundled Google font",
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }));
+
+    expect(svg).toContain('data-font-family="Caslon Bold"');
+    expect(svg).toContain("<path");
+    expect(svg).not.toContain("Bundled Google font");
   });
 
   it("renders photo frame presets as visible frame geometry", () => {

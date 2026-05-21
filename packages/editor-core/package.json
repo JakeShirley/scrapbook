@@ -17,9 +17,10 @@
   },
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "vitest run src",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "pnpm run generate:fonts && tsc -p tsconfig.json",
+    "generate:fonts": "node scripts/generate-fonts.mjs",
+    "test": "pnpm run generate:fonts && vitest run src",
+    "typecheck": "pnpm run generate:fonts && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@iconify-json/noto": "^1.2.7",
