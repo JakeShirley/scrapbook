@@ -1,5 +1,6 @@
 import type { ExportPreset } from "@scrapbook/api-contract";
 import { type PageDocument, type PhotoLayer, renderPageDocumentSvg } from "@scrapbook/editor-core";
+import { getStickerSvg } from "@scrapbook/editor-core/stickers";
 import sharp from "sharp";
 
 import type { Repositories } from "../persistence/repositories.js";
@@ -100,5 +101,6 @@ export const renderPageSvg = async (input: {
 
   return renderPageDocumentSvg(input.document, {
     resolvePhotoHref: (layer: PhotoLayer) => photoHrefs.get(layer.id),
+    resolveStickerSvg: (layer) => getStickerSvg(layer.stickerId),
   });
 };

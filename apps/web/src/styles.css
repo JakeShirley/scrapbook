@@ -2268,6 +2268,23 @@ textarea:focus-visible {
   height: 18px;
 }
 
+.sticker-picker-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.sticker-picker-item {
+  min-height: 218px;
+}
+
+.sticker-picker-item img {
+  padding: 18px;
+  background:
+    linear-gradient(45deg, rgb(32 36 38 / 4%) 25%, transparent 25%) 0 0 / 18px 18px,
+    linear-gradient(45deg, transparent 75%, rgb(32 36 38 / 4%) 75%) 0 0 / 18px 18px,
+    var(--sb-neutral-background-4);
+  object-fit: contain;
+}
+
 @media (max-width: 720px) {
   .selected-layer-edit-overlay {
     padding: 12px;
@@ -3473,7 +3490,7 @@ body {
 
 .book-editor-page .editor-asset-rail {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }

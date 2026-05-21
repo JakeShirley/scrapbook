@@ -6,6 +6,7 @@ import {
   createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
+  createStickerLayer,
   createTextLayer,
   deleteLayer,
   duplicateLayer,
@@ -238,6 +239,18 @@ describe("page document helpers", () => {
     });
   });
 
+  it("creates package-backed sticker layers and normalizes legacy ids", () => {
+    const sticker = createStickerLayer({ id: "sticker_1", name: "Rainbow", stickerId: "rainbow" });
+    const document = addLayer(createPageDocument(), sticker);
+
+    expect(document.layers[0]).toMatchObject({
+      id: "sticker_1",
+      kind: "sticker",
+      name: "Rainbow",
+      stickerId: "noto:rainbow",
+    });
+  });
+
   it("renders page primitives through the shared SVG renderer", () => {
     const photo = createPhotoLayer({
       assetId: "asset_1",
@@ -250,9 +263,14 @@ describe("page document helpers", () => {
       element: "washi-tape",
       color: "#79a9a4",
     });
-    const document = createPageDocument({ layers: [photo, text, embellishment] });
+    const sticker = createStickerLayer({ id: "sticker_2", stickerId: "noto:star" });
+    const document = createPageDocument({ layers: [photo, text, embellishment, sticker] });
     const svg = renderPageDocumentSvg(document, {
       resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+      resolveStickerSvg: () => ({
+        body: '<circle cx="50" cy="50" r="40" fill="#f4bd3f" />',
+        viewBox: "0 0 100 100",
+      }),
     });
 
     expect(svg).toContain("<svg");
@@ -260,6 +278,7 @@ describe("page document helpers", () => {
     expect(svg).toContain("Family &amp; friends");
     expect(svg).toContain("/assets/asset_1/content");
     expect(svg).toContain('stroke-opacity="0.34"');
+    expect(svg).toContain('fill="#f4bd3f"');
   });
 
   it("prefixes reusable SVG ids for pages rendered in the same DOM", () => {

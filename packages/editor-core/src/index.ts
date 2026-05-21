@@ -68,6 +68,58 @@ const defaultPhotoFilter = {
   saturation: 1,
 };
 
+export type StickerLibraryId = "noto" | "twemoji";
+export type StickerId = `${StickerLibraryId}:${string}`;
+
+const stickerIdPattern = /^(noto|twemoji):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const legacyStickerIds: Record<string, StickerId> = {
+  balloon: "noto:balloon",
+  camera: "noto:camera",
+  cupcake: "noto:cupcake",
+  flower: "noto:blossom",
+  "gold-star": "noto:star",
+  heart: "noto:red-heart",
+  "paper-clip": "noto:paperclip",
+  rainbow: "noto:rainbow",
+  sparkles: "noto:sparkles",
+  sunshine: "noto:sun-with-face",
+};
+
+export const stickerLibrarySummaries: readonly {
+  id: StickerLibraryId;
+  license: string;
+  name: string;
+}[] = [
+  { id: "noto", license: "Apache-2.0", name: "Noto Emoji" },
+  { id: "twemoji", license: "CC-BY-4.0", name: "Twemoji" },
+];
+
+export const normalizeStickerId = (stickerId: string): StickerId =>
+  legacyStickerIds[stickerId] ?? (stickerId as StickerId);
+
+const isStickerId = (value: unknown): value is StickerId =>
+  typeof value === "string" && stickerIdPattern.test(value);
+
+const stickerIdSchema = z.preprocess(
+  (value) => (typeof value === "string" ? normalizeStickerId(value) : value),
+  z.custom<StickerId>(isStickerId, "Sticker id must include a supported library prefix"),
+);
+
+export type StickerDefinition = {
+  category: string;
+  icon: string;
+  id: StickerId;
+  library: StickerLibraryId;
+  libraryName: string;
+  name: string;
+};
+
+export type StickerSvg = {
+  body: string;
+  viewBox: string;
+};
+
 const pageLayerBaseSchema = z.object({
   id: layerIdSchema,
   name: layerNameSchema,
@@ -160,10 +212,16 @@ export const embellishmentLayerSchema = pageLayerBaseSchema.extend({
   label: z.string().max(80),
 });
 
+export const stickerLayerSchema = pageLayerBaseSchema.extend({
+  kind: z.literal("sticker"),
+  stickerId: stickerIdSchema,
+});
+
 export const pageLayerSchema = z.discriminatedUnion("kind", [
   photoLayerSchema,
   textLayerSchema,
   embellishmentLayerSchema,
+  stickerLayerSchema,
 ]);
 
 export const pageDocumentSchema = z.object({
@@ -181,11 +239,13 @@ export type PageLayer = z.infer<typeof pageLayerSchema>;
 export type PhotoLayer = z.infer<typeof photoLayerSchema>;
 export type TextLayer = z.infer<typeof textLayerSchema>;
 export type EmbellishmentLayer = z.infer<typeof embellishmentLayerSchema>;
+export type StickerLayer = z.infer<typeof stickerLayerSchema>;
 export type PageLayerKind = PageLayer["kind"];
 
 export type RenderPageSvgOptions = {
   idPrefix?: string;
   resolvePhotoHref?: (layer: PhotoLayer) => string | null | undefined;
+  resolveStickerSvg?: (layer: StickerLayer) => StickerSvg | null | undefined;
 };
 
 export type OrderedBookPage = {
@@ -269,6 +329,15 @@ export type CreateEmbellishmentLayerInput = Partial<
     | "y"
   >
 >;
+
+export type CreateStickerLayerInput = Partial<
+  Pick<
+    StickerLayer,
+    "height" | "id" | "locked" | "name" | "opacity" | "rotation" | "width" | "x" | "y"
+  >
+> & {
+  stickerId?: string;
+};
 
 const createLayerId = (): string => `layer_${crypto.randomUUID()}`;
 
@@ -465,6 +534,17 @@ const renderEmbellishmentLayerSvg = (layer: EmbellishmentLayer): string => {
   return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${body}</g>`;
 };
 
+const renderStickerLayerSvg = (
+  layer: StickerLayer,
+  stickerSvg: StickerSvg | null | undefined,
+): string => {
+  if (!stickerSvg) {
+    return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="${Math.min(layer.width, layer.height) * 0.08}" fill="#f7f3eb" stroke="#d8ddd8" stroke-width="6" stroke-dasharray="18 14" /></g>`;
+  }
+
+  return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><svg x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" viewBox="${escapeXml(stickerSvg.viewBox)}" preserveAspectRatio="xMidYMid meet">${stickerSvg.body}</svg></g>`;
+};
+
 export const renderPageDocumentSvg = (
   document: PageDocument,
   options: RenderPageSvgOptions = {},
@@ -491,7 +571,11 @@ export const renderPageDocumentSvg = (
     }
 
     bodies.push(
-      layer.kind === "text" ? renderTextLayerSvg(layer) : renderEmbellishmentLayerSvg(layer),
+      layer.kind === "text"
+        ? renderTextLayerSvg(layer)
+        : layer.kind === "embellishment"
+          ? renderEmbellishmentLayerSvg(layer)
+          : renderStickerLayerSvg(layer, options.resolveStickerSvg?.(layer)),
     );
   }
 
@@ -568,6 +652,21 @@ export const createEmbellishmentLayer = (
     color: input.color ?? "#d6a537",
     accentColor: input.accentColor ?? "#24766e",
     label: input.label ?? "",
+  });
+
+export const createStickerLayer = (input: CreateStickerLayerInput = {}): StickerLayer =>
+  stickerLayerSchema.parse({
+    id: input.id ?? createLayerId(),
+    kind: "sticker",
+    name: input.name ?? "Sticker",
+    x: input.x ?? 360,
+    y: input.y ?? 360,
+    width: input.width ?? 360,
+    height: input.height ?? 360,
+    rotation: input.rotation ?? 0,
+    opacity: input.opacity ?? 1,
+    locked: input.locked ?? false,
+    stickerId: input.stickerId ?? "noto:red-heart",
   });
 
 export const resetPhotoLayerEdits = (layer: PhotoLayer): PhotoLayer =>

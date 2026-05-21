@@ -1,5 +1,6 @@
 import { Button } from "@fluentui/react-components";
-import { AddRegular, TextTRegular } from "@fluentui/react-icons";
+import { AddRegular, EmojiSparkleRegular, TextTRegular } from "@fluentui/react-icons";
+import { stickerLibrarySummaries } from "@scrapbook/editor-core";
 import type { CSSProperties } from "react";
 
 import { type EmbellishmentPreset, embellishmentPresets } from "./embellishments";
@@ -7,18 +8,22 @@ import { type EmbellishmentPreset, embellishmentPresets } from "./embellishments
 export function AssetRail({
   assetCount,
   isPhotoPickerDisabled = false,
+  isStickerPickerDisabled = false,
   onAddEmbellishment,
   onAddText,
   onOpenPhotoPicker,
+  onOpenStickerPicker,
 }: {
   assetCount: number;
   isPhotoPickerDisabled?: boolean;
+  isStickerPickerDisabled?: boolean;
   onAddEmbellishment: (preset: EmbellishmentPreset) => void;
   onAddText: () => void;
   onOpenPhotoPicker: () => void;
+  onOpenStickerPicker: () => void;
 }) {
   return (
-    <aside className="editor-panel editor-asset-rail" aria-label="Photos">
+    <aside className="editor-panel editor-asset-rail" aria-label="Assets">
       <div className="panel-heading compact-heading">
         <h3>Photos</h3>
         <span>{assetCount}</span>
@@ -33,6 +38,21 @@ export function AssetRail({
           onClick={onOpenPhotoPicker}
         >
           Add photo
+        </Button>
+      </div>
+      <div className="panel-heading compact-heading nested-heading">
+        <h3>Stickers</h3>
+        <span>{stickerLibrarySummaries.length} packs</span>
+      </div>
+      <div className="asset-rail-actions">
+        <Button
+          type="button"
+          className="secondary-button full-width-button"
+          disabled={isStickerPickerDisabled}
+          icon={<EmojiSparkleRegular />}
+          onClick={onOpenStickerPicker}
+        >
+          Add sticker
         </Button>
       </div>
       <div className="panel-heading compact-heading nested-heading">

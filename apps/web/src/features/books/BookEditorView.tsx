@@ -5,12 +5,14 @@ import {
   createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
+  createStickerLayer,
   createTextLayer,
   deleteLayer,
   type PageDocument,
   type PageLayer,
   reorderLayer,
   resizePageDocument,
+  type StickerDefinition,
   updateCanvas,
   updateLayer,
 } from "@scrapbook/editor-core";
@@ -28,6 +30,7 @@ import type { EmbellishmentPreset } from "../editor/embellishments";
 import type { CanvasPreviewLayer } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
 import { PngExportSettingsModal } from "../editor/PngExportSettingsModal";
+import { StickerPickerModal } from "../editor/StickerPickerModal";
 import { BookCanvasDeck } from "./BookCanvasDeck";
 import { BookEditorHeader } from "./BookEditorHeader";
 import { BookFilmstrip } from "./BookFilmstrip";
@@ -78,6 +81,7 @@ export function BookEditorView() {
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
+  const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
   const [pageDropTarget, setPageDropTarget] = useState<PageDropTarget | null>(null);
@@ -298,6 +302,7 @@ export function BookEditorView() {
         event.key.toLowerCase() !== "z" ||
         isBookSettingsOpen ||
         isPhotoPickerOpen ||
+        isStickerPickerOpen ||
         pngExportTarget
       ) {
         return;
@@ -316,7 +321,14 @@ export function BookEditorView() {
     document.addEventListener("keydown", handleHistoryShortcut);
 
     return () => document.removeEventListener("keydown", handleHistoryShortcut);
-  }, [isBookSettingsOpen, isPhotoPickerOpen, pngExportTarget, redoBookEdit, undoBookEdit]);
+  }, [
+    isBookSettingsOpen,
+    isPhotoPickerOpen,
+    isStickerPickerOpen,
+    pngExportTarget,
+    redoBookEdit,
+    undoBookEdit,
+  ]);
 
   const changePageTitle = (pageId: string, title: string) => {
     updatePageDetail(pageId, (page) => ({ ...page, title }));
@@ -639,6 +651,29 @@ export function BookEditorView() {
       ...preset,
       width: Math.min(activePage.document.canvas.width * 0.28, 620),
       height: Math.min(activePage.document.canvas.height * 0.12, 320),
+      x: activePage.document.canvas.width * 0.12,
+      y: activePage.document.canvas.height * 0.12,
+    });
+
+    editPageDocument(activePage.id, addLayer(activePage.document, layer));
+    setSelectedLayerId(layer.id);
+  };
+
+  const addSticker = (sticker: StickerDefinition) => {
+    if (!activePage) {
+      return;
+    }
+
+    const size = Math.min(
+      activePage.document.canvas.width * 0.18,
+      activePage.document.canvas.height * 0.18,
+      420,
+    );
+    const layer = createStickerLayer({
+      stickerId: sticker.id,
+      name: sticker.name,
+      width: size,
+      height: size,
       x: activePage.document.canvas.width * 0.12,
       y: activePage.document.canvas.height * 0.12,
     });
@@ -1083,6 +1118,13 @@ export function BookEditorView() {
           onClose={() => setIsPhotoPickerOpen(false)}
         />
       ) : null}
+      {isStickerPickerOpen ? (
+        <StickerPickerModal
+          eyebrow={activePage?.title ?? book.title}
+          onAddSticker={addSticker}
+          onClose={() => setIsStickerPickerOpen(false)}
+        />
+      ) : null}
       {isBookSettingsOpen ? (
         <BookSettingsModal
           book={book}
@@ -1113,9 +1155,11 @@ export function BookEditorView() {
         <AssetRail
           assetCount={assets.length}
           isPhotoPickerDisabled={!activePage}
+          isStickerPickerDisabled={!activePage}
           onAddEmbellishment={addEmbellishment}
           onAddText={addText}
           onOpenPhotoPicker={() => setIsPhotoPickerOpen(true)}
+          onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
         />
         <section className="book-editor-stage" aria-label="Book editor">
           <BookModeBar

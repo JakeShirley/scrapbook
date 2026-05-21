@@ -141,6 +141,18 @@ importers:
 
   packages/editor-core:
     dependencies:
+      '@iconify-json/noto':
+        specifier: ^1.2.7
+        version: 1.2.7
+      '@iconify-json/twemoji':
+        specifier: ^1.2.5
+        version: 1.2.5
+      '@iconify/types':
+        specifier: ^2.0.0
+        version: 2.0.0
+      '@iconify/utils':
+        specifier: ^3.1.3
+        version: 3.1.3
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -160,6 +172,9 @@ packages:
 
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
+
+  '@antfu/install-pkg@1.1.0':
+    resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
   '@asteasolutions/zod-to-openapi@8.5.0':
     resolution: {integrity: sha512-SABbKiObg5dLRiTFnqiW1WWwGcg1BJfmHtT2asIBnBHg6Smy/Ms2KHc650+JI4Hw7lSkdiNebEGXpwoxfben8Q==}
@@ -970,6 +985,18 @@ packages:
     peerDependencies:
       hono: '>=4.10.0'
       zod: ^3.25.0 || ^4.0.0
+
+  '@iconify-json/noto@1.2.7':
+    resolution: {integrity: sha512-2pNHliXnMLpnepNTZwR9hPBSl6GmhIfXPnudFCHY5v9pJhmA7LoVb/pFY0qLDY/k+3ikET8RXRf7XFxc/pHObA==}
+
+  '@iconify-json/twemoji@1.2.5':
+    resolution: {integrity: sha512-uKpuIEV0v6K5BW3Mjdyl+XKFVAbbcPxAgifKvEMtZoUZB5+YiY5zaMm2uNNCxyXzAWU9yNLlj41WU6/mvgALsw==}
+
+  '@iconify/types@2.0.0':
+    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
+
+  '@iconify/utils@3.1.3':
+    resolution: {integrity: sha512-LPKOXPn/zV+zis1oOfGWogaXVpqUybF3ZS6SCZIsz8vg0ivVp9+fVqyYB7xq0aiST/VhUQYGO1qo6uoYSiEJqw==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2403,6 +2430,9 @@ packages:
     resolution: {integrity: sha512-U1etNYuMJoIz3ZXSrrySFjsXQTWOx2/jdi86L+2pRvph/qMKL6sbcCYdH23fqsbm8TH2Gn0OybpT4eSFlCVHww==}
     engines: {node: '>=4'}
 
+  package-manager-detector@1.6.0:
+    resolution: {integrity: sha512-61A5ThoTiDG/C8s8UMZwSorAGwMJ0ERVGj2OjoW5pAalsNOg15+iQiPzrLJ4jhZ1HJzmC2PIHT2oEiH3R5fzNA==}
+
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
@@ -3035,6 +3065,11 @@ snapshots:
       undici: 6.25.0
 
   '@actions/io@3.0.2': {}
+
+  '@antfu/install-pkg@1.1.0':
+    dependencies:
+      package-manager-detector: 1.6.0
+      tinyexec: 1.1.2
 
   '@asteasolutions/zod-to-openapi@8.5.0(zod@4.4.3)':
     dependencies:
@@ -4390,6 +4425,22 @@ snapshots:
       hono: 4.12.19
       zod: 4.4.3
 
+  '@iconify-json/noto@1.2.7':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/twemoji@1.2.5':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify/types@2.0.0': {}
+
+  '@iconify/utils@3.1.3':
+    dependencies:
+      '@antfu/install-pkg': 1.1.0
+      '@iconify/types': 2.0.0
+      import-meta-resolve: 4.2.0
+
   '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.34.5':
@@ -5531,6 +5582,8 @@ snapshots:
   p-timeout@6.1.4: {}
 
   p-try@1.0.0: {}
+
+  package-manager-detector@1.6.0: {}
 
   pako@1.0.11: {}
 

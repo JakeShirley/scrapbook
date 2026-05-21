@@ -11,6 +11,7 @@ import {
   type PageLayer,
   type PhotoLayer,
   renderPageDocumentSvg,
+  type StickerSvg,
 } from "@scrapbook/editor-core";
 import type {
   CSSProperties,
@@ -121,9 +122,20 @@ export function PageCanvas({
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
   );
+  const [stickerSvgById, setStickerSvgById] = useState<Map<string, StickerSvg>>(new Map());
   const interactiveLayers = useMemo<InteractiveCanvasLayer[]>(
     () => mergeCanvasLayers(document.layers, previewLayers),
     [document.layers, previewLayers],
+  );
+  const stickerIds = useMemo(
+    () => [
+      ...new Set(
+        interactiveLayers.flatMap(({ layer }) =>
+          layer.kind === "sticker" ? [layer.stickerId] : [],
+        ),
+      ),
+    ],
+    [interactiveLayers],
   );
   const renderedDocument = useMemo(
     () => ({ ...document, layers: interactiveLayers.map(({ layer }) => layer) }),
@@ -136,8 +148,9 @@ export function PageCanvas({
         resolvePhotoHref: (layer) =>
           assetById.get(layer.assetId)?.originalContentUrl ??
           assetById.get(layer.assetId)?.thumbnailUrl,
+        resolveStickerSvg: (layer) => stickerSvgById.get(layer.stickerId),
       }),
-    [assetById, renderedDocument, svgIdPrefix],
+    [assetById, renderedDocument, stickerSvgById, svgIdPrefix],
   );
   const contextLayerIndex = contextMenu
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)
@@ -172,6 +185,40 @@ export function PageCanvas({
   const closeContextMenu = () => setContextMenu(null);
   const changeLayer = (layerId: string, update: Partial<PageLayer>) =>
     (onChangeLayer ?? onTransformLayer)(layerId, update);
+
+  useEffect(() => {
+    const missingStickerIds = stickerIds.filter((stickerId) => !stickerSvgById.has(stickerId));
+
+    if (missingStickerIds.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    import("@scrapbook/editor-core/stickers").then(({ getStickerSvg }) => {
+      if (isCancelled) {
+        return;
+      }
+
+      setStickerSvgById((currentStickerSvgs) => {
+        const nextStickerSvgs = new Map(currentStickerSvgs);
+
+        for (const stickerId of missingStickerIds) {
+          const stickerSvg = getStickerSvg(stickerId);
+
+          if (stickerSvg) {
+            nextStickerSvgs.set(stickerId, stickerSvg);
+          }
+        }
+
+        return nextStickerSvgs;
+      });
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [stickerIds, stickerSvgById]);
 
   useEffect(() => {
     if (!selectedLayerId) setActiveSelectionPanel(null);
