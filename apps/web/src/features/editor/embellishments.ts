@@ -7,13 +7,6 @@ export type EmbellishmentPreset = Pick<
 
 export const embellishmentPresets: EmbellishmentPreset[] = [
   {
-    accentColor: "#24766e",
-    color: "#d6a537",
-    displayName: "Star sticker",
-    element: "sticker-star",
-    label: "",
-  },
-  {
     accentColor: "#d56d46",
     color: "#fffdf7",
     displayName: "Paper label",

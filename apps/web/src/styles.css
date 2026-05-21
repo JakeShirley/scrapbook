@@ -2038,21 +2038,6 @@ textarea:focus-visible {
   border-radius: 6px;
 }
 
-.element-preview[data-element="sticker-star"] {
-  clip-path: polygon(
-    50% 0%,
-    61% 32%,
-    95% 32%,
-    68% 52%,
-    78% 87%,
-    50% 66%,
-    22% 87%,
-    32% 52%,
-    5% 32%,
-    39% 32%
-  );
-}
-
 .element-preview[data-element="paper-label"] {
   border: 2px solid var(--element-accent);
   border-radius: 8px;

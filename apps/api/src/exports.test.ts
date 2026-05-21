@@ -342,23 +342,6 @@ describe("PNG page exports", () => {
   });
 
   it("renders every embellishment element style", async () => {
-    const star = await renderDocumentPng(
-      createPageDocument({
-        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
-        layers: [
-          createEmbellishmentLayer({
-            color: "#d6a537",
-            element: "sticker-star",
-            height: 160,
-            label: "",
-            rotation: 0,
-            width: 160,
-            x: 80,
-            y: 80,
-          }),
-        ],
-      }),
-    );
     const paperLabel = await renderDocumentPng(
       createPageDocument({
         canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
@@ -431,8 +414,6 @@ describe("PNG page exports", () => {
       }),
     );
 
-    expectColorNear(pixelAt(star, 160, 160), { blue: 55, green: 165, red: 214 });
-    expectColorNear(pixelAt(star, 88, 88), scrapbookBackground);
     expectColorNear(pixelAt(paperLabel, 82, 160), { blue: 70, green: 109, red: 213 }, 18);
     expectColorNear(pixelAt(paperLabel, 160, 160), { blue: 247, green: 253, red: 255 });
     expect(

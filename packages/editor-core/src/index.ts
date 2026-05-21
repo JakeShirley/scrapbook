@@ -217,7 +217,7 @@ export const textLayerSchema = pageLayerBaseSchema.extend({
 
 export const embellishmentLayerSchema = pageLayerBaseSchema.extend({
   kind: z.literal("embellishment"),
-  element: z.enum(["sticker-star", "paper-label", "washi-tape", "photo-corner", "pattern-paper"]),
+  element: z.enum(["paper-label", "washi-tape", "photo-corner", "pattern-paper"]),
   color: colorSchema,
   accentColor: colorSchema,
   label: z.string().max(80),
@@ -841,20 +841,6 @@ const renderEmbellishmentLayerSvg = (layer: EmbellishmentLayer): string => {
   let body: string;
 
   switch (layer.element) {
-    case "sticker-star":
-      body = `<polygon points="${layerPolygon(layer, [
-        [0.5, 0],
-        [0.61, 0.32],
-        [0.95, 0.32],
-        [0.68, 0.52],
-        [0.78, 0.87],
-        [0.5, 0.66],
-        [0.22, 0.87],
-        [0.32, 0.52],
-        [0.05, 0.32],
-        [0.39, 0.32],
-      ])}" fill="${fill}" />${label ? labelText : ""}`;
-      break;
     case "paper-label":
       body = `<rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="8" fill="${fill}" stroke="${accent}" stroke-width="8" /><rect x="${layer.x + 16}" y="${layer.y + 16}" width="${Math.max(0, layer.width - 32)}" height="${Math.max(0, layer.height - 32)}" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.48" stroke-width="5" />${labelText}`;
       break;
@@ -1002,7 +988,7 @@ export const createEmbellishmentLayer = (
     rotation: input.rotation ?? -4,
     opacity: input.opacity ?? 1,
     locked: input.locked ?? false,
-    element: input.element ?? "sticker-star",
+    element: input.element ?? "paper-label",
     color: input.color ?? "#d6a537",
     accentColor: input.accentColor ?? "#24766e",
     label: input.label ?? "",
