@@ -2214,6 +2214,16 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.text-controls-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.layer-controls-grid {
+  display: grid;
+  gap: 8px;
+}
+
 .checkbox-label {
   grid-template-columns: auto 1fr;
   align-items: center;
@@ -3327,7 +3337,7 @@ body {
   z-index: 60;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 18px;
   background: rgb(0 0 0 / 46%);
   backdrop-filter: blur(2px);
 }
@@ -3335,8 +3345,8 @@ body {
 .selected-layer-edit-dialog {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(1100px, calc(100vw - 48px));
-  height: min(860px, calc(100vh - 48px));
+  width: min(640px, calc(100vw - 36px));
+  max-height: min(720px, calc(100vh - 36px));
   overflow: hidden;
   border: 1px solid var(--sb-neutral-stroke-2);
   border-radius: 8px;
@@ -3348,10 +3358,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 68px;
+  gap: 14px;
+  min-height: 54px;
   border-bottom: 1px solid var(--sb-neutral-stroke-3);
-  padding: 14px 18px;
+  padding: 10px 14px;
   background: var(--sb-neutral-background);
 }
 
@@ -3363,7 +3373,7 @@ body {
 
 .selected-layer-edit-title span {
   color: var(--sb-neutral-foreground-3);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -3372,7 +3382,7 @@ body {
   overflow: hidden;
   margin: 0;
   color: var(--sb-neutral-foreground);
-  font-size: 1.12rem;
+  font-size: 0.98rem;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3381,8 +3391,8 @@ body {
 .selected-layer-edit-close {
   display: grid;
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   place-items: center;
   border: 1px solid var(--sb-neutral-stroke);
   border-radius: 6px;
@@ -3395,8 +3405,8 @@ body {
 }
 
 .selected-layer-edit-close svg {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
 .selected-layer-edit-body {
@@ -3406,19 +3416,139 @@ body {
 }
 
 .selected-layer-edit-body .inspector-form {
-  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
-  gap: 16px;
+  align-items: stretch;
+  gap: 10px;
   border-top: 0;
-  padding: 18px;
+  padding: 10px;
 }
 
-.selected-layer-edit-body .inspector-form > label:first-child {
+.selected-layer-edit-body .layer-details-section,
+.selected-layer-edit-body .layer-inspector-section,
+.selected-layer-edit-body .text-controls-section {
   grid-column: 1 / -1;
 }
 
+.selected-layer-edit-body .inspector-form label,
+.selected-layer-edit-body .inspector-form .text-alignment-field {
+  gap: 3px;
+  font-size: 0.72rem;
+}
+
+.selected-layer-edit-body .inspector-form input,
+.selected-layer-edit-body .inspector-form select,
+.selected-layer-edit-body .inspector-form textarea {
+  min-height: 24px;
+  border-radius: 5px;
+  padding: 0 6px;
+  font-size: 0.78rem;
+}
+
+.selected-layer-edit-body .inspector-form textarea {
+  min-height: 54px;
+  padding-block: 5px;
+}
+
+.selected-layer-edit-body .inspector-form input[type="range"] {
+  padding: 0;
+}
+
+.selected-layer-edit-body .inspector-form input[type="color"] {
+  width: 34px;
+  padding: 2px;
+}
+
+.selected-layer-edit-body .layer-inspector-section {
+  align-content: start;
+  align-items: start;
+}
+
+.selected-layer-edit-body .layer-controls-grid {
+  grid-template-columns: repeat(4, 92px) 120px;
+  align-items: end;
+  gap: 8px;
+}
+
+.selected-layer-edit-body .rotation-field {
+  width: 120px;
+}
+
+.selected-layer-edit-body .opacity-field {
+  width: 220px;
+}
+
+.selected-layer-edit-body .layer-controls-grid .opacity-field {
+  grid-column: 1 / 3;
+}
+
+.selected-layer-edit-body .layer-controls-grid .checkbox-label {
+  grid-column: 4 / 6;
+}
+
+.selected-layer-edit-body .font-family-select-trigger {
+  min-height: 28px;
+  padding-inline: 8px 26px;
+  font-size: 0.78rem;
+}
+
+.selected-layer-edit-body .font-family-select-trigger::after {
+  right: 9px;
+  width: 7px;
+  height: 7px;
+}
+
+.selected-layer-edit-body .text-alignment-selector {
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.selected-layer-edit-body .text-alignment-selector button {
+  min-height: 26px;
+}
+
+.selected-layer-edit-body .text-alignment-selector button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.selected-layer-edit-body .inspector-grid {
+  gap: 5px;
+}
+
+.selected-layer-edit-body .text-controls-grid {
+  grid-template-columns: 240px 180px 88px;
+  align-items: start;
+  gap: 8px;
+  justify-content: start;
+}
+
+.selected-layer-edit-body .text-content-field {
+  grid-row: span 2;
+}
+
+.selected-layer-edit-body .text-alignment-field {
+  grid-column: 2 / 4;
+}
+
+.selected-layer-edit-body .checkbox-label {
+  align-self: end;
+  min-height: 24px;
+}
+
+.selected-layer-edit-body .checkbox-label input {
+  min-height: auto;
+}
+
 .selected-layer-edit-body .inspector-section {
+  gap: 6px;
+  padding: 7px;
   background: var(--sb-neutral-background);
+}
+
+.selected-layer-edit-body .inspector-section legend {
+  font-size: 0.68rem;
+  letter-spacing: 0;
 }
 
 .selected-layer-edit-body .full-width-button {

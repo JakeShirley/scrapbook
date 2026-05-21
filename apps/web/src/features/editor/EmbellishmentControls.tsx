@@ -8,7 +8,8 @@ export function EmbellishmentControls({
   onChange: (update: Partial<PageLayer>) => void;
 }) {
   return (
-    <>
+    <fieldset className="inspector-section layer-details-section">
+      <legend>Details</legend>
       <label>
         <span>Label</span>
         <input
@@ -39,6 +40,6 @@ export function EmbellishmentControls({
           />
         </label>
       </div>
-    </>
+    </fieldset>
   );
 }
