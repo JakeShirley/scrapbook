@@ -297,9 +297,52 @@ describe("page document helpers", () => {
     expect(editorFontDefinitions).toContainEqual(
       expect.objectContaining({ family: loveYaLikeASisterFontFamily }),
     );
+    expect(svg).toContain('data-layer-id="text_1"');
     expect(svg).toContain(`data-font-family="${loveYaLikeASisterFontFamily}"`);
     expect(svg).toContain("<path");
     expect(svg).not.toContain("Playful");
+  });
+
+  it("keeps bundled text path geometry stable when moving layers", () => {
+    const text = createTextLayer({
+      fontFamily: loveYaLikeASisterFontFamily,
+      id: "text_1",
+      text: "Move me",
+      x: 120,
+      y: 180,
+    });
+    const movedText = createTextLayer({ ...text, x: 360, y: 420 });
+    const pathDataPattern = /<path d="([^"]+)" \/>/;
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }));
+    const movedSvg = renderPageDocumentSvg(createPageDocument({ layers: [movedText] }));
+
+    expect(svg.match(pathDataPattern)?.[1]).toBe(movedSvg.match(pathDataPattern)?.[1]);
+    expect(svg).toContain('transform="translate(120 180)"');
+    expect(movedSvg).toContain('transform="translate(360 420)"');
+  });
+
+  it("renders script font glyphs as separate paths", () => {
+    const pacifico = createTextLayer({
+      fontFamily: "Pacifico",
+      fontSize: 180,
+      id: "text_1",
+      text: "New text",
+    });
+    const monteCarlo = createTextLayer({
+      fontFamily: "Monte Carlo",
+      fontSize: 180,
+      id: "text_2",
+      text: "New text",
+    });
+    const pacificoSvg = renderPageDocumentSvg(createPageDocument({ layers: [pacifico] }));
+    const monteCarloSvg = renderPageDocumentSvg(createPageDocument({ layers: [monteCarlo] }));
+
+    expect(pacificoSvg).toContain('data-font-family="Pacifico"');
+    expect(pacificoSvg.match(/<path /g)).toHaveLength(7);
+    expect(pacificoSvg).not.toContain("NaN");
+    expect(monteCarloSvg).toContain('data-font-family="Monte Carlo"');
+    expect(monteCarloSvg.match(/<path /g)).toHaveLength(7);
+    expect(monteCarloSvg).not.toContain("NaN");
   });
 
   it("exposes Google Fonts loose-match entries", () => {

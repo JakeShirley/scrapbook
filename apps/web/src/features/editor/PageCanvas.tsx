@@ -19,7 +19,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { Asset } from "../../types";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
@@ -69,6 +69,16 @@ const mergeCanvasLayers = (
       stackIndex,
     })),
   ].sort((left, right) => left.stackIndex - right.stackIndex);
+
+const applyLayerUpdate = (layer: PageLayer, update: Partial<PageLayer>): PageLayer =>
+  ({ ...layer, ...update }) as PageLayer;
+
+const layerRotationTransform = (layer: PageLayer): string => {
+  const centerX = layer.x + layer.width / 2;
+  const centerY = layer.y + layer.height / 2;
+
+  return `rotate(${layer.rotation} ${centerX} ${centerY})`;
+};
 
 const framePresetOptions: PhotoLayer["border"]["framePreset"][] = [
   "none",
@@ -129,7 +139,17 @@ export function PageCanvas({
   const svgIdPrefix = useId();
   const canvasRef = useRef<HTMLFieldSetElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const renderSurfaceRef = useRef<HTMLDivElement>(null);
+  const textTransformPreviewRef = useRef<{
+    group: SVGGElement;
+    localGroup: SVGGElement;
+    localTransform: string | null;
+    outerTransform: string | null;
+  } | null>(null);
   const [activeTransform, setActiveTransform] = useState<ActiveTransform | null>(null);
+  const [activeTransformUpdate, setActiveTransformUpdate] = useState<Partial<PageLayer> | null>(
+    null,
+  );
   const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
@@ -153,6 +173,20 @@ export function PageCanvas({
     () => ({ ...document, layers: interactiveLayers.map(({ layer }) => layer) }),
     [document, interactiveLayers],
   );
+  const displayedInteractiveLayers = useMemo<InteractiveCanvasLayer[]>(() => {
+    if (!activeTransformUpdate || !activeTransform) {
+      return interactiveLayers;
+    }
+
+    return interactiveLayers.map((interactiveLayer) =>
+      interactiveLayer.kind === "document" && interactiveLayer.layer.id === activeTransform.layerId
+        ? {
+            ...interactiveLayer,
+            layer: applyLayerUpdate(interactiveLayer.layer, activeTransformUpdate),
+          }
+        : interactiveLayer,
+    );
+  }, [activeTransform, activeTransformUpdate, interactiveLayers]);
   const renderedSvg = useMemo(
     () =>
       renderPageDocumentSvg(renderedDocument, {
@@ -168,7 +202,11 @@ export function PageCanvas({
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)
     : -1;
   const contextLayer = contextLayerIndex >= 0 ? document.layers[contextLayerIndex] : null;
-  const selectedLayer = document.layers.find((layer) => layer.id === selectedLayerId) ?? null;
+  const selectedLayer =
+    displayedInteractiveLayers.find(
+      (interactiveLayer) =>
+        interactiveLayer.kind === "document" && interactiveLayer.layer.id === selectedLayerId,
+    )?.layer ?? null;
   const selectedLayerLabel = selectedLayer ? `${formatLayerKind(selectedLayer.kind)} layer` : null;
   const contextLayerLabel = contextLayer ? `${formatLayerKind(contextLayer.kind)} layer` : null;
   const selectedSelectionFrame = selectedLayer ? getLayerSelectionFrame(selectedLayer) : null;
@@ -201,6 +239,25 @@ export function PageCanvas({
   const closeContextMenu = () => setContextMenu(null);
   const changeLayer = (layerId: string, update: Partial<PageLayer>) =>
     (onChangeLayer ?? onTransformLayer)(layerId, update);
+  const restoreTextTransformPreview = useCallback(() => {
+    const preview = textTransformPreviewRef.current;
+
+    if (!preview) return;
+
+    if (preview.outerTransform === null) {
+      preview.group.removeAttribute("transform");
+    } else {
+      preview.group.setAttribute("transform", preview.outerTransform);
+    }
+
+    if (preview.localTransform === null) {
+      preview.localGroup.removeAttribute("transform");
+    } else {
+      preview.localGroup.setAttribute("transform", preview.localTransform);
+    }
+
+    textTransformPreviewRef.current = null;
+  }, []);
 
   useEffect(() => {
     const missingStickerIds = stickerIds.filter((stickerId) => !stickerSvgById.has(stickerId));
@@ -243,6 +300,51 @@ export function PageCanvas({
   useEffect(() => {
     if (activeTransform) setActiveSelectionPanel(null);
   }, [activeTransform]);
+
+  useLayoutEffect(() => {
+    if (
+      !activeTransform ||
+      activeTransform.mode !== "move" ||
+      activeTransform.startLayer.kind !== "text"
+    ) {
+      restoreTextTransformPreview();
+      return;
+    }
+
+    const group = [
+      ...(renderSurfaceRef.current?.querySelectorAll<SVGGElement>("[data-layer-id]") ?? []),
+    ].find((candidateGroup) => candidateGroup.dataset.layerId === activeTransform.layerId);
+    const localGroup = group?.querySelector<SVGGElement>('[data-layer-local-transform="true"]');
+
+    if (!group || !localGroup) {
+      return;
+    }
+
+    const currentPreview = textTransformPreviewRef.current;
+
+    if (
+      !currentPreview ||
+      currentPreview.group !== group ||
+      currentPreview.localGroup !== localGroup
+    ) {
+      restoreTextTransformPreview();
+      textTransformPreviewRef.current = {
+        group,
+        localGroup,
+        localTransform: localGroup.getAttribute("transform"),
+        outerTransform: group.getAttribute("transform"),
+      };
+    }
+
+    const previewLayer = activeTransformUpdate
+      ? applyLayerUpdate(activeTransform.startLayer, activeTransformUpdate)
+      : activeTransform.startLayer;
+
+    group.setAttribute("transform", layerRotationTransform(previewLayer));
+    localGroup.setAttribute("transform", `translate(${previewLayer.x} ${previewLayer.y})`);
+  }, [activeTransform, activeTransformUpdate, restoreTextTransformPreview]);
+
+  useLayoutEffect(() => () => restoreTextTransformPreview(), [restoreTextTransformPreview]);
 
   useEffect(() => {
     if (!activeSelectionPanel) return;
@@ -306,6 +408,7 @@ export function PageCanvas({
     if (!pointer) return;
     const center = getLayerCenter(layer);
     event.currentTarget.setPointerCapture(event.pointerId);
+    setActiveTransformUpdate(null);
     setActiveTransform({
       center,
       handle,
@@ -349,7 +452,14 @@ export function PageCanvas({
     const pointer = getCanvasPoint(event);
     if (!pointer) return;
     event.preventDefault();
-    onTransformLayer(activeTransform.layerId, getTransformUpdate(activeTransform, pointer));
+    const update = getTransformUpdate(activeTransform, pointer);
+
+    if (activeTransform.mode === "move" && activeTransform.startLayer.kind === "text") {
+      setActiveTransformUpdate(update);
+      return;
+    }
+
+    onTransformLayer(activeTransform.layerId, update);
   };
   const stopTransform = (event: ReactPointerEvent<HTMLElement>) => {
     if (activeTransform?.pointerId !== event.pointerId) return;
@@ -358,6 +468,7 @@ export function PageCanvas({
     const update = pointer ? getTransformUpdate(transform, pointer) : null;
 
     setActiveTransform(null);
+    setActiveTransformUpdate(null);
 
     if (onTransformEnd) {
       onTransformEnd(transform.layerId, update);
@@ -455,9 +566,13 @@ export function PageCanvas({
       }}
     >
       <legend className="visually-hidden">Editable page canvas</legend>
-      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Generated from validated page schema and escaped by editor-core. */}
-      <div className="editor-render-surface" dangerouslySetInnerHTML={{ __html: renderedSvg }} />
-      {interactiveLayers.map((interactiveLayer, layerIndex) => {
+      <div
+        className="editor-render-surface"
+        /* biome-ignore lint/security/noDangerouslySetInnerHtml: Generated from validated page schema and escaped by editor-core. */
+        dangerouslySetInnerHTML={{ __html: renderedSvg }}
+        ref={renderSurfaceRef}
+      />
+      {displayedInteractiveLayers.map((interactiveLayer, layerIndex) => {
         const { layer } = interactiveLayer;
         const isPreview = interactiveLayer.kind === "preview";
         const isSelected = !isPreview && layer.id === selectedLayerId;

@@ -1,4 +1,4 @@
-import type { Font } from "opentype.js";
+import type { Font, Path, PathCommand } from "opentype.js";
 import { z } from "zod";
 
 import { defaultTextFontFamily, getBundledEditorFont } from "./fonts.js";
@@ -718,15 +718,59 @@ const renderTextLayerSvg = (layer: TextLayer): string => {
     .join("")}</text></g>`;
 };
 
+const pathNumber = (value: number): string | null => {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  const roundedValue = Math.round(value * 100) / 100;
+
+  return String(Object.is(roundedValue, -0) ? 0 : roundedValue);
+};
+
+const pathCommandData = (command: PathCommand): string | null => {
+  switch (command.type) {
+    case "M":
+    case "L": {
+      const x = pathNumber(command.x);
+      const y = pathNumber(command.y);
+
+      return x && y ? `${command.type}${x} ${y}` : null;
+    }
+    case "C": {
+      const x1 = pathNumber(command.x1);
+      const y1 = pathNumber(command.y1);
+      const x2 = pathNumber(command.x2);
+      const y2 = pathNumber(command.y2);
+      const x = pathNumber(command.x);
+      const y = pathNumber(command.y);
+
+      return x1 && y1 && x2 && y2 && x && y ? `C${x1} ${y1} ${x2} ${y2} ${x} ${y}` : null;
+    }
+    case "Q": {
+      const x1 = pathNumber(command.x1);
+      const y1 = pathNumber(command.y1);
+      const x = pathNumber(command.x);
+      const y = pathNumber(command.y);
+
+      return x1 && y1 && x && y ? `Q${x1} ${y1} ${x} ${y}` : null;
+    }
+    case "Z":
+      return "Z";
+  }
+};
+
+const pathData = (path: Path): string =>
+  path.commands
+    .map(pathCommandData)
+    .filter((commandData): commandData is string => commandData !== null)
+    .join("");
+
 const renderBundledFontTextLayerSvg = (layer: TextLayer, bundledFont: Font): string => {
   const lines = layer.text.split(/\r?\n/).slice(0, 20);
   const lineHeight = layer.fontSize * 1.2;
   const anchorX =
-    layer.align === "center"
-      ? layer.x + layer.width / 2
-      : layer.align === "right"
-        ? layer.x + layer.width
-        : layer.x;
+    layer.align === "center" ? layer.width / 2 : layer.align === "right" ? layer.width : 0;
   const paths = lines
     .map((line, lineIndex) => {
       const advanceWidth = bundledFont.getAdvanceWidth(line, layer.fontSize);
@@ -736,14 +780,18 @@ const renderBundledFontTextLayerSvg = (layer: TextLayer, bundledFont: Font): str
           : layer.align === "right"
             ? anchorX - advanceWidth
             : anchorX;
-      const baselineY = layer.y + layer.fontSize + lineIndex * lineHeight;
-      const pathData = bundledFont.getPath(line, lineX, baselineY, layer.fontSize).toPathData(2);
+      const baselineY = layer.fontSize + lineIndex * lineHeight;
 
-      return pathData ? `<path d="${pathData}" />` : "";
+      return bundledFont
+        .getPaths(line, lineX, baselineY, layer.fontSize)
+        .map(pathData)
+        .filter((pathData) => pathData.length > 0)
+        .map((pathData) => `<path d="${pathData}" />`)
+        .join("");
     })
     .join("");
 
-  return `<g data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" fill="${escapeXml(layer.color)}" transform="${layerTransform(layer)}">${paths}</g>`;
+  return `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" fill="${escapeXml(layer.color)}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${paths}</g></g>`;
 };
 
 const renderPhotoLayerSvg = (
