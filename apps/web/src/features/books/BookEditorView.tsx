@@ -1026,34 +1026,6 @@ export function BookEditorView() {
     }
   };
 
-  const exportActivePage = async (
-    format: "pdf" | "png",
-    settings: Partial<PngExportSettings> = {},
-  ) => {
-    if (!activePage) {
-      return;
-    }
-
-    setIsWorking(true);
-    setError(null);
-
-    try {
-      setExportJob(
-        await apiClient.createExport({
-          ...(settings.dpi === undefined ? {} : { dpi: settings.dpi }),
-          format,
-          includeBackground: settings.includeBackground ?? true,
-          pageId: activePage.id,
-          preset: "print",
-        }),
-      );
-    } catch (exportError: unknown) {
-      setError(getErrorMessage(exportError));
-    } finally {
-      setIsWorking(false);
-    }
-  };
-
   const submitPngExport = (settings: PngExportSettings) => {
     const target = pngExportTarget;
 
@@ -1061,11 +1033,6 @@ export function BookEditorView() {
 
     if (target === "book") {
       void exportBook("png", settings);
-      return;
-    }
-
-    if (target === "page") {
-      void exportActivePage("png", settings);
     }
   };
 
@@ -1141,11 +1108,10 @@ export function BookEditorView() {
         onEditSettings={() => setIsBookSettingsOpen(true)}
         onExportBookPdf={() => exportBook("pdf")}
         onExportBookPng={() => setPngExportTarget("book")}
-        onExportPagePng={() => setPngExportTarget("page")}
       />
       {pngExportTarget ? (
         <PngExportSettingsModal
-          eyebrow={pngExportTarget === "book" ? book.title : (activePage?.title ?? "Page")}
+          eyebrow={book.title}
           closeDisabled={isWorking}
           onClose={() => setPngExportTarget(null)}
           onSubmit={submitPngExport}

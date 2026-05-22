@@ -9,7 +9,6 @@ type BookEditorHeaderProps = {
   onEditSettings: () => void;
   onExportBookPdf: () => void;
   onExportBookPng: () => void;
-  onExportPagePng: () => void;
   title: string;
 };
 
@@ -19,7 +18,6 @@ export function BookEditorHeader({
   onEditSettings,
   onExportBookPdf,
   onExportBookPng,
-  onExportPagePng,
   title,
 }: BookEditorHeaderProps) {
   return (
@@ -37,15 +35,6 @@ export function BookEditorHeader({
         />
       }
     >
-      <Button
-        type="button"
-        className="secondary-button"
-        disabled={isWorking || !hasPages}
-        icon={<ArrowDownloadRegular />}
-        onClick={onExportPagePng}
-      >
-        Export page PNG
-      </Button>
       <Button
         type="button"
         className="secondary-button"

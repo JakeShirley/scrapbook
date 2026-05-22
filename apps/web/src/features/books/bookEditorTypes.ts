@@ -2,7 +2,7 @@ import type { BookDetail, PageDetail } from "../../types";
 
 export type ViewMode = "page" | "spread";
 
-export type PngExportTarget = "book" | "page";
+export type PngExportTarget = "book";
 
 export type PageDropPosition = "before" | "after";
 
