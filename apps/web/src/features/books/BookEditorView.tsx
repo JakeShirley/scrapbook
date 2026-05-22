@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { apiClient } from "../../apiClient";
-import { AppModal, WorkspaceHeader } from "../../components/layout";
+import { AppModal, ProcessingBanner, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
@@ -79,6 +79,7 @@ export function BookEditorView() {
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("spread");
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
+  const [pendingExportFormat, setPendingExportFormat] = useState<"pdf" | "png" | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
   const [isDeleteBookConfirmationOpen, setIsDeleteBookConfirmationOpen] = useState(false);
@@ -1008,6 +1009,8 @@ export function BookEditorView() {
 
     setIsWorking(true);
     setError(null);
+    setExportJob(null);
+    setPendingExportFormat(format);
 
     try {
       setExportJob(
@@ -1022,6 +1025,7 @@ export function BookEditorView() {
     } catch (exportError: unknown) {
       setError(getErrorMessage(exportError));
     } finally {
+      setPendingExportFormat(null);
       setIsWorking(false);
     }
   };
@@ -1041,6 +1045,11 @@ export function BookEditorView() {
       ? "Download book PNG ZIP"
       : `Download ${exportJob.targetKind} ${exportJob.format.toUpperCase()}`
     : "";
+  const pendingExportLabel = pendingExportFormat
+    ? pendingExportFormat === "png"
+      ? "Preparing book PNG ZIP export"
+      : "Preparing book PDF export"
+    : null;
 
   const getSpreadPreviewLayers = (pageId: string): CanvasPreviewLayer[] => {
     if (viewMode !== "spread" || visibleSpreadPages.length < 2) {
@@ -1186,6 +1195,7 @@ export function BookEditorView() {
             {error}
           </p>
         ) : null}
+        {pendingExportLabel ? <ProcessingBanner>{pendingExportLabel}</ProcessingBanner> : null}
         {exportJob?.outputContentUrl ? (
           <p className="download-banner">
             <a href={exportJob.outputContentUrl} target="_blank" rel="noreferrer">

@@ -612,6 +612,7 @@ textarea:focus-visible {
 .empty-state,
 .panel-alert,
 .upload-progress,
+.processing-banner,
 .download-banner {
   margin: 14px;
 }
@@ -631,6 +632,19 @@ textarea:focus-visible {
   padding: 10px 12px;
   color: #1f6159;
   background: #edf8f4;
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.processing-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #c7d7e8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #28516f;
+  background: #eff6fb;
   font-size: 0.9rem;
   font-weight: 750;
 }
@@ -3904,6 +3918,7 @@ body {
 }
 
 .book-editor-notices .panel-alert,
+.book-editor-notices .processing-banner,
 .book-editor-notices .download-banner {
   margin: 0;
   padding: 8px 10px;

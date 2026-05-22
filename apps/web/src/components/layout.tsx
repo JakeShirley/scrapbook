@@ -15,6 +15,15 @@ export function LoadingScreen() {
   );
 }
 
+export function ProcessingBanner({ children }: { children: ReactNode }) {
+  return (
+    <p className="processing-banner" role="status" aria-live="polite">
+      <Spinner size="small" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 export function WorkspaceHeader({
   title,
   titleActions,

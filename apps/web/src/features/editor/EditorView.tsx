@@ -25,7 +25,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { apiClient } from "../../apiClient";
-import { WorkspaceHeader } from "../../components/layout";
+import { ProcessingBanner, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import type { Asset, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "./AssetRail";
@@ -46,6 +46,7 @@ export function EditorView() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
+  const [pendingExportFormat, setPendingExportFormat] = useState<"pdf" | "png" | null>(null);
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [isPngExportSettingsOpen, setIsPngExportSettingsOpen] = useState(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
@@ -183,6 +184,8 @@ export function EditorView() {
   const exportPage = async (format: "pdf" | "png", settings: Partial<PngExportSettings> = {}) => {
     if (!page) return;
     setError(null);
+    setExportJob(null);
+    setPendingExportFormat(format);
     try {
       setExportJob(
         await apiClient.createExport({
@@ -195,6 +198,8 @@ export function EditorView() {
       );
     } catch (exportError: unknown) {
       setError(getErrorMessage(exportError));
+    } finally {
+      setPendingExportFormat(null);
     }
   };
 
@@ -248,6 +253,7 @@ export function EditorView() {
         <Button
           type="button"
           className="secondary-button"
+          disabled={pendingExportFormat !== null}
           icon={<ArrowDownloadRegular />}
           onClick={() => setIsPngExportSettingsOpen(true)}
         >
@@ -256,6 +262,7 @@ export function EditorView() {
         <Button
           type="button"
           className="secondary-button"
+          disabled={pendingExportFormat !== null}
           icon={<DocumentPdfRegular />}
           onClick={() => exportPage("pdf")}
         >
@@ -298,6 +305,9 @@ export function EditorView() {
         <p className="panel-alert" role="alert">
           {error}
         </p>
+      ) : null}
+      {pendingExportFormat ? (
+        <ProcessingBanner>Preparing {pendingExportFormat.toUpperCase()} export</ProcessingBanner>
       ) : null}
       {exportJob?.outputContentUrl ? (
         <p className="download-banner">
