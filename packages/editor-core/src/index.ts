@@ -255,6 +255,7 @@ export type PageLayerKind = PageLayer["kind"];
 
 export type RenderPageSvgOptions = {
   idPrefix?: string;
+  includeBackground?: boolean;
   resolvePhotoHref?: (layer: PhotoLayer) => string | null | undefined;
   resolveStickerSvg?: (layer: StickerLayer) => StickerSvg | null | undefined;
 };
@@ -926,7 +927,12 @@ export const renderPageDocumentSvg = (
     );
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${parsedDocument.canvas.width}" height="${parsedDocument.canvas.height}" viewBox="0 0 ${parsedDocument.canvas.width} ${parsedDocument.canvas.height}"><defs>${defs.join("")}</defs><rect width="100%" height="100%" fill="${escapeXml(parsedDocument.canvas.backgroundColor)}" />${bodies.join("")}</svg>`;
+  const background =
+    options.includeBackground === false
+      ? ""
+      : `<rect width="100%" height="100%" fill="${escapeXml(parsedDocument.canvas.backgroundColor)}" />`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${parsedDocument.canvas.width}" height="${parsedDocument.canvas.height}" viewBox="0 0 ${parsedDocument.canvas.width} ${parsedDocument.canvas.height}"><defs>${defs.join("")}</defs>${background}${bodies.join("")}</svg>`;
 };
 
 export const createPageDocument = (input: CreatePageDocumentInput = {}): PageDocument =>

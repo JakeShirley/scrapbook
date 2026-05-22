@@ -8,6 +8,11 @@ import { AppModal } from "../../components/layout";
 const minDpi = 72;
 const maxDpi = 600;
 
+export type PngExportSettings = {
+  dpi: number;
+  includeBackground: boolean;
+};
+
 export function PngExportSettingsModal({
   closeDisabled = false,
   eyebrow,
@@ -17,9 +22,10 @@ export function PngExportSettingsModal({
   closeDisabled?: boolean;
   eyebrow?: string;
   onClose: () => void;
-  onSubmit: (dpi: number) => void;
+  onSubmit: (settings: PngExportSettings) => void;
 }) {
   const [dpiDraft, setDpiDraft] = useState("300");
+  const [includeBackground, setIncludeBackground] = useState(true);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
   const submitExport = (event: FormEvent<HTMLFormElement>) => {
@@ -33,7 +39,7 @@ export function PngExportSettingsModal({
     }
 
     setValidationMessage(null);
-    onSubmit(dpi);
+    onSubmit({ dpi, includeBackground });
   };
 
   return (
@@ -61,6 +67,14 @@ export function PngExportSettingsModal({
             onChange={(event) => setDpiDraft(event.currentTarget.value)}
           />
         </Field>
+        <label className="checkbox-label compact-checkbox export-settings-checkbox">
+          <input
+            type="checkbox"
+            checked={includeBackground}
+            onChange={(event) => setIncludeBackground(event.currentTarget.checked)}
+          />
+          <span>Include page backgrounds</span>
+        </label>
         <div className="export-settings-actions">
           <Button
             type="button"

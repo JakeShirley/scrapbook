@@ -19,6 +19,7 @@ type ExportRendererInput = {
   accountId: string;
   dpi?: number;
   format: ExportFormat;
+  includeBackground?: boolean;
   preset: ExportPreset;
   repositories: Repositories;
   storage: ExportStorage;
@@ -34,6 +35,9 @@ const renderStoredPageSvg = async (input: ExportRendererInput & { page: PageReco
   renderPageSvg({
     accountId: input.accountId,
     document: await parsePageDocument(input.page),
+    ...(input.includeBackground === undefined
+      ? {}
+      : { includeBackground: input.includeBackground }),
     ...createRasterRenderSettings(input),
     preset: input.preset,
     repositories: input.repositories,
@@ -55,6 +59,9 @@ export const renderPageExport = async (
     accountId: input.accountId,
     ...createRasterRenderSettings(input),
     format: input.format,
+    ...(input.includeBackground === undefined
+      ? {}
+      : { includeBackground: input.includeBackground }),
     page,
     repositories: input.repositories,
     storage: input.storage,
@@ -89,6 +96,9 @@ export const renderBookExport = async (
         accountId: input.accountId,
         ...createRasterRenderSettings(input),
         format: input.format,
+        ...(input.includeBackground === undefined
+          ? {}
+          : { includeBackground: input.includeBackground }),
         page,
         repositories: input.repositories,
         storage: input.storage,

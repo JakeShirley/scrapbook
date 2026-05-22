@@ -29,7 +29,7 @@ import type { EditorSaveStatus } from "../editor/editorTypes";
 import type { EmbellishmentPreset } from "../editor/embellishments";
 import type { CanvasPreviewLayer } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
-import { PngExportSettingsModal } from "../editor/PngExportSettingsModal";
+import { type PngExportSettings, PngExportSettingsModal } from "../editor/PngExportSettingsModal";
 import { StickerPickerModal } from "../editor/StickerPickerModal";
 import { BookCanvasDeck } from "./BookCanvasDeck";
 import { BookEditorHeader } from "./BookEditorHeader";
@@ -1001,7 +1001,7 @@ export function BookEditorView() {
     }
   };
 
-  const exportBook = async (format: "pdf" | "png", dpi?: number) => {
+  const exportBook = async (format: "pdf" | "png", settings: Partial<PngExportSettings> = {}) => {
     if (!book || book.pages.length === 0) {
       return;
     }
@@ -1013,8 +1013,9 @@ export function BookEditorView() {
       setExportJob(
         await apiClient.createExport({
           bookId: book.id,
-          ...(dpi === undefined ? {} : { dpi }),
+          ...(settings.dpi === undefined ? {} : { dpi: settings.dpi }),
           format,
+          includeBackground: settings.includeBackground ?? true,
           preset: "print",
         }),
       );
@@ -1025,7 +1026,10 @@ export function BookEditorView() {
     }
   };
 
-  const exportActivePage = async (format: "pdf" | "png", dpi?: number) => {
+  const exportActivePage = async (
+    format: "pdf" | "png",
+    settings: Partial<PngExportSettings> = {},
+  ) => {
     if (!activePage) {
       return;
     }
@@ -1036,8 +1040,9 @@ export function BookEditorView() {
     try {
       setExportJob(
         await apiClient.createExport({
-          ...(dpi === undefined ? {} : { dpi }),
+          ...(settings.dpi === undefined ? {} : { dpi: settings.dpi }),
           format,
+          includeBackground: settings.includeBackground ?? true,
           pageId: activePage.id,
           preset: "print",
         }),
@@ -1049,18 +1054,18 @@ export function BookEditorView() {
     }
   };
 
-  const submitPngExport = (dpi: number) => {
+  const submitPngExport = (settings: PngExportSettings) => {
     const target = pngExportTarget;
 
     setPngExportTarget(null);
 
     if (target === "book") {
-      void exportBook("png", dpi);
+      void exportBook("png", settings);
       return;
     }
 
     if (target === "page") {
-      void exportActivePage("png", dpi);
+      void exportActivePage("png", settings);
     }
   };
 

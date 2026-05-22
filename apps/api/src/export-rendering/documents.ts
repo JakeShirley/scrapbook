@@ -71,6 +71,7 @@ export const renderPageSvg = async (input: {
   accountId: string;
   document: PageDocument;
   dpi?: number;
+  includeBackground?: boolean;
   preset: ExportPreset;
   repositories: Repositories;
   storage: ExportStorage;
@@ -102,6 +103,9 @@ export const renderPageSvg = async (input: {
   }
 
   return renderPageDocumentSvg(input.document, {
+    ...(input.includeBackground === undefined
+      ? {}
+      : { includeBackground: input.includeBackground }),
     resolvePhotoHref: (layer: PhotoLayer) => photoHrefs.get(layer.id),
     resolveStickerSvg: (layer) => getStickerSvg(layer.stickerId),
   });

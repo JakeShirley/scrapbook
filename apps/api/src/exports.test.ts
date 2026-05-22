@@ -29,6 +29,10 @@ type Rgb = {
   blue: number;
 };
 
+type Rgba = Rgb & {
+  alpha: number;
+};
+
 type DecodedPng = {
   data: Buffer;
   height: number;
@@ -96,13 +100,14 @@ const listStoredZipEntries = (buffer: Buffer): Array<{ data: Buffer; name: strin
   return entries;
 };
 
-const pixelAt = (image: DecodedPng, x: number, y: number): Rgb => {
+const pixelAt = (image: DecodedPng, x: number, y: number): Rgba => {
   const offset = (y * image.width + x) * 4;
 
   return {
     red: image.data[offset] ?? 0,
     green: image.data[offset + 1] ?? 0,
     blue: image.data[offset + 2] ?? 0,
+    alpha: image.data[offset + 3] ?? 0,
   };
 };
 
@@ -273,6 +278,43 @@ describe("PNG page exports", () => {
         (pixel) => pixel.red < 70 && pixel.green < 80 && pixel.blue < 90,
       ),
     ).toBeGreaterThan(80);
+  });
+
+  it("can render PNG page exports with transparent canvas background", async () => {
+    const fixture = await createExportFixture(
+      createPageDocument({
+        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
+        layers: [
+          createPhotoLayer({
+            assetId: testAssetId,
+            height: 96,
+            id: "transparent_background_photo",
+            width: 96,
+            x: 24,
+            y: 24,
+          }),
+        ],
+      }),
+    );
+
+    try {
+      const rendered = await renderPageExport({
+        accountId: testAccountId,
+        format: "png",
+        includeBackground: false,
+        pageId: testPageId,
+        preset: "print",
+        repositories: fixture.repositories,
+        storage: fixture.storage,
+      });
+      const image = await decodePng(rendered.buffer);
+
+      expect(pixelAt(image, 8, 8).alpha).toBe(0);
+      expect(pixelAt(image, 72, 72).alpha).toBe(255);
+      expectColorNear(pixelAt(image, 72, 72), photoRed, 12);
+    } finally {
+      fixture.connection.close();
+    }
   });
 
   it("clips photo layers with every supported mask shape", async () => {
@@ -584,6 +626,7 @@ describe("PNG page exports", () => {
         bookId: book.id,
         dpi: 300,
         format: "png",
+        includeBackground: false,
         preset: "print",
         repositories: fixture.repositories,
         storage: fixture.storage,
@@ -598,6 +641,7 @@ describe("PNG page exports", () => {
         "002-second-page.png",
       ]);
       expect(firstPage).toMatchObject({ height: 320, width: 320 });
+      expect(pixelAt(firstPage, 8, 8).alpha).toBe(0);
       expectColorNear(pixelAt(firstPage, 72, 72), photoRed, 12);
     } finally {
       fixture.connection.close();

@@ -31,6 +31,7 @@ export const exportCreateRequestSchema = z
     format: exportFormatSchema.default("png"),
     preset: exportPresetSchema.default("digital"),
     dpi: exportDpiSchema.optional(),
+    includeBackground: z.boolean().optional(),
     pageId: z.string().min(1).optional(),
     bookId: z.string().min(1).optional(),
   })

@@ -1092,6 +1092,16 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.export-settings-checkbox {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  color: #4f595c;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .book-modebar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

@@ -285,6 +285,16 @@ describe("page document helpers", () => {
     expect(svg).toContain('fill="#f4bd3f"');
   });
 
+  it("can omit the canvas background from SVG output", () => {
+    const document = createPageDocument({
+      canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
+    });
+    const svg = renderPageDocumentSvg(document, { includeBackground: false });
+
+    expect(svg).not.toContain('fill="#f7f1e4"');
+    expect(svg).not.toContain('<rect width="100%" height="100%"');
+  });
+
   it("renders bundled editor fonts as SVG paths", () => {
     const text = createTextLayer({
       fontFamily: loveYaLikeASisterFontFamily,

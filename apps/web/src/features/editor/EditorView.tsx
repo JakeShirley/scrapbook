@@ -34,7 +34,7 @@ import type { EditorSaveStatus } from "./editorTypes";
 import type { EmbellishmentPreset } from "./embellishments";
 import { PageCanvas } from "./PageCanvas";
 import { PhotoPickerModal } from "./PhotoPickerModal";
-import { PngExportSettingsModal } from "./PngExportSettingsModal";
+import { type PngExportSettings, PngExportSettingsModal } from "./PngExportSettingsModal";
 import { StickerPickerModal } from "./StickerPickerModal";
 
 export function EditorView() {
@@ -180,14 +180,15 @@ export function EditorView() {
       setError(getErrorMessage(deleteError));
     }
   };
-  const exportPage = async (format: "pdf" | "png", dpi?: number) => {
+  const exportPage = async (format: "pdf" | "png", settings: Partial<PngExportSettings> = {}) => {
     if (!page) return;
     setError(null);
     try {
       setExportJob(
         await apiClient.createExport({
-          ...(dpi === undefined ? {} : { dpi }),
+          ...(settings.dpi === undefined ? {} : { dpi: settings.dpi }),
           format,
+          includeBackground: settings.includeBackground ?? true,
           pageId: page.id,
           preset: "print",
         }),
@@ -197,9 +198,9 @@ export function EditorView() {
     }
   };
 
-  const submitPngExport = (dpi: number) => {
+  const submitPngExport = (settings: PngExportSettings) => {
     setIsPngExportSettingsOpen(false);
-    void exportPage("png", dpi);
+    void exportPage("png", settings);
   };
 
   if (status === "loading" || !document || !page) {
