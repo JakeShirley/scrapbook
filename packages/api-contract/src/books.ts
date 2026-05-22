@@ -280,6 +280,21 @@ export const bookPatchRoute = createRoute({
   },
 });
 
+export const bookDeleteRoute = createRoute({
+  method: "delete",
+  path: "/api/v1/books/{bookId}",
+  tags: ["Books"],
+  request: {
+    params: bookParamsSchema,
+  },
+  responses: {
+    204: {
+      description: "Deletes a book owned by the current account.",
+    },
+    ...bookJsonResponses,
+  },
+});
+
 export const bookSetPagesRoute = createRoute({
   method: "put",
   path: "/api/v1/books/{bookId}/pages",

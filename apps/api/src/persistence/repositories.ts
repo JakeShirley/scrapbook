@@ -582,6 +582,20 @@ export class BookRepository {
     return this.findByIdForAccount(accountId, bookId);
   }
 
+  deleteByIdForAccount(accountId: string, bookId: string): boolean {
+    this.db
+      .delete(exportJobs)
+      .where(and(eq(exportJobs.accountId, accountId), eq(exportJobs.bookId, bookId)))
+      .run();
+
+    const result = this.db
+      .delete(books)
+      .where(and(eq(books.accountId, accountId), eq(books.id, bookId)))
+      .run();
+
+    return result.changes > 0;
+  }
+
   listPagesForBook(
     accountId: string,
     bookId: string,

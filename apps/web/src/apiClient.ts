@@ -137,6 +137,17 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
       method: "PUT",
     }),
 
+  deleteBook: async (bookId: string): Promise<void> => {
+    const response = await fetch(buildUrl(baseUrl, `/api/v1/books/${bookId}`), {
+      credentials: "include",
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+  },
+
   createExport: (input: ExportCreateRequest): Promise<ExportJobResponse> =>
     requestJson(baseUrl, exportJobResponseSchema, "/api/v1/exports", {
       body: JSON.stringify(input),

@@ -1037,6 +1037,54 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.book-settings-danger {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--sb-danger-stroke);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--sb-danger-foreground);
+  background: var(--sb-danger-background);
+}
+
+.book-settings-danger strong {
+  font-size: 0.88rem;
+}
+
+.book-settings-danger p,
+.delete-book-confirmation p {
+  margin: 0;
+  color: var(--sb-neutral-foreground-2);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.danger-button,
+.fui-Button.danger-button {
+  color: var(--sb-danger-foreground);
+  border-color: var(--sb-danger-stroke);
+  background: var(--sb-danger-background);
+}
+
+.danger-button:hover,
+.fui-Button.danger-button:hover {
+  color: var(--sb-danger-foreground);
+  border-color: var(--sb-danger-foreground);
+  background: #f9e3e6;
+}
+
+.delete-book-confirmation {
+  display: grid;
+  gap: 14px;
+}
+
+.delete-book-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .export-settings-actions {
   display: flex;
   flex-wrap: wrap;

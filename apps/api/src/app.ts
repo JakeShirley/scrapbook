@@ -15,6 +15,7 @@ import {
   type BookResponse,
   type BookSummaryResponse,
   bookCreateRoute,
+  bookDeleteRoute,
   bookDetailRoute,
   bookListResponseSchema,
   bookListRoute,
@@ -1215,6 +1216,33 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     return context.json(toBookResponse(book, options.repositories), 200);
+  });
+
+  app.openapi(bookDeleteRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { bookId } = context.req.valid("param");
+    const deleted = options.repositories.books.deleteByIdForAccount(authSession.account.id, bookId);
+
+    if (!deleted) {
+      return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);
+    }
+
+    return context.body(null, 204);
   });
 
   app.openapi(bookSetPagesRoute, (context) => {

@@ -1,5 +1,5 @@
 import { Button } from "@fluentui/react-components";
-import { AddRegular } from "@fluentui/react-icons";
+import { AddRegular, DeleteRegular, DismissRegular } from "@fluentui/react-icons";
 import {
   addLayer,
   createEmbellishmentLayer,
@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { apiClient } from "../../apiClient";
-import { WorkspaceHeader } from "../../components/layout";
+import { AppModal, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
@@ -81,6 +81,7 @@ export function BookEditorView() {
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
+  const [isDeleteBookConfirmationOpen, setIsDeleteBookConfirmationOpen] = useState(false);
   const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
@@ -769,6 +770,30 @@ export function BookEditorView() {
     }
   };
 
+  const requestDeleteBook = () => {
+    setIsBookSettingsOpen(false);
+    setIsDeleteBookConfirmationOpen(true);
+  };
+
+  const deleteBook = async () => {
+    if (!book) {
+      return;
+    }
+
+    setIsWorking(true);
+    setError(null);
+
+    try {
+      await apiClient.deleteBook(book.id);
+      setIsDeleteBookConfirmationOpen(false);
+      navigate("/books", { replace: true });
+    } catch (deleteError: unknown) {
+      setError(getErrorMessage(deleteError));
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
   const addPage = async () => {
     if (!book) {
       return;
@@ -1145,10 +1170,44 @@ export function BookEditorView() {
           titleDraft={bookTitleDraft}
           onClose={() => setIsBookSettingsOpen(false)}
           onCoverSpreadEnabledDraftChange={setCoverSpreadEnabledDraft}
+          onDeleteRequest={requestDeleteBook}
           onPageSizeDraftChange={setBookPageSizeDraft}
           onSubmit={renameBook}
           onTitleDraftChange={setBookTitleDraft}
         />
+      ) : null}
+      {isDeleteBookConfirmationOpen ? (
+        <AppModal
+          title="Delete book?"
+          eyebrow={book.title}
+          size="compact"
+          closeDisabled={isWorking}
+          onClose={() => setIsDeleteBookConfirmationOpen(false)}
+        >
+          <div className="delete-book-confirmation">
+            <p>This will remove the book from your library. This action cannot be undone.</p>
+            <div className="delete-book-confirmation-actions">
+              <Button
+                type="button"
+                className="secondary-button"
+                disabled={isWorking}
+                icon={<DismissRegular />}
+                onClick={() => setIsDeleteBookConfirmationOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="danger-button"
+                disabled={isWorking}
+                icon={<DeleteRegular />}
+                onClick={deleteBook}
+              >
+                Delete book
+              </Button>
+            </div>
+          </div>
+        </AppModal>
       ) : null}
       <div className="book-editor-notices">
         {error ? (

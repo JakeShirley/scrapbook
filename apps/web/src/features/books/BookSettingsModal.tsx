@@ -1,5 +1,5 @@
 import { Button, Field, Input } from "@fluentui/react-components";
-import { DismissRegular, RenameRegular } from "@fluentui/react-icons";
+import { DeleteRegular, DismissRegular, RenameRegular } from "@fluentui/react-icons";
 import type { FormEvent } from "react";
 
 import { AppModal } from "../../components/layout";
@@ -19,6 +19,7 @@ type BookSettingsModalProps = {
   titleDraft: string;
   onClose: () => void;
   onCoverSpreadEnabledDraftChange: (enabled: boolean) => void;
+  onDeleteRequest: () => void;
   onPageSizeDraftChange: (pageSizeKey: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onTitleDraftChange: (title: string) => void;
@@ -32,6 +33,7 @@ export function BookSettingsModal({
   titleDraft,
   onClose,
   onCoverSpreadEnabledDraftChange,
+  onDeleteRequest,
   onPageSizeDraftChange,
   onSubmit,
   onTitleDraftChange,
@@ -76,6 +78,21 @@ export function BookSettingsModal({
           />
           <span>Keep front and back covers together</span>
         </label>
+        <div className="book-settings-danger">
+          <div>
+            <strong>Delete book</strong>
+            <p>Remove this book from the library. This action cannot be undone.</p>
+          </div>
+          <Button
+            type="button"
+            className="danger-button"
+            disabled={closeDisabled}
+            icon={<DeleteRegular />}
+            onClick={onDeleteRequest}
+          >
+            Delete
+          </Button>
+        </div>
         <div className="book-settings-actions">
           <Button
             type="button"

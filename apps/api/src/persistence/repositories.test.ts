@@ -91,6 +91,11 @@ describe("repositories", () => {
         pageId: page.id,
         format: "png",
       });
+      const bookExportJob = repositories.exports.create({
+        accountId: account.id,
+        bookId: book.id,
+        format: "pdf",
+      });
 
       expect(account.id).toMatch(/^account_/);
       expect(identity.id).toMatch(/^auth_identity_/);
@@ -102,6 +107,12 @@ describe("repositories", () => {
       expect(repositories.assets.listForAccount(account.id)).toHaveLength(1);
       expect(repositories.sessions.findActiveByIdForAccount(account.id, session.id)?.id).toBe(
         session.id,
+      );
+      expect(repositories.books.deleteByIdForAccount(account.id, book.id)).toBe(true);
+      expect(repositories.books.findByIdForAccount(account.id, book.id)).toBeNull();
+      expect(repositories.exports.findByIdForAccount(account.id, bookExportJob.id)).toBeNull();
+      expect(repositories.exports.findByIdForAccount(account.id, exportJob.id)?.id).toBe(
+        exportJob.id,
       );
     } finally {
       connection.close();

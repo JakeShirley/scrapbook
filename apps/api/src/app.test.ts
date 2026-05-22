@@ -622,6 +622,20 @@ describe("api app", () => {
       headers: { cookie: firstCookie, "content-type": "application/json" },
       method: "PUT",
     });
+    const crossAccountDeleteResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
+      headers: { cookie: secondCookie },
+      method: "DELETE",
+    });
+    const deleteResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
+      headers: { cookie: firstCookie },
+      method: "DELETE",
+    });
+    const deletedDetailResponse = await app.request(`/api/v1/books/${createdBook.id}`, {
+      headers: { cookie: firstCookie },
+    });
+    const retainedPageResponse = await app.request(`/api/v1/pages/${pages[0]?.id}`, {
+      headers: { cookie: firstCookie },
+    });
 
     expect(orderedResponse.status).toBe(200);
     expect(createdBook).toMatchObject({ pageWidth: 2400, pageHeight: 2400 });
@@ -649,6 +663,10 @@ describe("api app", () => {
     ]);
     expect(secondDetailResponse.status).toBe(404);
     expect(crossAccountPageResponse.status).toBe(400);
+    expect(crossAccountDeleteResponse.status).toBe(404);
+    expect(deleteResponse.status).toBe(204);
+    expect(deletedDetailResponse.status).toBe(404);
+    expect(retainedPageResponse.status).toBe(200);
   });
 
   it("creates page and book exports and streams completed output", async () => {
