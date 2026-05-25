@@ -26,12 +26,11 @@ export function TextAlignmentControl({
   onChange: (value: TextAlignment) => void;
 }) {
   return (
-    <div
-      aria-label="Text alignment"
+    <fieldset
       className={["text-alignment-selector", className].filter(Boolean).join(" ")}
       data-compact={compact}
-      role="group"
     >
+      <legend className="visually-hidden">Text alignment</legend>
       {textAlignmentOptions.map((option) => (
         <button
           type="button"
@@ -44,6 +43,6 @@ export function TextAlignmentControl({
           {option.icon}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
