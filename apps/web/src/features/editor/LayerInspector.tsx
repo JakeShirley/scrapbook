@@ -10,10 +10,12 @@ export function LayerInspector({
   layer,
   onChange,
   onChooseWashiTapePhoto,
+  resolveWashiTapeHref,
 }: {
   layer: PageLayer | null;
   onChange: (update: Partial<PageLayer>) => void;
   onChooseWashiTapePhoto?: ((layerId: string) => void) | undefined;
+  resolveWashiTapeHref?: ((layer: WashiTapeLayer) => string | null | undefined) | undefined;
 }) {
   if (!layer) return <p className="empty-state">Select a layer to edit it.</p>;
   const updateNumber =
@@ -77,6 +79,7 @@ export function LayerInspector({
           layer={layer}
           onChange={updateWashiTapeLayer}
           onChoosePhoto={onChooseWashiTapePhoto}
+          resolveHref={resolveWashiTapeHref}
         />
       ) : null}
       {layer.kind === "embellishment" ? (

@@ -35,14 +35,8 @@ import {
   resizeHandles,
   resizeLayerFromHandle,
 } from "./transforms";
-import {
-  formatWashiTapeOutline,
-  formatWashiTapePattern,
-  washiTapeOutlineOptions,
-  washiTapePatternOptions,
-} from "./WashiTapeControls";
 
-type SelectionPanel = "edit" | "frame" | "washi";
+type SelectionPanel = "edit" | "frame";
 
 export type CanvasPreviewLayer = {
   layer: PageLayer;
@@ -132,6 +126,16 @@ const resolveBrowserPhotoHref = (asset: Asset | undefined): string | undefined =
     : (asset.thumbnailUrl ?? asset.originalContentUrl);
 };
 
+const resolveBrowserWashiTapeHref = (
+  assetById: Map<string, Asset>,
+  layer: WashiTapeLayer,
+): string | undefined =>
+  resolveBrowserPhotoHref(
+    assetById.get(
+      layer.pattern.kind === "customPhoto" ? (layer.pattern.assetId ?? layer.assetId ?? "") : "",
+    ),
+  );
+
 export function PageCanvas({
   assetById,
   document,
@@ -216,14 +220,7 @@ export function PageCanvas({
         idPrefix: svgIdPrefix,
         resolvePhotoHref: (layer) => resolveBrowserPhotoHref(assetById.get(layer.assetId)),
         resolveStickerSvg: (layer) => stickerSvgById.get(layer.stickerId),
-        resolveWashiTapeHref: (layer) =>
-          resolveBrowserPhotoHref(
-            assetById.get(
-              layer.pattern.kind === "customPhoto"
-                ? (layer.pattern.assetId ?? layer.assetId ?? "")
-                : "",
-            ),
-          ),
+        resolveWashiTapeHref: (layer) => resolveBrowserWashiTapeHref(assetById, layer),
       }),
     [assetById, renderedDocument, stickerSvgById, svgIdPrefix],
   );
@@ -248,9 +245,7 @@ export function PageCanvas({
       ? 208
       : selectedLayer.kind === "photo"
         ? 100
-        : selectedLayer.kind === "washiTape"
-          ? 112
-          : 68
+        : 68
     : 68;
   const selectedLayerMenuStyle: CSSProperties | undefined = selectedSelectionFrame
     ? {
@@ -570,34 +565,6 @@ export function PageCanvas({
       mask: { ...selectedLayer.mask, ...update },
     } as Partial<PageLayer>);
   };
-  const updateSelectedWashiTape = (update: Partial<WashiTapeLayer>) => {
-    if (!selectedLayer || selectedLayer.kind !== "washiTape") return;
-
-    changeLayer(selectedLayer.id, update as Partial<PageLayer>);
-  };
-  const updateSelectedWashiTapePattern = (update: Partial<WashiTapeLayer["pattern"]>) => {
-    if (!selectedLayer || selectedLayer.kind !== "washiTape") return;
-
-    updateSelectedWashiTape({ pattern: { ...selectedLayer.pattern, ...update } });
-  };
-  const updateSelectedWashiTapeTile = (update: Partial<WashiTapeLayer["tile"]>) => {
-    if (!selectedLayer || selectedLayer.kind !== "washiTape") return;
-
-    updateSelectedWashiTape({ tile: { ...selectedLayer.tile, ...update } });
-  };
-  const changeSelectedWashiTapePattern = (kind: WashiTapeLayer["pattern"]["kind"]) => {
-    if (!selectedLayer || selectedLayer.kind !== "washiTape") return;
-
-    if (kind === "customPhoto") {
-      onChooseWashiTapePhoto?.(selectedLayer.id);
-
-      if (!selectedLayer.pattern.assetId && !selectedLayer.assetId) {
-        return;
-      }
-    }
-
-    updateSelectedWashiTapePattern({ kind });
-  };
   const clearSelection = (event: ReactPointerEvent<HTMLFieldSetElement>) => {
     if (event.button !== 0 || activeTransform) return;
     if (contextMenuRef.current?.contains(event.target as Node)) return;
@@ -764,18 +731,6 @@ export function PageCanvas({
                 <span>Frame</span>
               </button>
             ) : null}
-            {selectedLayer.kind === "washiTape" ? (
-              <button
-                type="button"
-                aria-label="Change washi tape outline"
-                aria-pressed={activeSelectionPanel === "washi"}
-                title="Outline"
-                onClick={() => toggleSelectionPanel("washi")}
-              >
-                <ImageBorderRegular />
-                <span>Outline</span>
-              </button>
-            ) : null}
             {selectedLayer.kind === "text" ? (
               <label
                 className="selected-layer-font-control"
@@ -879,144 +834,6 @@ export function PageCanvas({
               </div>
             </div>
           ) : null}
-          {activeSelectionPanel === "washi" && selectedLayer.kind === "washiTape" ? (
-            <div
-              className="selected-layer-popover washi-popover"
-              role="dialog"
-              aria-label="Washi tape outline"
-            >
-              <label>
-                <span>Outline</span>
-                <select
-                  value={selectedLayer.outline}
-                  onChange={(event) =>
-                    updateSelectedWashiTape({
-                      outline: event.currentTarget.value as WashiTapeLayer["outline"],
-                    })
-                  }
-                >
-                  {washiTapeOutlineOptions.map((outline) => (
-                    <option value={outline} key={outline}>
-                      {formatWashiTapeOutline(outline)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Pattern</span>
-                <select
-                  value={selectedLayer.pattern.kind}
-                  onChange={(event) =>
-                    changeSelectedWashiTapePattern(
-                      event.currentTarget.value as WashiTapeLayer["pattern"]["kind"],
-                    )
-                  }
-                >
-                  {washiTapePatternOptions.map((pattern) => (
-                    <option value={pattern} key={pattern}>
-                      {formatWashiTapePattern(pattern)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="washi-popover-field-row">
-                <label>
-                  <span>Primary</span>
-                  <input
-                    type="color"
-                    value={selectedLayer.pattern.primaryColor}
-                    onChange={(event) =>
-                      updateSelectedWashiTapePattern({ primaryColor: event.currentTarget.value })
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Secondary</span>
-                  <input
-                    type="color"
-                    value={selectedLayer.pattern.secondaryColor}
-                    onChange={(event) =>
-                      updateSelectedWashiTapePattern({ secondaryColor: event.currentTarget.value })
-                    }
-                  />
-                </label>
-              </div>
-              {selectedLayer.pattern.kind === "customPhoto" ? (
-                <button type="button" onClick={() => onChooseWashiTapePhoto?.(selectedLayer.id)}>
-                  Choose custom photo
-                </button>
-              ) : null}
-              <div className="washi-popover-field-row">
-                <label>
-                  <span>Scale X</span>
-                  <input
-                    max={4}
-                    min={0.2}
-                    step={0.05}
-                    type="number"
-                    value={selectedLayer.tile.scaleX}
-                    onChange={(event) =>
-                      updateSelectedWashiTapeTile({ scaleX: Number(event.currentTarget.value) })
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Scale Y</span>
-                  <input
-                    max={4}
-                    min={0.2}
-                    step={0.05}
-                    type="number"
-                    value={selectedLayer.tile.scaleY}
-                    onChange={(event) =>
-                      updateSelectedWashiTapeTile({ scaleY: Number(event.currentTarget.value) })
-                    }
-                  />
-                </label>
-              </div>
-              <div className="washi-popover-transform-row">
-                <label>
-                  <span>Rotation</span>
-                  <input
-                    max={360}
-                    min={-360}
-                    step={1}
-                    type="number"
-                    value={selectedLayer.tile.rotation}
-                    onChange={(event) =>
-                      updateSelectedWashiTapeTile({ rotation: Number(event.currentTarget.value) })
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Offset X</span>
-                  <input
-                    max={1}
-                    min={-1}
-                    step={0.01}
-                    type="number"
-                    value={selectedLayer.tile.offsetX}
-                    onChange={(event) =>
-                      updateSelectedWashiTapeTile({ offsetX: Number(event.currentTarget.value) })
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Offset Y</span>
-                  <input
-                    max={1}
-                    min={-1}
-                    step={0.01}
-                    type="number"
-                    value={selectedLayer.tile.offsetY}
-                    onChange={(event) =>
-                      updateSelectedWashiTapeTile({ offsetY: Number(event.currentTarget.value) })
-                    }
-                  />
-                </label>
-              </div>
-            </div>
-          ) : null}
         </div>
       ) : null}
       {activeSelectionPanel === "edit" && selectedLayer ? (
@@ -1050,6 +867,7 @@ export function PageCanvas({
                 layer={selectedLayer}
                 onChange={(update) => changeLayer(selectedLayer.id, update)}
                 onChooseWashiTapePhoto={onChooseWashiTapePhoto}
+                resolveWashiTapeHref={(layer) => resolveBrowserWashiTapeHref(assetById, layer)}
               />
             </div>
           </section>
