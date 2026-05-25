@@ -3,6 +3,7 @@ import {
   BookRegular,
   ChevronLeftRegular,
   ChevronRightRegular,
+  GridRegular,
   ImageRegular,
   SettingsRegular,
   SignOutRegular,
@@ -17,6 +18,7 @@ import { LoadingScreen } from "./components/layout";
 import { AuthPage } from "./features/auth/AuthPage";
 import { BookEditorView } from "./features/books/BookEditorView";
 import { BooksView } from "./features/books/BooksView";
+import { ImageGridView } from "./features/image-grid/ImageGridView";
 import { LibraryView } from "./features/library/LibraryView";
 import { SettingsView } from "./features/settings/SettingsView";
 import { getErrorMessage } from "./lib/errors";
@@ -25,6 +27,7 @@ import type { AuthMode, AuthSession, SessionState } from "./types";
 const navItems = [
   { to: "/books", label: "Books", icon: <BookRegular /> },
   { to: "/library", label: "Photos", icon: <ImageRegular /> },
+  { to: "/image-grid", label: "Grid", icon: <GridRegular /> },
   { to: "/settings", label: "Settings", icon: <SettingsRegular /> },
 ] satisfies { to: string; label: string; icon: ReactNode }[];
 
@@ -229,6 +232,7 @@ function ProtectedShell({
         <Routes>
           <Route index element={<Navigate to="/books" replace />} />
           <Route path="library" element={<LibraryView />} />
+          <Route path="image-grid" element={<ImageGridView />} />
           <Route path="books" element={<BooksView />} />
           <Route path="books/:bookId" element={<BookEditorView />} />
           <Route path="pages/*" element={<Navigate to="/books" replace />} />
