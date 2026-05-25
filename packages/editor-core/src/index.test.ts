@@ -304,14 +304,14 @@ describe("page document helpers", () => {
 
     expect(
       createWashiTapeLayer({
-        tile: { offsetX: 0.05, offsetY: -0.05, scale: 0.95, scaleX: 0.95, scaleY: 0.95 },
+        tile: { offsetX: 1, offsetY: -1, scale: 0.95, scaleX: 0.01, scaleY: 0.01 },
       }).tile,
     ).toMatchObject({
-      offsetX: 0.05,
-      offsetY: -0.05,
+      offsetX: 1,
+      offsetY: -1,
       scale: 0.95,
-      scaleX: 0.95,
-      scaleY: 0.95,
+      scaleX: 0.01,
+      scaleY: 0.01,
     });
 
     expect(createWashiTapeLayer({ assetId: "asset_1" }).pattern).toMatchObject({

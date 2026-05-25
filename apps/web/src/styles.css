@@ -2058,16 +2058,14 @@ textarea:focus-visible {
   box-shadow: var(--sb-shadow-8);
 }
 
-.frame-popover,
-.washi-popover {
+.frame-popover {
   display: grid;
   width: min(300px, calc(100vw - 32px));
   gap: 8px;
   padding: 10px;
 }
 
-.frame-popover label,
-.washi-popover label {
+.frame-popover label {
   display: grid;
   gap: 4px;
   color: var(--sb-neutral-foreground-2);
@@ -2094,8 +2092,7 @@ textarea:focus-visible {
   background: var(--sb-neutral-background);
 }
 
-.frame-popover select,
-.washi-popover select {
+.frame-popover select {
   min-height: 30px;
   border: 1px solid var(--sb-neutral-stroke);
   border-radius: 6px;
@@ -2108,18 +2105,6 @@ textarea:focus-visible {
 .frame-popover-field-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
-}
-
-.washi-popover-field-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.washi-popover-transform-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -3682,6 +3667,108 @@ body {
 .selected-layer-edit-body .full-width-button {
   justify-self: start;
   width: auto;
+}
+
+.selected-layer-edit-body .washi-tape-controls-section {
+  grid-column: 1 / -1;
+}
+
+.washi-tape-controls-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.washi-tape-settings-column {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.washi-tape-axis-scale-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.washi-tape-axis-scale-field {
+  display: grid;
+  gap: 4px;
+}
+
+.washi-tape-slider-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--sb-neutral-foreground-2);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.washi-tape-slider-label-row output {
+  color: var(--sb-neutral-foreground-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.washi-tape-slider-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.washi-tape-slider-row input[type="range"] {
+  min-width: 0;
+}
+
+.washi-tape-scale-reset-button {
+  min-height: 26px;
+  border: 1px solid var(--sb-neutral-stroke);
+  border-radius: 5px;
+  padding: 0 9px;
+  color: var(--sb-neutral-foreground);
+  background: var(--sb-neutral-background);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.washi-tape-scale-reset-button:hover {
+  background: var(--sb-neutral-background-4);
+}
+
+.washi-tape-preview-pane {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 7px;
+  background:
+    linear-gradient(90deg, rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--sb-neutral-background-2);
+}
+
+.washi-tape-preview-surface {
+  width: 100%;
+  max-width: 420px;
+}
+
+.washi-tape-preview-surface svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 760px) {
+  .washi-tape-controls-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .washi-tape-preview-pane {
+    min-height: 108px;
+  }
 }
 
 .canvas-layer[data-selected="true"] .canvas-layer-content {

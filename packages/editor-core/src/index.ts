@@ -280,8 +280,8 @@ export const washiTapeLayerSchema = pageLayerBaseSchema.extend({
   tile: z
     .object({
       scale: z.number().finite().min(0.2).max(4).transform(roundToNearestHundredth),
-      scaleX: z.number().finite().min(0.2).max(4).transform(roundToNearestHundredth).default(1),
-      scaleY: z.number().finite().min(0.2).max(4).transform(roundToNearestHundredth).default(1),
+      scaleX: z.number().finite().min(0.01).max(4).transform(roundToNearestHundredth).default(1),
+      scaleY: z.number().finite().min(0.01).max(4).transform(roundToNearestHundredth).default(1),
       rotation: rotationSchema,
       offsetX: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
       offsetY: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
