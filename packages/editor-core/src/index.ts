@@ -94,6 +94,8 @@ const defaultWashiTapeTile = {
   offsetY: 0,
 };
 
+const washiTapeTileBaseSize = 80;
+
 const defaultWashiTapePattern = {
   kind: "polkaDot" as const,
   primaryColor: "#fffdf7",
@@ -1132,7 +1134,7 @@ const renderWashiTapeLayerSvg = (
     ? createSvgId(idPrefix, "washi", "pattern", index)
     : createSvgId("washi", "pattern", index);
   const outline = washiTapeOutlinePath(layer);
-  const tileBase = Math.max(16, layer.height * layer.tile.scale);
+  const tileBase = washiTapeTileBaseSize * layer.tile.scale;
   const tileWidth = roundSvgNumber(tileBase * layer.tile.scaleX);
   const tileHeight = roundSvgNumber(tileBase * layer.tile.scaleY);
   const shortestTileSide = Math.min(tileWidth, tileHeight);
