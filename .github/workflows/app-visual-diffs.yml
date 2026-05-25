@@ -1,0 +1,164 @@
+name: App Visual Diffs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: app-visual-diffs-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Capture before and after screenshots
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    outputs:
+      has-visual-diff: ${{ steps.compare.outputs.has-visual-diff }}
+      head-sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      merge-base-sha: ${{ steps.base.outputs.sha || github.sha }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @scrapbook/web exec playwright install --with-deps chromium
+
+      - name: Generate pull request screenshots
+        env:
+          SCRAPBOOK_SCREENSHOT_DIR: ${{ runner.temp }}/scrapbook-screenshots/after
+        run: pnpm screenshots
+
+      - name: Resolve merge base
+        id: base
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          merge_base="$(git merge-base HEAD "refs/remotes/origin/${BASE_REF}")"
+          echo "sha=${merge_base}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate merge-base screenshots
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          AFTER_OUT_DIR: ${{ runner.temp }}/scrapbook-screenshots/after
+          BEFORE_OUT_DIR: ${{ runner.temp }}/scrapbook-screenshots/before
+          BEFORE_SOURCE_DIR: ${{ runner.temp }}/scrapbook-before-src
+          MERGE_BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          git worktree add "$BEFORE_SOURCE_DIR" "$MERGE_BASE_SHA"
+          cleanup() {
+            git worktree remove --force "$BEFORE_SOURCE_DIR" || true
+          }
+          trap cleanup EXIT
+          if node -e "process.exit(require('$BEFORE_SOURCE_DIR/package.json').scripts?.screenshots ? 0 : 1)"; then
+            pushd "$BEFORE_SOURCE_DIR"
+            corepack enable pnpm
+            pnpm install --frozen-lockfile
+            pnpm --filter @scrapbook/web exec playwright install chromium
+            SCRAPBOOK_SCREENSHOT_DIR="$BEFORE_OUT_DIR" pnpm screenshots
+            popd
+          else
+            echo "Merge base does not have screenshot infrastructure; using pull request screenshots as the baseline."
+            mkdir -p "$BEFORE_OUT_DIR"
+            cp -R "$AFTER_OUT_DIR"/. "$BEFORE_OUT_DIR"/
+          fi
+          cleanup
+          trap - EXIT
+
+      - name: Use pull request screenshots as workflow-dispatch baseline
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          mkdir -p "${{ runner.temp }}/scrapbook-screenshots/before"
+          cp -R "${{ runner.temp }}/scrapbook-screenshots/after"/. "${{ runner.temp }}/scrapbook-screenshots/before"/
+
+      - name: Compare screenshots
+        id: compare
+        run: >
+          pnpm screenshots:compare
+          --before "${{ runner.temp }}/scrapbook-screenshots/before"
+          --after "${{ runner.temp }}/scrapbook-screenshots/after"
+          --out "${{ runner.temp }}/scrapbook-screenshots/comparison"
+
+      - name: Upload visual diff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-visual-diffs
+          path: ${{ runner.temp }}/scrapbook-screenshots/comparison
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-comment:
+    name: Publish pull request comment
+    needs: capture
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Download visual diff artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-visual-diffs
+          path: ${{ runner.temp }}/app-visual-diffs
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish visual diff branch
+        id: publish
+        run: >
+          pnpm exec tsx scripts/screenshots/publish-visual-diff-branch.ts
+          --pull-request "${{ github.event.pull_request.number }}"
+          --screenshots-dir "${{ runner.temp }}/app-visual-diffs"
+
+      - name: Update pull request comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          pnpm exec tsx scripts/screenshots/update-visual-diff-comment.ts
+          --pull-request "${{ github.event.pull_request.number }}"
+          --merge-base-sha "${{ needs.capture.outputs.merge-base-sha }}"
+          --head-sha "${{ needs.capture.outputs.head-sha }}"
+          --screenshot-branch "${{ steps.publish.outputs.branch }}"
+          --repository "${{ github.repository }}"
+          --run-id "${{ github.run_id }}"
+          --screenshots-dir "${{ runner.temp }}/app-visual-diffs"
