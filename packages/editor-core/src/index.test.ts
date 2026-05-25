@@ -8,6 +8,7 @@ import {
   createPhotoLayer,
   createStickerLayer,
   createTextLayer,
+  createWashiTapeLayer,
   deleteLayer,
   duplicateLayer,
   editorFontDefinitions,
@@ -21,7 +22,22 @@ import {
   resizePageDocument,
   updateCanvas,
   updateLayer,
+  type WashiTapeLayer,
 } from "./index.js";
+
+const washiTapeOutlineCases: WashiTapeLayer["outline"][] = [
+  "straight",
+  "angled",
+  "rounded",
+  "torn",
+  "notched",
+  "bracket",
+  "pinched",
+  "tapered",
+  "scallop",
+  "stamp",
+  "wave",
+];
 
 describe("page document helpers", () => {
   it("creates a versioned page document with canvas settings", () => {
@@ -255,6 +271,166 @@ describe("page document helpers", () => {
     });
   });
 
+  it("creates first-class washi tape layers with tiled photo styling", () => {
+    const washiTape = createWashiTapeLayer({
+      id: "washi_1",
+      outline: "scallop",
+      pattern: { kind: "stripe", primaryColor: "#fffdf7", secondaryColor: "#79a9a4" },
+      tile: {
+        offsetX: 0.14,
+        offsetY: -0.04,
+        rotation: 8.76,
+        scale: 0.74,
+        scaleX: 1.24,
+        scaleY: 0.64,
+      },
+    });
+    const document = addLayer(createPageDocument(), washiTape);
+
+    expect(pageDocumentSchema.parse(document).layers[0]).toMatchObject({
+      id: "washi_1",
+      kind: "washiTape",
+      outline: "scallop",
+      pattern: { kind: "stripe", primaryColor: "#fffdf7", secondaryColor: "#79a9a4" },
+      tile: {
+        offsetX: 0.14,
+        offsetY: -0.04,
+        rotation: 8.8,
+        scale: 0.74,
+        scaleX: 1.24,
+        scaleY: 0.64,
+      },
+    });
+
+    expect(
+      createWashiTapeLayer({
+        tile: { offsetX: 0.05, offsetY: -0.05, scale: 0.95, scaleX: 0.95, scaleY: 0.95 },
+      }).tile,
+    ).toMatchObject({
+      offsetX: 0.05,
+      offsetY: -0.05,
+      scale: 0.95,
+      scaleX: 0.95,
+      scaleY: 0.95,
+    });
+
+    expect(createWashiTapeLayer({ assetId: "asset_1" }).pattern).toMatchObject({
+      assetId: "asset_1",
+      kind: "customPhoto",
+    });
+  });
+
+  it("keeps legacy photo-backed washi tape documents compatible", () => {
+    const parsed = pageDocumentSchema.parse({
+      version: 1,
+      canvas: { width: 1200, height: 900, backgroundColor: "#ffffff" },
+      layers: [
+        {
+          id: "washi_legacy",
+          kind: "washiTape",
+          assetId: "asset_1",
+          x: 10,
+          y: 20,
+          width: 400,
+          height: 80,
+          rotation: 0,
+          opacity: 1,
+          locked: false,
+          outline: "torn",
+        },
+      ],
+    });
+    const layer = parsed.layers[0];
+
+    expect(layer?.kind).toBe("washiTape");
+    expect(layer).toMatchObject({
+      assetId: "asset_1",
+      pattern: { kind: "customPhoto" },
+    });
+  });
+
+  it("renders built-in washi tape patterns without photo assets", () => {
+    const patternCases: WashiTapeLayer["pattern"]["kind"][] = [
+      "solid",
+      "polkaDot",
+      "stripe",
+      "grid",
+      "checker",
+    ];
+    const layers = patternCases.map((pattern, index) =>
+      createWashiTapeLayer({
+        height: 80,
+        id: `washi_${pattern}`,
+        pattern: { kind: pattern, primaryColor: "#fffdf7", secondaryColor: "#79a9a4" },
+        width: 240,
+        x: index * 260,
+        y: 0,
+      }),
+    );
+    const document = createPageDocument({ canvas: { height: 320, width: 1800 }, layers });
+    const svg = renderPageDocumentSvg(document);
+
+    expect(svg).toContain("#fffdf7");
+    expect(svg).toContain("#79a9a4");
+    expect(svg).not.toContain("/assets/");
+    expect(svg).not.toContain("NaN");
+  });
+
+  it("renders polka dot washi tape with uniform rows", () => {
+    const washiTape = createWashiTapeLayer({
+      height: 80,
+      id: "washi_polka_dot",
+      pattern: { kind: "polkaDot", primaryColor: "#fffdf7", secondaryColor: "#79a9a4" },
+      width: 240,
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [washiTape] }));
+
+    expect(svg.match(/<circle /g)).toHaveLength(4);
+    expect(svg).toContain('cx="20" cy="20"');
+    expect(svg).toContain('cx="60" cy="60"');
+  });
+
+  it("renders washi tape patterns with independent tile x and y scale", () => {
+    const washiTape = createWashiTapeLayer({
+      height: 80,
+      id: "washi_scaled_pattern",
+      pattern: { kind: "grid", primaryColor: "#fffdf7", secondaryColor: "#79a9a4" },
+      tile: { scale: 1, scaleX: 1.5, scaleY: 0.5 },
+      width: 320,
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [washiTape] }));
+
+    expect(svg).toContain('width="120" height="40"');
+    expect(svg).toContain("V 40 M 0 20 H 120");
+  });
+
+  it("renders every washi tape outline type", () => {
+    const layers = washiTapeOutlineCases.map((outline, index) =>
+      createWashiTapeLayer({
+        assetId: "asset_1",
+        height: 80,
+        id: `washi_${outline}`,
+        outline,
+        width: 240,
+        x: index * 260,
+        y: 0,
+      }),
+    );
+    const document = createPageDocument({
+      canvas: { height: 320, width: 3200 },
+      layers,
+    });
+    const svg = renderPageDocumentSvg(document, {
+      resolveWashiTapeHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    for (const outline of washiTapeOutlineCases) {
+      expect(svg).toContain(`data-washi-outline="${outline}"`);
+    }
+
+    expect(svg).not.toContain("NaN");
+  });
+
   it("renders page primitives through the shared SVG renderer", () => {
     const photo = createPhotoLayer({
       assetId: "asset_1",
@@ -268,19 +444,26 @@ describe("page document helpers", () => {
       color: "#79a9a4",
     });
     const sticker = createStickerLayer({ id: "sticker_2", stickerId: "noto:star" });
-    const document = createPageDocument({ layers: [photo, text, embellishment, sticker] });
+    const washiTape = createWashiTapeLayer({ assetId: "asset_2", id: "washi_1" });
+    const document = createPageDocument({
+      layers: [photo, text, embellishment, sticker, washiTape],
+    });
     const svg = renderPageDocumentSvg(document, {
       resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
       resolveStickerSvg: () => ({
         body: '<circle cx="50" cy="50" r="40" fill="#f4bd3f" />',
         viewBox: "0 0 100 100",
       }),
+      resolveWashiTapeHref: (layer) => `/assets/${layer.assetId}/content`,
     });
 
     expect(svg).toContain("<svg");
     expect(svg).toContain("photo_clip_0");
     expect(svg).toContain("Family &amp; friends");
     expect(svg).toContain("/assets/asset_1/content");
+    expect(svg).toContain("/assets/asset_2/content");
+    expect(svg).toContain("washi_pattern_4");
+    expect(svg).toContain('data-washi-outline="torn"');
     expect(svg).toContain('stroke-opacity="0.34"');
     expect(svg).toContain('fill="#f4bd3f"');
   });

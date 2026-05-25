@@ -1,5 +1,10 @@
 import type { ExportPreset } from "@scrapbook/api-contract";
-import { type PageDocument, type PhotoLayer, renderPageDocumentSvg } from "@scrapbook/editor-core";
+import {
+  type PageDocument,
+  type PhotoLayer,
+  renderPageDocumentSvg,
+  type WashiTapeLayer,
+} from "@scrapbook/editor-core";
 import { getStickerSvg } from "@scrapbook/editor-core/stickers";
 import sharp from "sharp";
 
@@ -22,11 +27,21 @@ const targetPhotoDimension = (layer: PhotoLayer, settings: RasterRenderSettings)
   return Math.max(1, Math.ceil(transformedDimension * renderScaleForSettings(settings)));
 };
 
-const createPhotoDataUri = async (input: {
+const targetWashiTapeDimension = (layer: WashiTapeLayer, settings: RasterRenderSettings): number =>
+  Math.max(
+    1,
+    Math.ceil(
+      Math.max(16, layer.height * layer.tile.scale) *
+        Math.max(layer.tile.scaleX, layer.tile.scaleY) *
+        renderScaleForSettings(settings),
+    ),
+  );
+
+const createImageDataUri = async (input: {
   buffer: Buffer;
-  layer: PhotoLayer;
   mimeType: string;
   settings: RasterRenderSettings;
+  targetDimension: number;
 }): Promise<string> => {
   if (
     svgNativeImageMimeTypes.has(input.mimeType) &&
@@ -44,8 +59,8 @@ const createPhotoDataUri = async (input: {
     .rotate()
     .resize({
       fit: "inside",
-      height: targetPhotoDimension(input.layer, input.settings),
-      width: targetPhotoDimension(input.layer, input.settings),
+      height: input.targetDimension,
+      width: input.targetDimension,
       withoutEnlargement: true,
     });
   const rendered = metadata.hasAlpha
@@ -79,6 +94,7 @@ export const renderPageSvg = async (input: {
   const settings: RasterRenderSettings =
     input.dpi === undefined ? { preset: input.preset } : { dpi: input.dpi, preset: input.preset };
   const photoHrefs = new Map<string, string>();
+  const washiTapeHrefs = new Map<string, string>();
 
   for (const layer of input.document.layers) {
     if (layer.kind === "photo") {
@@ -89,14 +105,41 @@ export const renderPageSvg = async (input: {
       }
 
       const buffer = await input.storage.read(asset.originalStorageKey);
-
       photoHrefs.set(
         layer.id,
-        await createPhotoDataUri({
+        await createImageDataUri({
           buffer,
-          layer,
           mimeType: asset.mimeType,
           settings,
+          targetDimension: targetPhotoDimension(layer, settings),
+        }),
+      );
+
+      continue;
+    }
+
+    if (layer.kind === "washiTape" && layer.pattern.kind === "customPhoto") {
+      const assetId = layer.pattern.assetId ?? layer.assetId;
+
+      if (!assetId) {
+        continue;
+      }
+
+      const asset = input.repositories.assets.findByIdForAccount(input.accountId, assetId);
+
+      if (!asset) {
+        continue;
+      }
+
+      const buffer = await input.storage.read(asset.originalStorageKey);
+
+      washiTapeHrefs.set(
+        layer.id,
+        await createImageDataUri({
+          buffer,
+          mimeType: asset.mimeType,
+          settings,
+          targetDimension: targetWashiTapeDimension(layer, settings),
         }),
       );
     }
@@ -108,5 +151,6 @@ export const renderPageSvg = async (input: {
       : { includeBackground: input.includeBackground }),
     resolvePhotoHref: (layer: PhotoLayer) => photoHrefs.get(layer.id),
     resolveStickerSvg: (layer) => getStickerSvg(layer.stickerId),
+    resolveWashiTapeHref: (layer: WashiTapeLayer) => washiTapeHrefs.get(layer.id),
   });
 };

@@ -12,6 +12,7 @@ export function AssetRail({
   onAddEmbellishment,
   onAddText,
   onOpenPhotoPicker,
+  onOpenWashiTapePicker,
   onOpenStickerPicker,
 }: {
   assetCount: number;
@@ -20,6 +21,7 @@ export function AssetRail({
   onAddEmbellishment: (preset: EmbellishmentPreset) => void;
   onAddText: () => void;
   onOpenPhotoPicker: () => void;
+  onOpenWashiTapePicker: () => void;
   onOpenStickerPicker: () => void;
 }) {
   return (
@@ -38,6 +40,15 @@ export function AssetRail({
           onClick={onOpenPhotoPicker}
         >
           Add photo
+        </Button>
+        <Button
+          type="button"
+          className="secondary-button full-width-button"
+          disabled={isPhotoPickerDisabled}
+          icon={<AddRegular />}
+          onClick={onOpenWashiTapePicker}
+        >
+          Add washi tape
         </Button>
       </div>
       <div className="panel-heading compact-heading nested-heading">

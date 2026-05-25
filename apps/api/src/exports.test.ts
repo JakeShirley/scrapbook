@@ -5,6 +5,7 @@ import {
   createPageDocument,
   createPhotoLayer,
   createTextLayer,
+  createWashiTapeLayer,
   type PageDocument,
   type PhotoLayer,
 } from "@scrapbook/editor-core";
@@ -263,6 +264,27 @@ describe("PNG page exports", () => {
             x: 178,
             y: 42,
           }),
+          createWashiTapeLayer({
+            assetId: testAssetId,
+            height: 40,
+            id: "washi_photo_primitive",
+            outline: "wave",
+            rotation: 0,
+            tile: { offsetX: 0, offsetY: 0, rotation: 0, scale: 0.8 },
+            width: 168,
+            x: 76,
+            y: 214,
+          }),
+          createWashiTapeLayer({
+            height: 36,
+            id: "washi_pattern_primitive",
+            outline: "straight",
+            pattern: { kind: "solid", primaryColor: "#79a9a4", secondaryColor: "#fffdf7" },
+            rotation: 0,
+            width: 168,
+            x: 76,
+            y: 270,
+          }),
         ],
       }),
     );
@@ -270,6 +292,8 @@ describe("PNG page exports", () => {
     expect(image).toMatchObject({ height: 320, width: 320 });
     expectColorNear(pixelAt(image, 8, 8), scrapbookBackground);
     expectColorNear(pixelAt(image, 72, 64), photoRed);
+    expectColorNear(pixelAt(image, 150, 234), photoRed, 70);
+    expectColorNear(pixelAt(image, 150, 288), { blue: 180, green: 185, red: 145 }, 35);
     expectColorNear(pixelAt(image, 180, 74), { blue: 70, green: 109, red: 213 }, 18);
     expect(
       countPixels(

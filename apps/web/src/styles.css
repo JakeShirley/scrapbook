@@ -2058,14 +2058,16 @@ textarea:focus-visible {
   box-shadow: var(--sb-shadow-8);
 }
 
-.frame-popover {
+.frame-popover,
+.washi-popover {
   display: grid;
   width: min(300px, calc(100vw - 32px));
   gap: 8px;
   padding: 10px;
 }
 
-.frame-popover label {
+.frame-popover label,
+.washi-popover label {
   display: grid;
   gap: 4px;
   color: var(--sb-neutral-foreground-2);
@@ -2092,7 +2094,8 @@ textarea:focus-visible {
   background: var(--sb-neutral-background);
 }
 
-.frame-popover select {
+.frame-popover select,
+.washi-popover select {
   min-height: 30px;
   border: 1px solid var(--sb-neutral-stroke);
   border-radius: 6px;
@@ -2105,6 +2108,18 @@ textarea:focus-visible {
 .frame-popover-field-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.washi-popover-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.washi-popover-transform-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 

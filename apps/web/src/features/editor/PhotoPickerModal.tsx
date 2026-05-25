@@ -7,15 +7,19 @@ import { formatBytes, formatDimensions } from "../../lib/format";
 import type { Asset } from "../../types";
 
 export function PhotoPickerModal({
+  actionLabel = "Add",
   assets,
   eyebrow,
   onAddPhoto,
   onClose,
+  title = "Add photo",
 }: {
+  actionLabel?: string;
   assets: Asset[];
   eyebrow?: string;
   onAddPhoto: (asset: Asset) => void;
   onClose: () => void;
+  title?: string;
 }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -38,7 +42,7 @@ export function PhotoPickerModal({
   };
 
   return (
-    <AppModal title="Add photo" {...(eyebrow === undefined ? {} : { eyebrow })} onClose={onClose}>
+    <AppModal title={title} {...(eyebrow === undefined ? {} : { eyebrow })} onClose={onClose}>
       <div className="photo-picker-modal">
         <div className="photo-picker-toolbar">
           <Field label="Search photos">
@@ -63,7 +67,7 @@ export function PhotoPickerModal({
                 type="button"
                 key={asset.id}
                 className="photo-picker-item"
-                aria-label={`Add ${asset.originalFilename}`}
+                aria-label={`${actionLabel} ${asset.originalFilename}`}
                 onClick={() => addPhoto(asset)}
               >
                 <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
@@ -75,7 +79,7 @@ export function PhotoPickerModal({
                 </span>
                 <span className="primary-button photo-picker-add-indicator">
                   <AddRegular />
-                  Add
+                  {actionLabel}
                 </span>
               </button>
             ))}

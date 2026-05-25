@@ -16,7 +16,7 @@ export const embellishmentPresets: EmbellishmentPreset[] = [
   {
     accentColor: "#ffffff",
     color: "#79a9a4",
-    displayName: "Washi tape",
+    displayName: "Color tape",
     element: "washi-tape",
     label: "",
   },

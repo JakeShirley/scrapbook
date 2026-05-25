@@ -20,6 +20,11 @@ const roundToNearestTenth = (value: number): number => {
 
   return Object.is(rounded, -0) ? 0 : rounded;
 };
+const roundToNearestHundredth = (value: number): number => {
+  const rounded = Math.round(value * 100) / 100;
+
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
 const coordinateSchema = z.number().finite().transform(roundToNearestTenth);
 const positiveSizeSchema = z
   .number()
@@ -78,6 +83,26 @@ const defaultPhotoFilter = {
   brightness: 1,
   contrast: 1,
   saturation: 1,
+};
+
+const defaultWashiTapeTile = {
+  scale: 1,
+  scaleX: 1,
+  scaleY: 1,
+  rotation: 0,
+  offsetX: 0,
+  offsetY: 0,
+};
+
+const defaultWashiTapePattern = {
+  kind: "polkaDot" as const,
+  primaryColor: "#fffdf7",
+  secondaryColor: "#79a9a4",
+};
+
+const legacyPhotoWashiTapePattern = {
+  ...defaultWashiTapePattern,
+  kind: "customPhoto" as const,
 };
 
 export type StickerLibraryId = "noto" | "twemoji";
@@ -228,11 +253,48 @@ export const stickerLayerSchema = pageLayerBaseSchema.extend({
   stickerId: stickerIdSchema,
 });
 
+export const washiTapeLayerSchema = pageLayerBaseSchema.extend({
+  kind: z.literal("washiTape"),
+  assetId: z.string().min(1).optional(),
+  outline: z.enum([
+    "straight",
+    "angled",
+    "rounded",
+    "torn",
+    "notched",
+    "bracket",
+    "pinched",
+    "tapered",
+    "scallop",
+    "stamp",
+    "wave",
+  ]),
+  pattern: z
+    .object({
+      kind: z.enum(["solid", "polkaDot", "stripe", "grid", "checker", "customPhoto"]),
+      primaryColor: colorSchema,
+      secondaryColor: colorSchema,
+      assetId: z.string().min(1).optional(),
+    })
+    .default(legacyPhotoWashiTapePattern),
+  tile: z
+    .object({
+      scale: z.number().finite().min(0.2).max(4).transform(roundToNearestHundredth),
+      scaleX: z.number().finite().min(0.2).max(4).transform(roundToNearestHundredth).default(1),
+      scaleY: z.number().finite().min(0.2).max(4).transform(roundToNearestHundredth).default(1),
+      rotation: rotationSchema,
+      offsetX: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
+      offsetY: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
+    })
+    .default(defaultWashiTapeTile),
+});
+
 export const pageLayerSchema = z.discriminatedUnion("kind", [
   photoLayerSchema,
   textLayerSchema,
   embellishmentLayerSchema,
   stickerLayerSchema,
+  washiTapeLayerSchema,
 ]);
 
 export const pageDocumentSchema = z.object({
@@ -251,6 +313,7 @@ export type PhotoLayer = z.infer<typeof photoLayerSchema>;
 export type TextLayer = z.infer<typeof textLayerSchema>;
 export type EmbellishmentLayer = z.infer<typeof embellishmentLayerSchema>;
 export type StickerLayer = z.infer<typeof stickerLayerSchema>;
+export type WashiTapeLayer = z.infer<typeof washiTapeLayerSchema>;
 export type PageLayerKind = PageLayer["kind"];
 
 export type RenderPageSvgOptions = {
@@ -258,6 +321,7 @@ export type RenderPageSvgOptions = {
   includeBackground?: boolean;
   resolvePhotoHref?: (layer: PhotoLayer) => string | null | undefined;
   resolveStickerSvg?: (layer: StickerLayer) => StickerSvg | null | undefined;
+  resolveWashiTapeHref?: (layer: WashiTapeLayer) => string | null | undefined;
 };
 
 export type OrderedBookPage = {
@@ -349,6 +413,25 @@ export type CreateStickerLayerInput = Partial<
   stickerId?: string;
 };
 
+export type CreateWashiTapeLayerInput = Partial<
+  Pick<
+    WashiTapeLayer,
+    | "assetId"
+    | "height"
+    | "id"
+    | "locked"
+    | "opacity"
+    | "outline"
+    | "pattern"
+    | "rotation"
+    | "width"
+    | "x"
+    | "y"
+  >
+> & {
+  tile?: Partial<WashiTapeLayer["tile"]>;
+};
+
 const createLayerId = (): string => `layer_${crypto.randomUUID()}`;
 
 const parseDocument = (document: PageDocument): PageDocument => pageDocumentSchema.parse(document);
@@ -384,6 +467,14 @@ const layerPolygon = (
   layer: Pick<PageLayer, "height" | "width" | "x" | "y">,
   points: Array<[number, number]>,
 ) => points.map(([x, y]) => layerPoint(layer, x, y)).join(" ");
+
+const layerPath = (
+  layer: Pick<PageLayer, "height" | "width" | "x" | "y">,
+  commands: string,
+): string =>
+  commands.replaceAll(/(-?\d*\.?\d+),(-?\d*\.?\d+)/g, (_match, x: string, y: string) =>
+    layerPoint(layer, Number(x), Number(y)),
+  );
 
 export type PhotoFrameRect = Pick<PageLayer, "height" | "width" | "x" | "y"> & {
   radius: number;
@@ -893,6 +984,202 @@ const renderStickerLayerSvg = (
   return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><svg x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" viewBox="${escapeXml(stickerSvg.viewBox)}" preserveAspectRatio="xMidYMid meet">${stickerSvg.body}</svg></g>`;
 };
 
+const washiTapeOutlinePath = (layer: WashiTapeLayer): string => {
+  switch (layer.outline) {
+    case "straight":
+      return `M ${layerPoint(layer, 0, 0)} L ${layerPoint(layer, 1, 0)} L ${layerPoint(layer, 1, 1)} L ${layerPoint(layer, 0, 1)} Z`;
+    case "angled":
+      return `M ${layerPolygon(layer, [
+        [0.05, 0.05],
+        [0.96, 0],
+        [1, 0.08],
+        [0.94, 0.95],
+        [0.02, 1],
+        [0, 0.9],
+      ])} Z`;
+    case "rounded":
+      return layerPath(
+        layer,
+        "M 0.08,0.08 C 0.12,0.01 0.2,0 0.32,0.02 L 0.9,0.04 C 0.98,0.05 1,0.13 0.98,0.24 L 0.94,0.78 C 0.92,0.94 0.84,1 0.72,0.98 L 0.08,0.95 C 0,0.95 0,0.84 0.02,0.7 L 0.04,0.24 C 0.04,0.16 0.05,0.11 0.08,0.08 Z",
+      );
+    case "torn":
+      return `M ${layerPolygon(layer, [
+        [0, 0.08],
+        [0.05, 0],
+        [0.13, 0.06],
+        [0.24, 0.01],
+        [0.37, 0.08],
+        [0.49, 0.02],
+        [0.64, 0.07],
+        [0.78, 0],
+        [0.91, 0.05],
+        [1, 0],
+        [1, 0.92],
+        [0.94, 1],
+        [0.82, 0.94],
+        [0.7, 0.99],
+        [0.58, 0.93],
+        [0.44, 1],
+        [0.31, 0.95],
+        [0.2, 0.99],
+        [0.08, 0.93],
+        [0, 1],
+      ])} Z`;
+    case "notched":
+      return `M ${layerPolygon(layer, [
+        [0.03, 0],
+        [0.98, 0],
+        [0.94, 1],
+        [0.02, 1],
+        [0.06, 0.58],
+        [0.02, 0.5],
+        [0.06, 0.42],
+      ])} Z`;
+    case "bracket":
+      return layerPath(
+        layer,
+        "M 0.06,0.08 C 0.1,0.02 0.18,0 0.3,0.02 L 0.94,0.06 C 1,0.07 1,0.15 0.95,0.22 C 0.9,0.3 0.9,0.42 0.97,0.52 C 0.92,0.62 0.91,0.76 0.95,0.9 C 0.9,0.98 0.78,1 0.62,0.98 L 0.04,0.94 C 0,0.82 0,0.7 0.04,0.58 C 0.08,0.48 0.08,0.36 0.03,0.26 C 0.02,0.18 0.03,0.12 0.06,0.08 Z",
+      );
+    case "pinched":
+      return layerPath(
+        layer,
+        "M 0,0.08 C 0.08,0.01 0.26,0.03 0.46,0.04 L 0.93,0 C 1,0.05 1,0.18 0.96,0.32 C 0.93,0.42 0.94,0.58 0.98,0.7 C 1,0.82 0.96,0.95 0.9,1 L 0.42,0.97 C 0.23,0.96 0.08,0.99 0,0.92 C 0.04,0.8 0.04,0.64 0,0.52 C 0.06,0.42 0.06,0.28 0,0.08 Z",
+      );
+    case "tapered":
+      return `M ${layerPolygon(layer, [
+        [0.08, 0.22],
+        [0.96, 0],
+        [1, 0.06],
+        [0.98, 0.34],
+        [0.93, 0.54],
+        [1, 0.94],
+        [0.94, 1],
+        [0.06, 0.76],
+        [0, 0.62],
+        [0.04, 0.48],
+      ])} Z`;
+    case "scallop":
+      return layerPath(
+        layer,
+        "M 0,0.12 Q 0.06,0 0.12,0.12 T 0.24,0.12 T 0.36,0.12 T 0.48,0.12 T 0.6,0.12 T 0.72,0.12 T 0.84,0.12 T 0.96,0.12 Q 1,0.06 1,0.14 L 1,0.86 Q 0.94,1 0.88,0.88 T 0.76,0.88 T 0.64,0.88 T 0.52,0.88 T 0.4,0.88 T 0.28,0.88 T 0.16,0.88 T 0.04,0.88 Q 0,0.94 0,0.86 Z",
+      );
+    case "stamp":
+      return `M ${layerPolygon(layer, [
+        [0.03, 0],
+        [0.08, 0.05],
+        [0.13, 0],
+        [0.18, 0.05],
+        [0.23, 0],
+        [0.28, 0.05],
+        [0.33, 0],
+        [0.38, 0.05],
+        [0.43, 0],
+        [0.48, 0.05],
+        [0.53, 0],
+        [0.58, 0.05],
+        [0.63, 0],
+        [0.68, 0.05],
+        [0.73, 0],
+        [0.78, 0.05],
+        [0.83, 0],
+        [0.88, 0.05],
+        [0.93, 0],
+        [1, 0.06],
+        [0.96, 0.5],
+        [1, 0.94],
+        [0.93, 1],
+        [0.88, 0.95],
+        [0.83, 1],
+        [0.78, 0.95],
+        [0.73, 1],
+        [0.68, 0.95],
+        [0.63, 1],
+        [0.58, 0.95],
+        [0.53, 1],
+        [0.48, 0.95],
+        [0.43, 1],
+        [0.38, 0.95],
+        [0.33, 1],
+        [0.28, 0.95],
+        [0.23, 1],
+        [0.18, 0.95],
+        [0.13, 1],
+        [0.08, 0.95],
+        [0.03, 1],
+        [0, 0.94],
+        [0.04, 0.5],
+        [0, 0.06],
+      ])} Z`;
+    case "wave":
+      return layerPath(
+        layer,
+        "M 0,0.2 C 0.12,0 0.2,0.34 0.32,0.16 S 0.54,0.02 0.66,0.18 S 0.88,0.28 1,0.1 L 1,0.82 C 0.88,1 0.8,0.66 0.68,0.84 S 0.46,0.98 0.34,0.82 S 0.12,0.72 0,0.9 Z",
+      );
+  }
+};
+
+const renderWashiTapeLayerSvg = (
+  layer: WashiTapeLayer,
+  href: string | null | undefined,
+  index: number,
+  idPrefix: string | undefined,
+): { body: string; defs: string } | null => {
+  if (layer.pattern.kind === "customPhoto" && !href) {
+    return null;
+  }
+
+  const patternId = idPrefix
+    ? createSvgId(idPrefix, "washi", "pattern", index)
+    : createSvgId("washi", "pattern", index);
+  const outline = washiTapeOutlinePath(layer);
+  const tileBase = Math.max(16, layer.height * layer.tile.scale);
+  const tileWidth = roundSvgNumber(tileBase * layer.tile.scaleX);
+  const tileHeight = roundSvgNumber(tileBase * layer.tile.scaleY);
+  const shortestTileSide = Math.min(tileWidth, tileHeight);
+  const patternX = roundSvgNumber(layer.x + layer.tile.offsetX * tileWidth);
+  const patternY = roundSvgNumber(layer.y + layer.tile.offsetY * tileHeight);
+  const patternCenterX = layer.x + layer.width / 2;
+  const patternCenterY = layer.y + layer.height / 2;
+  const primaryColor = escapeXml(layer.pattern.primaryColor);
+  const secondaryColor = escapeXml(layer.pattern.secondaryColor);
+  const patternBody = (() => {
+    switch (layer.pattern.kind) {
+      case "solid":
+        return `<rect width="${tileWidth}" height="${tileHeight}" fill="${primaryColor}" />`;
+      case "polkaDot": {
+        const dotRadius = roundSvgNumber(shortestTileSide * 0.13);
+        const dotCenters: Array<[number, number]> = [
+          [0.25, 0.25],
+          [0.75, 0.25],
+          [0.25, 0.75],
+          [0.75, 0.75],
+        ];
+        const dots = dotCenters
+          .map(
+            ([centerX, centerY]) =>
+              `<circle cx="${roundSvgNumber(tileWidth * centerX)}" cy="${roundSvgNumber(tileHeight * centerY)}" r="${dotRadius}" fill="${secondaryColor}" />`,
+          )
+          .join("");
+
+        return `<rect width="${tileWidth}" height="${tileHeight}" fill="${primaryColor}" />${dots}`;
+      }
+      case "stripe":
+        return `<rect width="${tileWidth}" height="${tileHeight}" fill="${primaryColor}" /><rect y="${roundSvgNumber(tileHeight * 0.18)}" width="${tileWidth}" height="${roundSvgNumber(tileHeight * 0.18)}" fill="${secondaryColor}" /><rect y="${roundSvgNumber(tileHeight * 0.68)}" width="${tileWidth}" height="${roundSvgNumber(tileHeight * 0.18)}" fill="${secondaryColor}" />`;
+      case "grid":
+        return `<rect width="${tileWidth}" height="${tileHeight}" fill="${primaryColor}" /><path d="M ${roundSvgNumber(tileWidth * 0.5)} 0 V ${tileHeight} M 0 ${roundSvgNumber(tileHeight * 0.5)} H ${tileWidth}" stroke="${secondaryColor}" stroke-width="${Math.max(1, roundSvgNumber(shortestTileSide * 0.08))}" opacity="0.72" />`;
+      case "checker":
+        return `<rect width="${tileWidth}" height="${tileHeight}" fill="${primaryColor}" /><rect width="${roundSvgNumber(tileWidth * 0.5)}" height="${roundSvgNumber(tileHeight * 0.5)}" fill="${secondaryColor}" /><rect x="${roundSvgNumber(tileWidth * 0.5)}" y="${roundSvgNumber(tileHeight * 0.5)}" width="${roundSvgNumber(tileWidth * 0.5)}" height="${roundSvgNumber(tileHeight * 0.5)}" fill="${secondaryColor}" />`;
+      case "customPhoto":
+        return `<image href="${escapeXml(href ?? "")}" x="0" y="0" width="${tileWidth}" height="${tileHeight}" preserveAspectRatio="xMidYMid slice" />`;
+    }
+  })();
+
+  return {
+    defs: `<pattern id="${patternId}" patternUnits="userSpaceOnUse" x="${patternX}" y="${patternY}" width="${tileWidth}" height="${tileHeight}" patternTransform="rotate(${layer.tile.rotation} ${patternCenterX} ${patternCenterY})">${patternBody}</pattern>`,
+    body: `<g data-layer-id="${escapeXml(layer.id)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><path data-washi-outline="${layer.outline}" d="${outline}" fill="url(#${patternId})" /><path d="${outline}" fill="#ffffff" opacity="0.18" /><path d="${outline}" fill="none" stroke="#202426" stroke-opacity="0.14" stroke-width="${Math.max(1, layer.height * 0.025)}" /></g>`,
+  };
+};
+
 export const renderPageDocumentSvg = (
   document: PageDocument,
   options: RenderPageSvgOptions = {},
@@ -906,6 +1193,22 @@ export const renderPageDocumentSvg = (
       const rendered = renderPhotoLayerSvg(
         layer,
         options.resolvePhotoHref?.(layer),
+        index,
+        options.idPrefix,
+      );
+
+      if (rendered) {
+        defs.push(rendered.defs);
+        bodies.push(rendered.body);
+      }
+
+      continue;
+    }
+
+    if (layer.kind === "washiTape") {
+      const rendered = renderWashiTapeLayerSvg(
+        layer,
+        layer.pattern.kind === "customPhoto" ? options.resolveWashiTapeHref?.(layer) : undefined,
         index,
         options.idPrefix,
       );
@@ -1016,6 +1319,27 @@ export const createStickerLayer = (input: CreateStickerLayerInput = {}): Sticker
     opacity: input.opacity ?? 1,
     locked: input.locked ?? false,
     stickerId: input.stickerId ?? "noto:red-heart",
+  });
+
+export const createWashiTapeLayer = (input: CreateWashiTapeLayerInput): WashiTapeLayer =>
+  washiTapeLayerSchema.parse({
+    id: input.id ?? createLayerId(),
+    kind: "washiTape",
+    assetId: input.assetId,
+    x: input.x ?? 240,
+    y: input.y ?? 240,
+    width: input.width ?? 960,
+    height: input.height ?? 180,
+    rotation: input.rotation ?? -3,
+    opacity: input.opacity ?? 0.86,
+    locked: input.locked ?? false,
+    outline: input.outline ?? "torn",
+    pattern:
+      input.pattern ??
+      (input.assetId
+        ? { ...legacyPhotoWashiTapePattern, assetId: input.assetId }
+        : defaultWashiTapePattern),
+    tile: input.tile ? { ...defaultWashiTapeTile, ...input.tile } : defaultWashiTapeTile,
   });
 
 export const resetPhotoLayerEdits = (layer: PhotoLayer): PhotoLayer =>

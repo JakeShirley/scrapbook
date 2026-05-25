@@ -1,16 +1,19 @@
-import type { PageLayer, PhotoLayer } from "@scrapbook/editor-core";
+import type { PageLayer, PhotoLayer, WashiTapeLayer } from "@scrapbook/editor-core";
 import type { ChangeEvent } from "react";
 
 import { EmbellishmentControls } from "./EmbellishmentControls";
 import { PhotoControls } from "./PhotoControls";
 import { TextControls } from "./TextControls";
+import { WashiTapeControls } from "./WashiTapeControls";
 
 export function LayerInspector({
   layer,
   onChange,
+  onChooseWashiTapePhoto,
 }: {
   layer: PageLayer | null;
   onChange: (update: Partial<PageLayer>) => void;
+  onChooseWashiTapePhoto?: ((layerId: string) => void) | undefined;
 }) {
   if (!layer) return <p className="empty-state">Select a layer to edit it.</p>;
   const updateNumber =
@@ -18,6 +21,8 @@ export function LayerInspector({
     (event: ChangeEvent<HTMLInputElement>) =>
       onChange({ [key]: Number(event.currentTarget.value) } as Partial<PageLayer>);
   const updatePhotoLayer = (update: Partial<PhotoLayer>) => onChange(update as Partial<PageLayer>);
+  const updateWashiTapeLayer = (update: Partial<WashiTapeLayer>) =>
+    onChange(update as Partial<PageLayer>);
 
   return (
     <form className="inspector-form">
@@ -67,6 +72,13 @@ export function LayerInspector({
       </fieldset>
       {layer.kind === "text" ? <TextControls layer={layer} onChange={onChange} /> : null}
       {layer.kind === "photo" ? <PhotoControls layer={layer} onChange={updatePhotoLayer} /> : null}
+      {layer.kind === "washiTape" ? (
+        <WashiTapeControls
+          layer={layer}
+          onChange={updateWashiTapeLayer}
+          onChoosePhoto={onChooseWashiTapePhoto}
+        />
+      ) : null}
       {layer.kind === "embellishment" ? (
         <EmbellishmentControls layer={layer} onChange={onChange} />
       ) : null}

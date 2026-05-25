@@ -7,6 +7,7 @@ import {
   createPhotoLayer,
   createStickerLayer,
   createTextLayer,
+  createWashiTapeLayer,
   deleteLayer,
   type PageDocument,
   type PageLayer,
@@ -15,6 +16,7 @@ import {
   type StickerDefinition,
   updateCanvas,
   updateLayer,
+  type WashiTapeLayer,
 } from "@scrapbook/editor-core";
 import type { DragEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -65,6 +67,10 @@ import {
   syncLayerAcrossSpread,
 } from "./spreadLayers";
 
+type PhotoPickerMode =
+  | { kind: "photo" }
+  | { kind: "washiTapePattern"; layerId: string; pageId: string };
+
 export function BookEditorView() {
   const { bookId } = useParams();
   const navigate = useNavigate();
@@ -83,7 +89,7 @@ export function BookEditorView() {
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
   const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
   const [isDeleteBookConfirmationOpen, setIsDeleteBookConfirmationOpen] = useState(false);
-  const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
+  const [photoPickerMode, setPhotoPickerMode] = useState<PhotoPickerMode | null>(null);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
@@ -310,7 +316,7 @@ export function BookEditorView() {
         !(event.ctrlKey || event.metaKey) ||
         event.key.toLowerCase() !== "z" ||
         isBookSettingsOpen ||
-        isPhotoPickerOpen ||
+        photoPickerMode !== null ||
         isStickerPickerOpen ||
         pngExportTarget
       ) {
@@ -332,7 +338,7 @@ export function BookEditorView() {
     return () => document.removeEventListener("keydown", handleHistoryShortcut);
   }, [
     isBookSettingsOpen,
-    isPhotoPickerOpen,
+    photoPickerMode,
     isStickerPickerOpen,
     pngExportTarget,
     redoBookEdit,
@@ -647,6 +653,50 @@ export function BookEditorView() {
     });
 
     editPageDocument(activePage.id, addLayer(activePage.document, layer));
+    setSelectedLayerId(layer.id);
+  };
+
+  const addWashiTape = () => {
+    if (!activePage) {
+      return;
+    }
+
+    const layer = createWashiTapeLayer({
+      width: Math.min(activePage.document.canvas.width * 0.56, 1120),
+      height: Math.min(activePage.document.canvas.height * 0.08, 220),
+      x: activePage.document.canvas.width * 0.16,
+      y: activePage.document.canvas.height * 0.16,
+    });
+
+    editPageDocument(activePage.id, addLayer(activePage.document, layer));
+    setSelectedLayerId(layer.id);
+  };
+
+  const setWashiTapePhotoPattern = (asset: Asset) => {
+    if (photoPickerMode?.kind !== "washiTapePattern") {
+      return;
+    }
+
+    const page = pageDetails.get(photoPickerMode.pageId);
+    const layer = page?.document.layers.find(
+      (candidateLayer) => candidateLayer.id === photoPickerMode.layerId,
+    );
+
+    if (!page || layer?.kind !== "washiTape") {
+      return;
+    }
+
+    editPageDocument(
+      page.id,
+      updateLayer(page.document, layer.id, {
+        pattern: {
+          ...layer.pattern,
+          assetId: asset.id,
+          kind: "customPhoto",
+        },
+      } as Partial<WashiTapeLayer> as Partial<PageLayer>),
+    );
+    setActivePageId(page.id);
     setSelectedLayerId(layer.id);
   };
 
@@ -1126,12 +1176,16 @@ export function BookEditorView() {
           onSubmit={submitPngExport}
         />
       ) : null}
-      {isPhotoPickerOpen ? (
+      {photoPickerMode ? (
         <PhotoPickerModal
+          actionLabel={photoPickerMode.kind === "washiTapePattern" ? "Use as pattern" : "Add"}
           assets={assets}
           eyebrow={activePage?.title ?? book.title}
-          onAddPhoto={addPhoto}
-          onClose={() => setIsPhotoPickerOpen(false)}
+          title={photoPickerMode.kind === "washiTapePattern" ? "Choose pattern photo" : "Add photo"}
+          onAddPhoto={
+            photoPickerMode.kind === "washiTapePattern" ? setWashiTapePhotoPattern : addPhoto
+          }
+          onClose={() => setPhotoPickerMode(null)}
         />
       ) : null}
       {isStickerPickerOpen ? (
@@ -1211,8 +1265,9 @@ export function BookEditorView() {
           isStickerPickerDisabled={!activePage}
           onAddEmbellishment={addEmbellishment}
           onAddText={addText}
-          onOpenPhotoPicker={() => setIsPhotoPickerOpen(true)}
+          onOpenPhotoPicker={() => setPhotoPickerMode({ kind: "photo" })}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
+          onOpenWashiTapePicker={addWashiTape}
         />
         <section className="book-editor-stage" aria-label="Book editor">
           <BookModeBar
@@ -1237,6 +1292,9 @@ export function BookEditorView() {
                 selectedLayerId={selectedLayerId}
                 viewMode={viewMode}
                 visiblePageIds={visiblePageIds}
+                onChooseWashiTapePhoto={(pageId, layerId) =>
+                  setPhotoPickerMode({ kind: "washiTapePattern", pageId, layerId })
+                }
                 onDeleteLayer={deletePageLayer}
                 onReorderLayer={reorderPageLayer}
                 onSelectLayer={selectPage}

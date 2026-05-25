@@ -13,6 +13,7 @@ import {
   createPhotoLayer,
   createStickerLayer,
   createTextLayer,
+  createWashiTapeLayer,
   deleteLayer,
   type PageDocument,
   type PageLayer,
@@ -20,6 +21,7 @@ import {
   type StickerDefinition,
   updateCanvas,
   updateLayer,
+  type WashiTapeLayer,
 } from "@scrapbook/editor-core";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -37,6 +39,8 @@ import { PhotoPickerModal } from "./PhotoPickerModal";
 import { type PngExportSettings, PngExportSettingsModal } from "./PngExportSettingsModal";
 import { StickerPickerModal } from "./StickerPickerModal";
 
+type PhotoPickerMode = { kind: "photo" } | { kind: "washiTapePattern"; layerId: string };
+
 export function EditorView() {
   const { pageId } = useParams();
   const navigate = useNavigate();
@@ -47,7 +51,7 @@ export function EditorView() {
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [pendingExportFormat, setPendingExportFormat] = useState<"pdf" | "png" | null>(null);
-  const [isPhotoPickerOpen, setIsPhotoPickerOpen] = useState(false);
+  const [photoPickerMode, setPhotoPickerMode] = useState<PhotoPickerMode | null>(null);
   const [isPngExportSettingsOpen, setIsPngExportSettingsOpen] = useState(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [status, setStatus] = useState<EditorSaveStatus>("loading");
@@ -119,6 +123,36 @@ export function EditorView() {
       height: Math.min(document.canvas.height * 0.34, 760),
     });
     editDocument(addLayer(document, layer));
+    setSelectedLayerId(layer.id);
+  };
+  const addWashiTape = () => {
+    if (!document) return;
+    const layer = createWashiTapeLayer({
+      width: Math.min(document.canvas.width * 0.56, 1120),
+      height: Math.min(document.canvas.height * 0.08, 220),
+      x: document.canvas.width * 0.16,
+      y: document.canvas.height * 0.16,
+    });
+    editDocument(addLayer(document, layer));
+    setSelectedLayerId(layer.id);
+  };
+  const setWashiTapePhotoPattern = (asset: Asset) => {
+    if (!document || photoPickerMode?.kind !== "washiTapePattern") return;
+    const layer = document.layers.find(
+      (candidateLayer) => candidateLayer.id === photoPickerMode.layerId,
+    );
+
+    if (layer?.kind !== "washiTape") return;
+
+    editDocument(
+      updateLayer(document, layer.id, {
+        pattern: {
+          ...layer.pattern,
+          assetId: asset.id,
+          kind: "customPhoto",
+        },
+      } as Partial<WashiTapeLayer> as Partial<PageLayer>),
+    );
     setSelectedLayerId(layer.id);
   };
   const addEmbellishment = (preset: EmbellishmentPreset) => {
@@ -286,12 +320,16 @@ export function EditorView() {
           onSubmit={submitPngExport}
         />
       ) : null}
-      {isPhotoPickerOpen ? (
+      {photoPickerMode ? (
         <PhotoPickerModal
+          actionLabel={photoPickerMode.kind === "washiTapePattern" ? "Use as pattern" : "Add"}
           assets={assets}
           eyebrow={page.title}
-          onAddPhoto={addPhoto}
-          onClose={() => setIsPhotoPickerOpen(false)}
+          title={photoPickerMode.kind === "washiTapePattern" ? "Choose pattern photo" : "Add photo"}
+          onAddPhoto={
+            photoPickerMode.kind === "washiTapePattern" ? setWashiTapePhotoPattern : addPhoto
+          }
+          onClose={() => setPhotoPickerMode(null)}
         />
       ) : null}
       {isStickerPickerOpen ? (
@@ -321,8 +359,9 @@ export function EditorView() {
           assetCount={assets.length}
           onAddEmbellishment={addEmbellishment}
           onAddText={addText}
-          onOpenPhotoPicker={() => setIsPhotoPickerOpen(true)}
+          onOpenPhotoPicker={() => setPhotoPickerMode({ kind: "photo" })}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
+          onOpenWashiTapePicker={addWashiTape}
         />
         <section className="editor-stage" aria-label="Page canvas">
           <EditorToolbar
@@ -345,6 +384,9 @@ export function EditorView() {
             onDeleteLayer={deleteCanvasLayer}
             onReorderLayer={reorderCanvasLayer}
             onSelectLayer={setSelectedLayerId}
+            onChooseWashiTapePhoto={(layerId) =>
+              setPhotoPickerMode({ kind: "washiTapePattern", layerId })
+            }
             onTransformLayer={updateLayerTransform}
           />
         </section>

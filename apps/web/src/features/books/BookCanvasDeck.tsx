@@ -15,6 +15,7 @@ type BookCanvasDeckProps = {
   visiblePageIds: string[];
   getSpreadPreviewLayers: (pageId: string) => CanvasPreviewLayer[];
   onDeleteLayer: (pageId: string, layerId: string) => void;
+  onChooseWashiTapePhoto?: ((pageId: string, layerId: string) => void) | undefined;
   onReorderLayer: (pageId: string, layerId: string, toIndex: number) => void;
   onSelectLayer: (pageId: string, layerId: string | null) => void;
   onTransformEnd: (pageId: string, layerId: string, update: Partial<PageLayer> | null) => void;
@@ -36,6 +37,7 @@ export function BookCanvasDeck({
   visiblePageIds,
   getSpreadPreviewLayers,
   onDeleteLayer,
+  onChooseWashiTapePhoto,
   onReorderLayer,
   onSelectLayer,
   onTransformEnd,
@@ -64,6 +66,7 @@ export function BookCanvasDeck({
               previewLayers={getSpreadPreviewLayers(pageId)}
               selectedLayerId={pageId === activePageId ? selectedLayerId : null}
               onChangeLayer={(layerId, update) => onUpdateLayerTransform(pageId, layerId, update)}
+              onChooseWashiTapePhoto={(layerId) => onChooseWashiTapePhoto?.(pageId, layerId)}
               onDeleteLayer={(layerId) => onDeleteLayer(pageId, layerId)}
               onReorderLayer={(layerId, toIndex) => onReorderLayer(pageId, layerId, toIndex)}
               onSelectPreviewLayer={onSelectLayer}
