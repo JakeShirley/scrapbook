@@ -404,6 +404,23 @@ describe("page document helpers", () => {
     expect(svg).toContain("V 40 M 0 20 H 120");
   });
 
+  it("keeps washi tape pattern scale stable when the layer is resized", () => {
+    const pattern = { kind: "grid" as const, primaryColor: "#fffdf7", secondaryColor: "#79a9a4" };
+    const regularTapeSvg = renderPageDocumentSvg(
+      createPageDocument({
+        layers: [createWashiTapeLayer({ height: 80, id: "washi_regular", pattern, width: 240 })],
+      }),
+    );
+    const resizedTapeSvg = renderPageDocumentSvg(
+      createPageDocument({
+        layers: [createWashiTapeLayer({ height: 180, id: "washi_resized", pattern, width: 520 })],
+      }),
+    );
+
+    expect(regularTapeSvg).toContain('width="80" height="80"');
+    expect(resizedTapeSvg).toContain('width="80" height="80"');
+  });
+
   it("renders every washi tape outline type", () => {
     const layers = washiTapeOutlineCases.map((outline, index) =>
       createWashiTapeLayer({
