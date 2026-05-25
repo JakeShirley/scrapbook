@@ -26,12 +26,31 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm screenshots
 pnpm release:preview
 ```
 
 The API health endpoint is available at `http://127.0.0.1:4000/api/v1/health` when the API dev server is running. The web client runs at `http://127.0.0.1:5173`.
 
 The API applies SQLite migrations on startup. To apply migrations without starting the server, run `pnpm --filter @scrapbook/api db:migrate`.
+
+## App Screenshots
+
+Generate documentation and PR review screenshots with:
+
+```sh
+pnpm screenshots
+```
+
+The screenshot runner starts the Vite web app, mocks the API with representative fixture data, and writes desktop and mobile PNGs for each top-level feature to `docs/screenshots/`.
+
+Screenshot PNGs are generated artifacts and are intentionally ignored by Git. To write them somewhere else, set `SCRAPBOOK_SCREENSHOT_DIR`:
+
+```sh
+SCRAPBOOK_SCREENSHOT_DIR=/tmp/scrapbook-screenshots pnpm screenshots
+```
+
+Pull requests run the App Visual Diffs workflow. It renders screenshots for the merge base and the pull request head, compares the PNGs, uploads the comparison artifact, and updates a pull request comment with Before, After, and Diff images when visual changes are detected.
 
 ## Docker
 
