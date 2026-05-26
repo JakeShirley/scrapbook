@@ -23,6 +23,7 @@
     "openapi:check": "pnpm --filter @scrapbook/api openapi:check",
     "release:preview": "semantic-release --dry-run --no-ci --plugins @semantic-release/commit-analyzer --plugins @semantic-release/release-notes-generator",
     "screenshots": "pnpm --filter @scrapbook/web screenshots",
+    "screenshots:capture": "pnpm --filter @scrapbook/web screenshots:capture",
     "screenshots:compare": "tsx scripts/screenshots/compare-screenshots.ts",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
