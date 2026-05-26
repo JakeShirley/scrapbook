@@ -24,13 +24,13 @@ jobs:
       contents: read
     steps:
       - name: Checkout pull request head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
 
@@ -101,7 +101,7 @@ jobs:
           --out "${{ runner.temp }}/scrapbook-screenshots/comparison"
 
       - name: Upload visual diff artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: app-visual-diffs
           path: ${{ runner.temp }}/scrapbook-screenshots/comparison
@@ -120,18 +120,18 @@ jobs:
       pull-requests: write
     steps:
       - name: Download visual diff artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: app-visual-diffs
           path: ${{ runner.temp }}/app-visual-diffs
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
 
