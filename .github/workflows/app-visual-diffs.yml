@@ -72,18 +72,13 @@ jobs:
             git worktree remove --force "$BEFORE_SOURCE_DIR" || true
           }
           trap cleanup EXIT
-          if node -e "process.exit(require('$BEFORE_SOURCE_DIR/package.json').scripts?.screenshots ? 0 : 1)"; then
-            pushd "$BEFORE_SOURCE_DIR"
-            corepack enable pnpm
-            pnpm install --frozen-lockfile
-            pnpm --filter @scrapbook/web exec playwright install chromium
-            SCRAPBOOK_SCREENSHOT_DIR="$BEFORE_OUT_DIR" pnpm screenshots
-            popd
-          else
-            echo "Merge base does not have screenshot infrastructure; using pull request screenshots as the baseline."
-            mkdir -p "$BEFORE_OUT_DIR"
-            cp -R "$AFTER_OUT_DIR"/. "$BEFORE_OUT_DIR"/
-          fi
+          pushd "$BEFORE_SOURCE_DIR"
+          corepack enable pnpm
+          pnpm install --frozen-lockfile
+          pnpm --filter @scrapbook/editor-core build
+          pnpm --filter @scrapbook/api-contract build
+          popd
+          SCRAPBOOK_SCREENSHOT_WORKSPACE_ROOT="$BEFORE_SOURCE_DIR" SCRAPBOOK_SCREENSHOT_DIR="$BEFORE_OUT_DIR" pnpm screenshots:capture
           cleanup
           trap - EXIT
 
