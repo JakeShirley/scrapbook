@@ -102,7 +102,7 @@ jobs:
           --out "${{ runner.temp }}/scrapbook-screenshots/comparison"
 
       - name: Upload visual diff artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: app-visual-diffs
           path: ${{ runner.temp }}/scrapbook-screenshots/comparison
@@ -121,7 +121,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Download visual diff artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: app-visual-diffs
           path: ${{ runner.temp }}/app-visual-diffs
