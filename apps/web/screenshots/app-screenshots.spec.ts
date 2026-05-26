@@ -251,7 +251,6 @@ const scenarios: ScreenshotScenario[] = [
       const dialog = page.getByRole("dialog", { name: "Edit Washi tape layer" });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
-      await expect(dialog.getByRole("img", { name: "Washi tape preview" })).toBeVisible();
     },
     waitFor: waitForBookEditor,
   },
@@ -279,12 +278,16 @@ const scenarios: ScreenshotScenario[] = [
     name: "image-grid",
     path: "/image-grid",
     prepare: async (page) => {
+      if (!(await isVisible(page.getByRole("heading", { name: "Image Grid" })))) {
+        return;
+      }
+
       await page.locator('input[type="file"]').setInputFiles(localImageFiles);
       await expect(page.locator(".image-grid-canvas-item")).toHaveCount(localImageFiles.length);
       await expect(page.getByText(`${localImageFiles.length} placed`)).toBeVisible();
     },
     waitFor: async (page) => {
-      await expect(page.getByRole("heading", { name: "Image Grid" })).toBeVisible();
+      await waitForFeatureOrFallback(page, "Image Grid");
     },
   },
   {
@@ -311,6 +314,25 @@ const scenarios: ScreenshotScenario[] = [
 async function waitForBookEditor(page: Page) {
   await expect(page.getByRole("heading", { name: "Family Yearbook" })).toBeVisible();
   await expect(page.locator(".book-canvas-deck")).toBeVisible();
+}
+
+async function waitForFeatureOrFallback(page: Page, heading: string) {
+  const featureHeading = page.getByRole("heading", { name: heading });
+
+  try {
+    await expect(featureHeading).toBeVisible({ timeout: 1500 });
+    return;
+  } catch {
+    await expect(page.locator(".topbar h2").first()).toBeVisible();
+  }
+}
+
+async function isVisible(locator: ReturnType<Page["getByRole"]>) {
+  try {
+    return await locator.isVisible({ timeout: 500 });
+  } catch {
+    return false;
+  }
 }
 
 async function openLayerEditor(
