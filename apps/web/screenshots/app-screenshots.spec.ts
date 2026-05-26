@@ -228,9 +228,44 @@ const scenarios: ScreenshotScenario[] = [
     name: "book-editor",
     path: "/books/book_summer",
     waitFor: async (page) => {
-      await expect(page.getByRole("heading", { name: "Family Yearbook" })).toBeVisible();
-      await expect(page.locator(".book-canvas-deck")).toBeVisible();
+      await waitForBookEditor(page);
     },
+  },
+  {
+    name: "book-editor-photo-edit",
+    path: "/books/book_summer",
+    prepare: async (page) => {
+      await openLayerEditor(page, "Page 1", "photo");
+      const dialog = page.getByRole("dialog", { name: "Edit Photo layer" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("group", { name: "Photo" })).toBeVisible();
+      await expect(dialog.getByRole("group", { name: "Frame" })).toBeVisible();
+    },
+    waitFor: waitForBookEditor,
+  },
+  {
+    name: "book-editor-washi-tape-edit",
+    path: "/books/book_summer",
+    prepare: async (page) => {
+      await openLayerEditor(page, "Page 2", "washiTape");
+      const dialog = page.getByRole("dialog", { name: "Edit Washi tape layer" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
+      await expect(dialog.getByRole("img", { name: "Washi tape preview" })).toBeVisible();
+    },
+    waitFor: waitForBookEditor,
+  },
+  {
+    name: "book-editor-text-edit",
+    path: "/books/book_summer",
+    prepare: async (page) => {
+      await openLayerEditor(page, "Page 1", "text");
+      const dialog = page.getByRole("dialog", { name: "Edit Text layer" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
+      await expect(dialog.getByRole("textbox", { name: "Text" })).toBeVisible();
+    },
+    waitFor: waitForBookEditor,
   },
   {
     name: "library",
@@ -272,6 +307,34 @@ const scenarios: ScreenshotScenario[] = [
     },
   },
 ];
+
+async function waitForBookEditor(page: Page) {
+  await expect(page.getByRole("heading", { name: "Family Yearbook" })).toBeVisible();
+  await expect(page.locator(".book-canvas-deck")).toBeVisible();
+}
+
+async function openLayerEditor(
+  page: Page,
+  pageLabel: "Page 1" | "Page 2",
+  layerKind: "photo" | "text" | "washiTape",
+) {
+  const layerLabel =
+    layerKind === "photo"
+      ? "Photo layer"
+      : layerKind === "text"
+        ? "Text layer"
+        : "Washi tape layer";
+
+  await page
+    .locator(`.book-page-frame[aria-label="${pageLabel}"] .canvas-layer[data-kind="${layerKind}"]`)
+    .first()
+    .locator(".canvas-layer-hitbox")
+    .click({ force: true });
+  await page
+    .getByRole("toolbar", { name: `${layerLabel} actions` })
+    .getByRole("button", { name: "Edit layer" })
+    .click();
+}
 
 test.beforeAll(async () => {
   await mkdir(screenshotDirectory, { recursive: true });
