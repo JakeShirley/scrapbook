@@ -59,8 +59,7 @@ button:disabled {
 }
 
 button:focus-visible,
-a:focus-visible,
-input:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--sb-brand);
   outline-offset: 2px;
 }
@@ -114,9 +113,8 @@ textarea:focus-visible {
   padding: 22px 22px 10px;
 }
 
-.segmented-control {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.segmented-control.segmented-control {
+  display: flex;
   gap: 4px;
   margin: 10px 22px 0;
   padding: 4px;
@@ -126,9 +124,12 @@ textarea:focus-visible {
 }
 
 .segmented-control button {
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 38px;
   border: 0;
   border-radius: 6px;
+  justify-content: center;
   color: #556165;
   background: transparent;
 }
@@ -151,16 +152,6 @@ textarea:focus-visible {
   color: #4f595c;
   font-size: 0.9rem;
   font-weight: 650;
-}
-
-.auth-form input {
-  width: 100%;
-  min-height: 42px;
-  border: 1px solid #cbd2cf;
-  border-radius: 8px;
-  padding: 0 12px;
-  color: #202426;
-  background: #ffffff;
 }
 
 .alert,
@@ -3329,7 +3320,6 @@ body {
   font-weight: 600;
 }
 
-.auth-form input,
 .compact-form input,
 .book-size-picker select,
 .book-settings-form input,
@@ -3347,7 +3337,6 @@ body {
   background: var(--sb-neutral-background);
 }
 
-.auth-form input:hover,
 .compact-form input:hover,
 .book-size-picker select:hover,
 .book-settings-form input:hover,
