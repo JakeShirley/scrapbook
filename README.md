@@ -36,7 +36,7 @@ Docker Compose stores application data in the `scrapbook-data` Docker volume and
 Pull and run the published image:
 
 ```sh
-docker pull ghcr.io/jakeshirley/scrapbook:main
+docker pull ghcr.io/jakeshirley/scrapbook:latest
 docker volume create scrapbook-data
 docker run --detach \
   --name scrapbook \
@@ -46,7 +46,7 @@ docker run --detach \
   --env API_PORT=4000 \
   --env WEB_ORIGIN=http://localhost:4000 \
   --volume scrapbook-data:/data/scrapbook \
-  ghcr.io/jakeshirley/scrapbook:main
+  ghcr.io/jakeshirley/scrapbook:latest
 ```
 
 Then visit `http://localhost:4000`.

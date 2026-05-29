@@ -7,8 +7,10 @@ Scrapbook is packaged as a single production Docker image. The container starts 
 GitHub Actions publishes images to GitHub Container Registry:
 
 ```sh
-docker pull ghcr.io/JakeShirley/scrapbook:main
+docker pull ghcr.io/JakeShirley/scrapbook:latest
 ```
+
+Default-branch publishes also include the `main` tag and immutable `sha-*` tags.
 
 The image runs as the non-root `node` user, exposes port `4000`, and includes a health check for `GET /api/v1/health`.
 
@@ -45,7 +47,7 @@ docker run --detach \
   --env API_PORT=4000 \
   --env WEB_ORIGIN=http://localhost:4000 \
   --volume scrapbook-data:/data/scrapbook \
-  ghcr.io/JakeShirley/scrapbook:main
+  ghcr.io/JakeShirley/scrapbook:latest
 ```
 
 Check health after startup:

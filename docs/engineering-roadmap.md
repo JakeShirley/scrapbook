@@ -356,7 +356,7 @@ Goal: publish and operate the app from GitHub as a Dockerized product.
 | E13.2 | Add container smoke test | `Done` | E13.1, E04.4 | Health-check script/workflow step | Built image starts and `/api/v1/health` reports healthy. Updated 2026-05-17. |
 | E13.3 | Add container workflow | `Done` | E13.2 | `.github/workflows/container.yml` | PRs build and smoke-test the image without publishing. Updated 2026-05-17. |
 | E13.4 | Publish GitHub Releases | `Done` | E03.7 | `release.yml` GitHub release integration | semantic-release creates GitHub Release notes. Updated 2026-05-17. |
-| E13.5 | Publish GHCR images | `Done` | E13.3, E13.4 | GHCR publishing with main and SHA tags | Protected-branch releases publish images without version/changelog commits. Updated 2026-05-17. |
+| E13.5 | Publish GHCR images | `Done` | E13.3, E13.4 | GHCR publishing with latest, main, and SHA tags | Protected-branch releases publish images without version/changelog commits. Updated 2026-05-17. |
 | E13.6 | Add supply-chain metadata | `Done` | E13.5 | SBOM, provenance, and GitHub artifact attestation | Published artifacts include current GitHub-supported metadata. Updated 2026-05-17. |
 | E13.7 | Document deployment operations | `Done` | E13.5 | `docs/deployment.md` | Operators can configure, start, upgrade, back up, and restore the container. Updated 2026-05-17. |
 
