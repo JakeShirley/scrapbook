@@ -24,6 +24,7 @@ Set these environment variables when running the container:
 | `API_HOST` | `0.0.0.0` |
 | `API_PORT` | `4000` or the port exposed by your platform |
 | `WEB_ORIGIN` | Public browser origin, for example `https://scrapbook.example.com` |
+| `SESSION_COOKIE_SECURE` | Optional override; defaults to `true` for HTTPS `WEB_ORIGIN` and `false` for HTTP |
 
 Mount persistent storage at `/data/scrapbook`; the image uses that path for SQLite files, page documents, uploads, variants, previews, and exports.
 

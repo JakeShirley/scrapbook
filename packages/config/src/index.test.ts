@@ -8,6 +8,7 @@ describe("loadConfig", () => {
 
     expect(config.NODE_ENV).toBe("development");
     expect(config.API_PORT).toBe(4000);
+    expect(config.SESSION_COOKIE_SECURE).toBe(false);
     expect(config.SCRAPBOOK_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/storage\/dev$/);
   });
 
@@ -17,7 +18,32 @@ describe("loadConfig", () => {
     expect(config.SCRAPBOOK_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/data\/scrapbook$/);
   });
 
+  it("marks session cookies secure for HTTPS web origins", () => {
+    const config = loadConfig({ NODE_ENV: "production", WEB_ORIGIN: "https://scrapbook.test" });
+
+    expect(config.SESSION_COOKIE_SECURE).toBe(true);
+  });
+
+  it("allows the secure session cookie setting to be overridden", () => {
+    const secureConfig = loadConfig({
+      SESSION_COOKIE_SECURE: "true",
+      WEB_ORIGIN: "http://10.1.0.50:8222",
+    });
+    const localHttpConfig = loadConfig({
+      NODE_ENV: "production",
+      SESSION_COOKIE_SECURE: "false",
+      WEB_ORIGIN: "https://scrapbook.test",
+    });
+
+    expect(secureConfig.SESSION_COOKIE_SECURE).toBe(true);
+    expect(localHttpConfig.SESSION_COOKIE_SECURE).toBe(false);
+  });
+
   it("rejects invalid ports", () => {
     expect(() => loadConfig({ API_PORT: "70000" })).toThrow();
+  });
+
+  it("rejects invalid secure session cookie settings", () => {
+    expect(() => loadConfig({ SESSION_COOKIE_SECURE: "yes" })).toThrow();
   });
 });

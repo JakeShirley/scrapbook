@@ -19,7 +19,7 @@ await storage.ensureReady();
 const staticAssetsDir = process.env.WEB_ASSETS_DIR;
 const app = createApp({
   repositories: createRepositories(databaseConnection.db, { pageDocuments }),
-  sessionCookieSecure: config.NODE_ENV === "production",
+  sessionCookieSecure: config.SESSION_COOKIE_SECURE,
   ...(staticAssetsDir ? { staticAssetsDir } : {}),
   storage,
 });

@@ -66,7 +66,8 @@ Scrapbook is configured with environment variables.
 | `NODE_ENV` | `development` | Use `production` in the Docker image. |
 | `API_HOST` | `127.0.0.1` | Use `0.0.0.0` in containers. |
 | `API_PORT` | `4000` | Port the API and web app listen on. |
-| `WEB_ORIGIN` | `http://localhost:5173` | Public browser origin allowed by the API. For Docker on localhost, use `http://localhost:4000`. |
+| `WEB_ORIGIN` | `http://localhost:5173` | Public browser origin for deployment-sensitive browser behavior. For Docker on localhost, use `http://localhost:4000`; for LAN access, use the exact local HTTP origin users open in their browser. |
+| `SESSION_COOKIE_SECURE` | `true` for HTTPS `WEB_ORIGIN`, otherwise `false` | Whether browser session cookies require HTTPS. Usually leave this derived from `WEB_ORIGIN`. |
 
 For a public deployment, set `WEB_ORIGIN` to the HTTPS origin users will open in their browser, such as `https://scrapbook.example.com`.
 
