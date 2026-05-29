@@ -1,6 +1,6 @@
 # Deployment
 
-Scrapbook is packaged as a single production Docker image. The container starts the Hono API, applies SQLite migrations, serves the built web app, and stores user data under `SCRAPBOOK_DATA_DIR`.
+Scrapbook is packaged as a single production Docker image. The container starts the Hono API, applies SQLite migrations, serves the built web app, and stores user data under `/data/scrapbook`.
 
 ## Image
 
@@ -22,7 +22,8 @@ Set these environment variables when running the container:
 | `API_HOST` | `0.0.0.0` |
 | `API_PORT` | `4000` or the port exposed by your platform |
 | `WEB_ORIGIN` | Public browser origin, for example `https://scrapbook.example.com` |
-| `SCRAPBOOK_DATA_DIR` | Persistent mount path, normally `/data/scrapbook` |
+
+Mount persistent storage at `/data/scrapbook`; the image uses that path for SQLite files, page documents, uploads, variants, previews, and exports.
 
 ## Run Locally
 
@@ -43,7 +44,6 @@ docker run --detach \
   --env API_HOST=0.0.0.0 \
   --env API_PORT=4000 \
   --env WEB_ORIGIN=http://localhost:4000 \
-  --env SCRAPBOOK_DATA_DIR=/data/scrapbook \
   --volume scrapbook-data:/data/scrapbook \
   ghcr.io/JakeShirley/scrapbook:main
 ```
@@ -58,13 +58,13 @@ curl --fail http://localhost:4000/api/v1/health
 
 1. Pull the new image tag.
 2. Stop the old container.
-3. Start the new container with the same `SCRAPBOOK_DATA_DIR` volume.
+3. Start the new container with the same `/data/scrapbook` volume.
 4. Check `/api/v1/health`.
 
 Migrations run on startup. Keep a backup of the data volume before upgrades.
 
 ## Backup And Restore
 
-Stop the container before filesystem backups so SQLite and stored files are captured together. Back up the entire `SCRAPBOOK_DATA_DIR`, including `scrapbook.sqlite`, WAL/SHM files, page documents, uploads, variants, previews, and exports.
+Stop the container before filesystem backups so SQLite and stored files are captured together. Back up the entire `/data/scrapbook` mount, including `scrapbook.sqlite`, WAL/SHM files, page documents, uploads, variants, previews, and exports.
 
-To restore, start a new container with the restored directory mounted at the same `SCRAPBOOK_DATA_DIR` path.
+To restore, start a new container with the restored directory mounted at `/data/scrapbook`.

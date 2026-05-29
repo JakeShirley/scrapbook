@@ -27,7 +27,6 @@ ENV API_HOST="0.0.0.0"
 ENV API_PORT="4000"
 ENV WEB_ORIGIN="http://localhost:5173"
 ENV WEB_ASSETS_DIR="/app/apps/web/dist"
-ENV SCRAPBOOK_DATA_DIR="/data/scrapbook"
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/package.json

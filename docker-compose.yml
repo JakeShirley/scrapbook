@@ -8,7 +8,6 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 4000
       WEB_ORIGIN: http://localhost:4000
-      SCRAPBOOK_DATA_DIR: /data/scrapbook
     ports:
       - "4000:4000"
     volumes:

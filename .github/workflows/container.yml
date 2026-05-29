@@ -35,7 +35,6 @@ jobs:
             --env API_HOST=0.0.0.0 \
             --env API_PORT=4000 \
             --env WEB_ORIGIN=http://127.0.0.1:4000 \
-            --env SCRAPBOOK_DATA_DIR=/data/scrapbook \
             scrapbook:smoke-test
 
       - name: Check API health

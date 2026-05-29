@@ -1,6 +1,6 @@
 # Local Data
 
-The API stores durable local data under `SCRAPBOOK_DATA_DIR`. The default is `./storage/dev`; Docker Compose uses `/data/scrapbook` backed by the `scrapbook-data` volume.
+The API stores durable local data under `SCRAPBOOK_DATA_DIR`. The default is `./storage/dev`, or `/data/scrapbook` when `NODE_ENV=production`; Docker Compose stores container data at `/data/scrapbook` backed by the `scrapbook-data` volume.
 
 ## Layout
 

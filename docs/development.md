@@ -60,7 +60,7 @@ Run the local API container with persistent application data:
 docker compose up --build
 ```
 
-The Compose service exposes the web app and API on `http://127.0.0.1:4000` and mounts the `scrapbook-data` Docker volume at `/data/scrapbook` inside the container. That path is the container value for `SCRAPBOOK_DATA_DIR` and holds SQLite files, page document JSON files, uploads, variants, previews, and exports.
+The Compose service exposes the web app and API on `http://127.0.0.1:4000` and mounts the `scrapbook-data` Docker volume at `/data/scrapbook` inside the container. That path holds SQLite files, page document JSON files, uploads, variants, previews, and exports.
 
 See [Local Data](local-data.md) for backup, restore, and cleanup notes for the SQLite database and managed disk storage directories.
 
