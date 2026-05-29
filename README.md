@@ -94,8 +94,8 @@ To upgrade, pull the new image, stop the old container, and start the new one wi
 
 Requirements:
 
-- Node.js 24 or newer.
-- Corepack enabled so the pinned pnpm version is used.
+- Node.js 24 or newer
+- Corepack enabled so the pinned pnpm version is used
 
 Install dependencies:
 
