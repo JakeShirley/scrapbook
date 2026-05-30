@@ -33,12 +33,12 @@ import {
   applyGroupMove,
   applyGroupRotate,
   applyGroupScale,
+  type GroupBoundingBox,
   getAngle,
   getGroupScaleFromHandle,
   getLayerCenter,
   getLayerSelectionFrame,
   getMultiSelectionBoundingBox,
-  type GroupBoundingBox,
   type LayerTransformUpdate,
   type MultiSelectionResizeHandle,
   multiSelectionResizeHandles,
@@ -299,7 +299,8 @@ export function PageCanvas({
   const selectedLayer =
     displayedInteractiveLayers.find(
       (interactiveLayer) =>
-        interactiveLayer.kind === "document" && interactiveLayer.layer.id === primarySelectedLayerId,
+        interactiveLayer.kind === "document" &&
+        interactiveLayer.layer.id === primarySelectedLayerId,
     )?.layer ?? null;
   const multiSelectedLayers = useMemo<PageLayer[]>(
     () =>
@@ -317,7 +318,8 @@ export function PageCanvas({
     [displayedInteractiveLayers, isMultiSelected, selectedLayerIds],
   );
   const multiSelectionBoundingBox = useMemo(
-    () => (multiSelectedLayers.length > 0 ? getMultiSelectionBoundingBox(multiSelectedLayers) : null),
+    () =>
+      multiSelectedLayers.length > 0 ? getMultiSelectionBoundingBox(multiSelectedLayers) : null,
     [multiSelectedLayers],
   );
   const selectedLayerLabel = selectedLayer ? `${formatLayerKind(selectedLayer.kind)} layer` : null;
@@ -795,7 +797,8 @@ export function PageCanvas({
         const { layer } = interactiveLayer;
         const isPreview = interactiveLayer.kind === "preview";
         const isSelected = !isPreview && layer.id === primarySelectedLayerId;
-        const isGroupSelected = !isPreview && isMultiSelected && selectedLayerIds.includes(layer.id);
+        const isGroupSelected =
+          !isPreview && isMultiSelected && selectedLayerIds.includes(layer.id);
         const layerStyle: CSSProperties = {
           left: `${(layer.x / document.canvas.width) * 100}%`,
           top: `${(layer.y / document.canvas.height) * 100}%`,
@@ -921,7 +924,6 @@ export function PageCanvas({
       {isMultiSelected && multiSelectionBoundingBox ? (
         <div
           className="canvas-group-selection"
-          aria-label="Group selection"
           data-transforming={Boolean(activeGroupTransform)}
           style={{
             left: `${(multiSelectionBoundingBox.x / document.canvas.width) * 100}%`,

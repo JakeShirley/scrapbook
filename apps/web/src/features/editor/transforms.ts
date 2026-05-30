@@ -156,9 +156,7 @@ const getRotatedFrameCorners = (frame: SelectionFrame): CanvasPoint[] => {
   });
 };
 
-export const getMultiSelectionBoundingBox = (
-  layers: PageLayer[],
-): GroupBoundingBox | null => {
+export const getMultiSelectionBoundingBox = (layers: PageLayer[]): GroupBoundingBox | null => {
   if (layers.length === 0) return null;
 
   let left = Number.POSITIVE_INFINITY;
@@ -200,10 +198,7 @@ export const applyGroupRotate = (
 
   return startLayers.map((layer) => {
     const center = getLayerCenter(layer);
-    const rotated = rotatePoint(
-      { x: center.x - origin.x, y: center.y - origin.y },
-      angleDelta,
-    );
+    const rotated = rotatePoint({ x: center.x - origin.x, y: center.y - origin.y }, angleDelta);
     const nextCenter = { x: origin.x + rotated.x, y: origin.y + rotated.y };
 
     return {
