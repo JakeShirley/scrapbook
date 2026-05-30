@@ -1,8 +1,8 @@
-import { expect, test, type Page } from "@playwright/test";
 import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
+import { expect, type Page, test } from "@playwright/test";
 
 const screenshotDirectory = path.resolve(
   process.env.SCRAPBOOK_SCREENSHOT_DIR ??

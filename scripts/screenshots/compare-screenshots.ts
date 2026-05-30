@@ -1,6 +1,6 @@
-import pixelmatch from "pixelmatch";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 
 type Comparison = {

@@ -138,7 +138,6 @@ export function LibraryView() {
             </div>
           ) : null}
         </Panel>
-
       </div>
     </>
   );
