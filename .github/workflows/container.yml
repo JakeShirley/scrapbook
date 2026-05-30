@@ -10,6 +10,8 @@ jobs:
   build-and-smoke-test:
     name: Build And Smoke Test
     runs-on: ubuntu-latest
+    env:
+      SCRAPBOOK_SMOKE_VERSION: 0.0.0-smoke-test
 
     steps:
       - name: Check out repository
@@ -22,6 +24,8 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          build-args: |
+            SCRAPBOOK_VERSION=${{ env.SCRAPBOOK_SMOKE_VERSION }}
           load: true
           target: api
           tags: scrapbook:smoke-test
@@ -42,6 +46,7 @@ jobs:
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:4000/api/v1/health > /tmp/scrapbook-health.json; then
               cat /tmp/scrapbook-health.json
+              node -e 'const fs = require("node:fs"); const health = JSON.parse(fs.readFileSync("/tmp/scrapbook-health.json", "utf8")); if (health.version !== process.env.SCRAPBOOK_SMOKE_VERSION) { throw new Error(`Expected version ${process.env.SCRAPBOOK_SMOKE_VERSION}, received ${health.version}`); }'
               exit 0
             fi
             sleep 1

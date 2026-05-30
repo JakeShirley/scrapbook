@@ -1,3 +1,5 @@
+import { createRequire } from "node:module";
+
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   type AccountResponse,
@@ -98,7 +100,15 @@ type ApiBindings = {
   };
 };
 
-const packageVersion = "0.0.0-development";
+const readPackageVersion = (): string => {
+  const packageJson = createRequire(import.meta.url)("../package.json") as { version?: unknown };
+
+  return typeof packageJson.version === "string" && packageJson.version.length > 0
+    ? packageJson.version
+    : "0.0.0-development";
+};
+
+const packageVersion = readPackageVersion();
 const maxServerLogEntries = 500;
 const serverLogLevelRank: Record<ServerLogLevel, number> = {
   debug: 10,

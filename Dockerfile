@@ -22,6 +22,7 @@ COPY . .
 RUN pnpm build
 
 FROM base AS api
+ARG SCRAPBOOK_VERSION="0.0.0-development"
 ENV NODE_ENV="production"
 ENV API_HOST="0.0.0.0"
 ENV API_PORT="4000"
@@ -35,6 +36,8 @@ COPY packages/api-contract/package.json packages/api-contract/package.json
 COPY packages/config/package.json packages/config/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/editor-core/package.json packages/editor-core/package.json
+COPY scripts/set-package-version.mjs scripts/set-package-version.mjs
+RUN node scripts/set-package-version.mjs "${SCRAPBOOK_VERSION}"
 RUN pnpm install --prod --frozen-lockfile --filter @scrapbook/api...
 
 COPY --from=build /app/apps/api/dist apps/api/dist
