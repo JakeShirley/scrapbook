@@ -4,14 +4,21 @@ import { pageSummaryResponseSchema } from "./pages.js";
 import { errorResponseSchema } from "./shared.js";
 
 export const defaultBookPageSize = {
-  key: "8x10-portrait",
-  label: "8 x 10 in portrait",
-  width: 2400,
-  height: 3000,
+  key: "9x9-google-photos-hardcover",
+  label: "9 x 9 in (Google Photos Hardcover)",
+  width: 2700,
+  height: 2700,
 } as const;
 
 export const commonBookPageSizes = [
+  {
+    key: "7x7-google-photos-softcover",
+    label: "7 x 7 in (Google Photos Softcover)",
+    width: 2100,
+    height: 2100,
+  },
   { key: "8x8-square", label: "8 x 8 in square", width: 2400, height: 2400 },
+  { key: "8x10-portrait", label: "8 x 10 in portrait", width: 2400, height: 3000 },
   defaultBookPageSize,
   { key: "10x10-square", label: "10 x 10 in square", width: 3000, height: 3000 },
   { key: "11x8_5-landscape", label: "11 x 8.5 in landscape", width: 3300, height: 2550 },
