@@ -358,12 +358,17 @@ textarea:focus-visible {
   grid-template-columns: minmax(240px, 340px) minmax(320px, 1fr);
 }
 
-.settings-tab-list {
+.settings-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  max-width: 980px;
+}
+
+.segmented-control.settings-tab-list {
   width: fit-content;
-  max-width: 100%;
-  grid-template-columns: repeat(2, minmax(96px, max-content));
+  max-width: calc(100% - 12px);
+  grid-template-columns: repeat(2, minmax(112px, max-content));
   gap: 4px;
-  margin-bottom: 16px;
+  margin: 0 0 16px 12px;
   padding: 4px;
 }
 
@@ -3296,6 +3301,8 @@ body {
 }
 
 .segmented-control.settings-tab-list .fui-Tab {
+  flex: 0 0 112px;
+  min-width: 112px;
   min-height: 40px;
   padding: 0 20px;
   box-shadow: none;
