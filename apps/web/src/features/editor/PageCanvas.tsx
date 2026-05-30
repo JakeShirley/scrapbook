@@ -1,4 +1,6 @@
 import {
+  ArrowAutofitHeightRegular,
+  ArrowAutofitWidthRegular,
   ArrowClockwiseRegular,
   ArrowDownRegular,
   ArrowUpRegular,
@@ -251,7 +253,7 @@ export function PageCanvas({
     ? selectedLayer.kind === "text"
       ? 208
       : selectedLayer.kind === "photo"
-        ? 100
+        ? 164
         : 68
     : 68;
   const selectedLayerMenuStyle: CSSProperties | undefined = selectedSelectionFrame
@@ -572,6 +574,27 @@ export function PageCanvas({
       mask: { ...selectedLayer.mask, ...update },
     } as Partial<PageLayer>);
   };
+  const scaleSelectedPhotoToCanvas = (axis: "height" | "width") => {
+    if (!selectedLayer || selectedLayer.kind !== "photo") return;
+
+    const aspectRatio = selectedLayer.width / selectedLayer.height;
+    const size =
+      axis === "height"
+        ? {
+            height: document.canvas.height,
+            width: document.canvas.height * aspectRatio,
+          }
+        : {
+            height: document.canvas.width / aspectRatio,
+            width: document.canvas.width,
+          };
+
+    changeLayer(selectedLayer.id, {
+      ...size,
+      x: (document.canvas.width - size.width) / 2,
+      y: (document.canvas.height - size.height) / 2,
+    } as Partial<PageLayer>);
+  };
   const clearSelection = (event: ReactPointerEvent<HTMLFieldSetElement>) => {
     if (event.button !== 0 || activeTransform) return;
     if (contextMenuRef.current?.contains(event.target as Node)) return;
@@ -736,6 +759,28 @@ export function PageCanvas({
               >
                 <ImageBorderRegular />
                 <span>Frame</span>
+              </button>
+            ) : null}
+            {selectedLayer.kind === "photo" ? (
+              <button
+                type="button"
+                aria-label="Scale photo to full page height"
+                title="Full height"
+                onClick={() => scaleSelectedPhotoToCanvas("height")}
+              >
+                <ArrowAutofitHeightRegular />
+                <span>Height</span>
+              </button>
+            ) : null}
+            {selectedLayer.kind === "photo" ? (
+              <button
+                type="button"
+                aria-label="Scale photo to full page width"
+                title="Full width"
+                onClick={() => scaleSelectedPhotoToCanvas("width")}
+              >
+                <ArrowAutofitWidthRegular />
+                <span>Width</span>
               </button>
             ) : null}
             {selectedLayer.kind === "text" ? (
