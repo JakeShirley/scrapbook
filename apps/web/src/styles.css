@@ -2293,6 +2293,68 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.text-effects-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.text-preview-pane {
+  display: grid;
+  min-height: 108px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 7px;
+  background:
+    linear-gradient(90deg, rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--sb-neutral-background-2);
+}
+
+.text-preview-surface {
+  width: 100%;
+  max-width: 420px;
+}
+
+.text-preview-surface svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.text-effects-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.text-effect-card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid #edf0ed;
+  border-radius: 6px;
+  padding: 7px;
+  background: #fbfbf8;
+}
+
+.text-effect-card-wide {
+  grid-row: span 2;
+}
+
+.text-effect-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.text-effect-controls-grid-wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .layer-controls-grid {
   display: grid;
   gap: 8px;
@@ -3446,7 +3508,7 @@ body {
   z-index: 60;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 8px;
   background: rgb(0 0 0 / 46%);
   backdrop-filter: blur(2px);
 }
@@ -3454,8 +3516,8 @@ body {
 .selected-layer-edit-dialog {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(640px, calc(100vw - 36px));
-  max-height: min(720px, calc(100vh - 36px));
+  width: min(920px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
   overflow: hidden;
   border: 1px solid var(--sb-neutral-stroke-2);
   border-radius: 8px;
@@ -3528,14 +3590,15 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   align-items: stretch;
-  gap: 10px;
+  gap: 8px;
   border-top: 0;
-  padding: 10px;
+  padding: 8px;
 }
 
 .selected-layer-edit-body .layer-details-section,
 .selected-layer-edit-body .layer-inspector-section,
-.selected-layer-edit-body .text-controls-section {
+.selected-layer-edit-body .text-controls-section,
+.selected-layer-edit-body .text-effects-section {
   grid-column: 1 / -1;
 }
 
@@ -3632,6 +3695,43 @@ body {
   justify-content: start;
 }
 
+.selected-layer-edit-body .text-effects-grid {
+  gap: 6px;
+}
+
+.selected-layer-edit-body .text-effects-layout {
+  grid-template-columns: minmax(220px, 0.78fr) minmax(360px, 1.22fr);
+  gap: 8px;
+}
+
+.selected-layer-edit-body .text-preview-pane {
+  min-height: 100%;
+}
+
+.selected-layer-edit-body .text-effect-card {
+  gap: 5px;
+  padding: 5px;
+}
+
+.selected-layer-edit-body .text-effect-controls-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.selected-layer-edit-body .text-effect-controls-grid-wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .selected-layer-edit-body .text-effects-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-layer-edit-body .text-preview-pane {
+    min-height: 108px;
+  }
+}
+
 .selected-layer-edit-body .text-content-field {
   grid-row: span 2;
 }
@@ -3651,7 +3751,7 @@ body {
 
 .selected-layer-edit-body .inspector-section {
   gap: 6px;
-  padding: 7px;
+  padding: 5px;
   background: var(--sb-neutral-background);
 }
 

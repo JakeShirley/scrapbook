@@ -1,66 +1,335 @@
-import type { PageLayer } from "@scrapbook/editor-core";
+import { type PageLayer, renderPageDocumentSvg } from "@scrapbook/editor-core";
+import { useId, useMemo } from "react";
 
 import { FontFamilySelect } from "./FontFamilySelect";
 import { TextAlignmentControl } from "./TextAlignmentControl";
+
+type TextLayer = Extract<PageLayer, { kind: "text" }>;
+type TextEffectKey = "background" | "glow" | "shadow" | "stroke";
 
 export function TextControls({
   layer,
   onChange,
 }: {
-  layer: Extract<PageLayer, { kind: "text" }>;
+  layer: TextLayer;
   onChange: (update: Partial<PageLayer>) => void;
 }) {
+  const previewId = useId();
+  const updateEffect = <Key extends TextEffectKey>(key: Key, update: Partial<TextLayer[Key]>) =>
+    onChange({
+      [key]: { ...layer[key], ...update },
+    } as Partial<PageLayer>);
+  const previewSvg = useMemo(() => {
+    const previewLayer: TextLayer = {
+      ...layer,
+      id: `${layer.id}-preview`,
+      text: layer.text.trim().length > 0 ? layer.text : "Text preview",
+      x: 64,
+      y: 106,
+      width: 512,
+      height: 128,
+      rotation: 0,
+      fontSize: Math.max(28, Math.min(88, layer.fontSize)),
+    };
+
+    return renderPageDocumentSvg(
+      {
+        version: 1,
+        canvas: {
+          width: 640,
+          height: 320,
+          backgroundColor: "#fffdf7",
+        },
+        layers: [previewLayer],
+      },
+      { idPrefix: previewId, includeBackground: false },
+    );
+  }, [layer, previewId]);
+
   return (
-    <fieldset className="inspector-section text-controls-section">
-      <legend>Text</legend>
-      <div className="text-controls-grid">
-        <label className="text-content-field">
-          <span>Text</span>
-          <textarea
-            value={layer.text}
-            onChange={(event) =>
-              onChange({ text: event.currentTarget.value } as Partial<PageLayer>)
-            }
-          />
-        </label>
-        <label htmlFor="text-layer-font-family">
-          <span>Font</span>
-          <FontFamilySelect
-            id="text-layer-font-family"
-            value={layer.fontFamily}
-            onChange={(fontFamily) => onChange({ fontFamily } as Partial<PageLayer>)}
-          />
-        </label>
-        <label>
-          <span>Font size</span>
-          <input
-            max={240}
-            min={6}
-            type="number"
-            value={layer.fontSize}
-            onChange={(event) =>
-              onChange({ fontSize: Number(event.currentTarget.value) } as Partial<PageLayer>)
-            }
-          />
-        </label>
-        <label>
-          <span>Color</span>
-          <input
-            type="color"
-            value={layer.color}
-            onChange={(event) =>
-              onChange({ color: event.currentTarget.value } as Partial<PageLayer>)
-            }
-          />
-        </label>
-        <div className="text-alignment-field">
-          <span>Align</span>
-          <TextAlignmentControl
-            value={layer.align}
-            onChange={(align) => onChange({ align } as Partial<PageLayer>)}
-          />
+    <>
+      <fieldset className="inspector-section text-controls-section">
+        <legend>Text</legend>
+        <div className="text-controls-grid">
+          <label className="text-content-field">
+            <span>Text</span>
+            <textarea
+              value={layer.text}
+              onChange={(event) =>
+                onChange({ text: event.currentTarget.value } as Partial<PageLayer>)
+              }
+            />
+          </label>
+          <label htmlFor="text-layer-font-family">
+            <span>Font</span>
+            <FontFamilySelect
+              id="text-layer-font-family"
+              value={layer.fontFamily}
+              onChange={(fontFamily) => onChange({ fontFamily } as Partial<PageLayer>)}
+            />
+          </label>
+          <label>
+            <span>Font size</span>
+            <input
+              max={240}
+              min={6}
+              type="number"
+              value={layer.fontSize}
+              onChange={(event) =>
+                onChange({ fontSize: Number(event.currentTarget.value) } as Partial<PageLayer>)
+              }
+            />
+          </label>
+          <label>
+            <span>Color</span>
+            <input
+              type="color"
+              value={layer.color}
+              onChange={(event) =>
+                onChange({ color: event.currentTarget.value } as Partial<PageLayer>)
+              }
+            />
+          </label>
+          <div className="text-alignment-field">
+            <span>Align</span>
+            <TextAlignmentControl
+              value={layer.align}
+              onChange={(align) => onChange({ align } as Partial<PageLayer>)}
+            />
+          </div>
         </div>
-      </div>
-    </fieldset>
+      </fieldset>
+      <fieldset className="inspector-section text-effects-section">
+        <legend>Effects</legend>
+        <div className="text-effects-layout">
+          <div className="text-preview-pane" role="img" aria-label="Text preview">
+            <div
+              className="text-preview-surface"
+              /* biome-ignore lint/security/noDangerouslySetInnerHtml: Preview SVG is generated by editor-core from validated layer data. */
+              dangerouslySetInnerHTML={{ __html: previewSvg }}
+            />
+          </div>
+          <div className="text-effects-grid">
+            <section className="text-effect-card" aria-label="Stroke">
+              <label className="checkbox-label compact-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.stroke.enabled}
+                  onChange={(event) =>
+                    updateEffect("stroke", { enabled: event.currentTarget.checked })
+                  }
+                />
+                <span>Stroke</span>
+              </label>
+              <div className="text-effect-controls-grid">
+                <label>
+                  <span>Color</span>
+                  <input
+                    type="color"
+                    value={layer.stroke.color}
+                    onChange={(event) =>
+                      updateEffect("stroke", { color: event.currentTarget.value })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Width</span>
+                  <input
+                    max={80}
+                    min={0}
+                    type="number"
+                    value={layer.stroke.width}
+                    onChange={(event) =>
+                      updateEffect("stroke", { width: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+              </div>
+            </section>
+            <section className="text-effect-card text-effect-card-wide" aria-label="Drop shadow">
+              <label className="checkbox-label compact-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.shadow.enabled}
+                  onChange={(event) =>
+                    updateEffect("shadow", { enabled: event.currentTarget.checked })
+                  }
+                />
+                <span>Drop shadow</span>
+              </label>
+              <div className="text-effect-controls-grid text-effect-controls-grid-wide">
+                <label>
+                  <span>Color</span>
+                  <input
+                    type="color"
+                    value={layer.shadow.color}
+                    onChange={(event) =>
+                      updateEffect("shadow", { color: event.currentTarget.value })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Opacity</span>
+                  <input
+                    max={1}
+                    min={0}
+                    step={0.05}
+                    type="range"
+                    value={layer.shadow.opacity}
+                    onChange={(event) =>
+                      updateEffect("shadow", { opacity: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>X</span>
+                  <input
+                    max={240}
+                    min={-240}
+                    type="number"
+                    value={layer.shadow.offsetX}
+                    onChange={(event) =>
+                      updateEffect("shadow", { offsetX: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Y</span>
+                  <input
+                    max={240}
+                    min={-240}
+                    type="number"
+                    value={layer.shadow.offsetY}
+                    onChange={(event) =>
+                      updateEffect("shadow", { offsetY: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Blur</span>
+                  <input
+                    max={160}
+                    min={0}
+                    type="number"
+                    value={layer.shadow.blur}
+                    onChange={(event) =>
+                      updateEffect("shadow", { blur: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+              </div>
+            </section>
+            <section className="text-effect-card" aria-label="Glow">
+              <label className="checkbox-label compact-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.glow.enabled}
+                  onChange={(event) =>
+                    updateEffect("glow", { enabled: event.currentTarget.checked })
+                  }
+                />
+                <span>Glow</span>
+              </label>
+              <div className="text-effect-controls-grid">
+                <label>
+                  <span>Color</span>
+                  <input
+                    type="color"
+                    value={layer.glow.color}
+                    onChange={(event) => updateEffect("glow", { color: event.currentTarget.value })}
+                  />
+                </label>
+                <label>
+                  <span>Opacity</span>
+                  <input
+                    max={1}
+                    min={0}
+                    step={0.05}
+                    type="range"
+                    value={layer.glow.opacity}
+                    onChange={(event) =>
+                      updateEffect("glow", { opacity: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Blur</span>
+                  <input
+                    max={160}
+                    min={0}
+                    type="number"
+                    value={layer.glow.blur}
+                    onChange={(event) =>
+                      updateEffect("glow", { blur: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+              </div>
+            </section>
+            <section className="text-effect-card" aria-label="Highlight">
+              <label className="checkbox-label compact-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.background.enabled}
+                  onChange={(event) =>
+                    updateEffect("background", { enabled: event.currentTarget.checked })
+                  }
+                />
+                <span>Highlight</span>
+              </label>
+              <div className="text-effect-controls-grid">
+                <label>
+                  <span>Color</span>
+                  <input
+                    type="color"
+                    value={layer.background.color}
+                    onChange={(event) =>
+                      updateEffect("background", { color: event.currentTarget.value })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Opacity</span>
+                  <input
+                    max={1}
+                    min={0}
+                    step={0.05}
+                    type="range"
+                    value={layer.background.opacity}
+                    onChange={(event) =>
+                      updateEffect("background", { opacity: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Padding</span>
+                  <input
+                    max={120}
+                    min={0}
+                    type="number"
+                    value={layer.background.padding}
+                    onChange={(event) =>
+                      updateEffect("background", { padding: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Radius</span>
+                  <input
+                    max={160}
+                    min={0}
+                    type="number"
+                    value={layer.background.radius}
+                    onChange={(event) =>
+                      updateEffect("background", { radius: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+              </div>
+            </section>
+          </div>
+        </div>
+      </fieldset>
+    </>
   );
 }

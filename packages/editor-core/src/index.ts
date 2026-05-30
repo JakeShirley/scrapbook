@@ -85,6 +85,36 @@ const defaultPhotoFilter = {
   saturation: 1,
 };
 
+const defaultTextStroke = {
+  enabled: false,
+  color: "#ffffff",
+  width: 8,
+};
+
+const defaultTextShadow = {
+  enabled: false,
+  color: "#202426",
+  opacity: 0.3,
+  offsetX: 12,
+  offsetY: 12,
+  blur: 12,
+};
+
+const defaultTextGlow = {
+  enabled: false,
+  color: "#ffffff",
+  opacity: 0.7,
+  blur: 18,
+};
+
+const defaultTextBackground = {
+  enabled: false,
+  color: "#fffdf7",
+  opacity: 0.9,
+  padding: 12,
+  radius: 10,
+};
+
 const defaultWashiTapeTile = {
   scale: 1,
   scaleX: 1,
@@ -240,6 +270,40 @@ export const textLayerSchema = pageLayerBaseSchema.extend({
   fontSize: z.number().finite().min(6).max(240),
   color: colorSchema,
   align: z.enum(["left", "center", "right"]),
+  stroke: z
+    .object({
+      enabled: z.boolean(),
+      color: colorSchema,
+      width: z.number().finite().min(0).max(80),
+    })
+    .default(defaultTextStroke),
+  shadow: z
+    .object({
+      enabled: z.boolean(),
+      color: colorSchema,
+      opacity: opacitySchema,
+      offsetX: z.number().finite().min(-240).max(240),
+      offsetY: z.number().finite().min(-240).max(240),
+      blur: z.number().finite().min(0).max(160),
+    })
+    .default(defaultTextShadow),
+  glow: z
+    .object({
+      enabled: z.boolean(),
+      color: colorSchema,
+      opacity: opacitySchema,
+      blur: z.number().finite().min(0).max(160),
+    })
+    .default(defaultTextGlow),
+  background: z
+    .object({
+      enabled: z.boolean(),
+      color: colorSchema,
+      opacity: opacitySchema,
+      padding: z.number().finite().min(0).max(120),
+      radius: z.number().finite().min(0).max(160),
+    })
+    .default(defaultTextBackground),
 });
 
 export const embellishmentLayerSchema = pageLayerBaseSchema.extend({
@@ -378,11 +442,15 @@ export type CreateTextLayerInput = Partial<
     | "color"
     | "fontFamily"
     | "fontSize"
+    | "glow"
     | "height"
     | "id"
     | "locked"
     | "opacity"
     | "rotation"
+    | "shadow"
+    | "stroke"
+    | "background"
     | "width"
     | "x"
     | "y"
@@ -828,29 +896,96 @@ const renderPhotoFrameOverlaySvg = (layer: PhotoLayer, layout: PhotoFrameLayout)
   }
 };
 
-const renderTextLayerSvg = (layer: TextLayer): string => {
+const textStrokeSvgAttributes = (layer: TextLayer): string =>
+  layer.stroke.enabled && layer.stroke.width > 0
+    ? ` stroke="${escapeXml(layer.stroke.color)}" stroke-width="${layer.stroke.width}" stroke-linejoin="round" paint-order="stroke fill"`
+    : "";
+
+const renderTextBackgroundSvg = (layer: TextLayer): string => {
+  if (!layer.background.enabled) {
+    return "";
+  }
+
+  const padding = layer.background.padding;
+
+  return `<rect data-text-background="true" x="${-padding}" y="${-padding}" width="${layer.width + padding * 2}" height="${layer.height + padding * 2}" rx="${layer.background.radius}" fill="${escapeXml(layer.background.color)}" opacity="${layer.background.opacity}" />`;
+};
+
+const renderTextEffectFilterSvg = (layer: TextLayer, filterId: string): string => {
+  const filterParts: string[] = [];
+  const mergeNodes: string[] = [];
+  const shadow = layer.shadow.enabled && layer.shadow.opacity > 0;
+  const glow = layer.glow.enabled && layer.glow.opacity > 0;
+
+  if (!shadow && !glow) {
+    return "";
+  }
+
+  if (shadow) {
+    filterParts.push(
+      `<feGaussianBlur in="SourceAlpha" stdDeviation="${layer.shadow.blur}" result="text_shadow_blur" />`,
+      `<feOffset in="text_shadow_blur" dx="${layer.shadow.offsetX}" dy="${layer.shadow.offsetY}" result="text_shadow_offset" />`,
+      `<feFlood flood-color="${escapeXml(layer.shadow.color)}" flood-opacity="${layer.shadow.opacity}" result="text_shadow_color" />`,
+      '<feComposite in="text_shadow_color" in2="text_shadow_offset" operator="in" result="text_shadow" />',
+    );
+    mergeNodes.push('<feMergeNode in="text_shadow" />');
+  }
+
+  if (glow) {
+    filterParts.push(
+      `<feGaussianBlur in="SourceAlpha" stdDeviation="${layer.glow.blur}" result="text_glow_blur" />`,
+      `<feFlood flood-color="${escapeXml(layer.glow.color)}" flood-opacity="${layer.glow.opacity}" result="text_glow_color" />`,
+      '<feComposite in="text_glow_color" in2="text_glow_blur" operator="in" result="text_glow" />',
+    );
+    mergeNodes.push('<feMergeNode in="text_glow" />');
+  }
+
+  const margin = Math.max(
+    layer.stroke.enabled ? layer.stroke.width : 0,
+    shadow
+      ? Math.abs(layer.shadow.offsetX) + Math.abs(layer.shadow.offsetY) + layer.shadow.blur * 3
+      : 0,
+    glow ? layer.glow.blur * 3 : 0,
+  );
+
+  return `<filter id="${filterId}" filterUnits="userSpaceOnUse" x="${-margin}" y="${-margin}" width="${layer.width + margin * 2}" height="${layer.height + margin * 2}" color-interpolation-filters="sRGB">${filterParts.join("")}<feMerge>${mergeNodes.join("")}<feMergeNode in="SourceGraphic" /></feMerge></filter>`;
+};
+
+const renderTextLayerSvg = (
+  layer: TextLayer,
+  index: number,
+  idPrefix: string | undefined,
+): { body: string; defs: string } => {
   const bundledFont = getBundledEditorFont(layer.fontFamily);
+  const filterId = idPrefix
+    ? createSvgId(idPrefix, "text", "filter", index)
+    : createSvgId("text", "filter", index);
+  const filterDef = renderTextEffectFilterSvg(layer, filterId);
+  const contentAttributes = filterDef ? ` filter="url(#${filterId})"` : "";
+  const background = renderTextBackgroundSvg(layer);
 
   if (bundledFont) {
-    return renderBundledFontTextLayerSvg(layer, bundledFont);
+    return {
+      body: renderBundledFontTextLayerSvg(layer, bundledFont, background, contentAttributes),
+      defs: filterDef,
+    };
   }
 
   const lines = layer.text.split(/\r?\n/).slice(0, 20);
   const lineHeight = layer.fontSize * 1.2;
   const anchor = layer.align === "center" ? "middle" : layer.align === "right" ? "end" : "start";
-  const x =
-    layer.align === "center"
-      ? layer.x + layer.width / 2
-      : layer.align === "right"
-        ? layer.x + layer.width
-        : layer.x;
+  const x = layer.align === "center" ? layer.width / 2 : layer.align === "right" ? layer.width : 0;
+  const strokeAttributes = textStrokeSvgAttributes(layer);
 
-  return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><text x="${x}" y="${layer.y + layer.fontSize}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${layer.fontSize}" text-anchor="${anchor}">${lines
-    .map(
-      (line, index) =>
-        `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
-    )
-    .join("")}</text></g>`;
+  return {
+    defs: filterDef,
+    body: `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g${contentAttributes}><text x="${x}" y="${layer.fontSize}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${layer.fontSize}" text-anchor="${anchor}"${strokeAttributes}>${lines
+      .map(
+        (line, index) =>
+          `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
+      )
+      .join("")}</text></g></g></g>`,
+  };
 };
 
 const pathNumber = (value: number): string | null => {
@@ -901,11 +1036,17 @@ const pathData = (path: Path): string =>
     .filter((commandData): commandData is string => commandData !== null)
     .join("");
 
-const renderBundledFontTextLayerSvg = (layer: TextLayer, bundledFont: Font): string => {
+const renderBundledFontTextLayerSvg = (
+  layer: TextLayer,
+  bundledFont: Font,
+  background: string,
+  contentAttributes: string,
+): string => {
   const lines = layer.text.split(/\r?\n/).slice(0, 20);
   const lineHeight = layer.fontSize * 1.2;
   const anchorX =
     layer.align === "center" ? layer.width / 2 : layer.align === "right" ? layer.width : 0;
+  const strokeAttributes = textStrokeSvgAttributes(layer);
   const paths = lines
     .map((line, lineIndex) => {
       const advanceWidth = bundledFont.getAdvanceWidth(line, layer.fontSize);
@@ -926,7 +1067,7 @@ const renderBundledFontTextLayerSvg = (layer: TextLayer, bundledFont: Font): str
     })
     .join("");
 
-  return `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" fill="${escapeXml(layer.color)}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${paths}</g></g>`;
+  return `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g fill="${escapeXml(layer.color)}"${strokeAttributes}${contentAttributes}>${paths}</g></g></g>`;
 };
 
 const renderPhotoLayerSvg = (
@@ -1260,12 +1401,21 @@ export const renderPageDocumentSvg = (
       continue;
     }
 
+    if (layer.kind === "text") {
+      const rendered = renderTextLayerSvg(layer, index, options.idPrefix);
+
+      if (rendered.defs) {
+        defs.push(rendered.defs);
+      }
+
+      bodies.push(rendered.body);
+      continue;
+    }
+
     bodies.push(
-      layer.kind === "text"
-        ? renderTextLayerSvg(layer)
-        : layer.kind === "embellishment"
-          ? renderEmbellishmentLayerSvg(layer)
-          : renderStickerLayerSvg(layer, options.resolveStickerSvg?.(layer)),
+      layer.kind === "embellishment"
+        ? renderEmbellishmentLayerSvg(layer)
+        : renderStickerLayerSvg(layer, options.resolveStickerSvg?.(layer)),
     );
   }
 
@@ -1325,6 +1475,10 @@ export const createTextLayer = (input: CreateTextLayerInput): TextLayer =>
     fontSize: input.fontSize ?? 72,
     color: input.color ?? "#202426",
     align: input.align ?? "left",
+    stroke: input.stroke ?? defaultTextStroke,
+    shadow: input.shadow ?? defaultTextShadow,
+    glow: input.glow ?? defaultTextGlow,
+    background: input.background ?? defaultTextBackground,
   });
 
 export const createEmbellishmentLayer = (
@@ -1509,7 +1663,24 @@ export const resizePageDocument = (
         y: layer.y * scaleY,
         width: layer.width * scaleX,
         height: layer.height * scaleY,
-        ...(layer.kind === "text" ? { fontSize: layer.fontSize * textScale } : {}),
+        ...(layer.kind === "text"
+          ? {
+              fontSize: layer.fontSize * textScale,
+              stroke: { ...layer.stroke, width: layer.stroke.width * textScale },
+              shadow: {
+                ...layer.shadow,
+                offsetX: layer.shadow.offsetX * scaleX,
+                offsetY: layer.shadow.offsetY * scaleY,
+                blur: layer.shadow.blur * textScale,
+              },
+              glow: { ...layer.glow, blur: layer.glow.blur * textScale },
+              background: {
+                ...layer.background,
+                padding: layer.background.padding * textScale,
+                radius: layer.background.radius * textScale,
+              },
+            }
+          : {}),
       }),
     ),
   });

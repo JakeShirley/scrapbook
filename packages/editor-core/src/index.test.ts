@@ -134,6 +134,15 @@ describe("page document helpers", () => {
     expect(updated.layers).toEqual(document.layers);
   });
 
+  it("creates text layers with disabled effects by default", () => {
+    const text = createTextLayer({ id: "text_1", text: "Caption" });
+
+    expect(text.stroke).toMatchObject({ enabled: false, color: "#ffffff", width: 8 });
+    expect(text.shadow).toMatchObject({ enabled: false, color: "#202426", opacity: 0.3 });
+    expect(text.glow).toMatchObject({ enabled: false, color: "#ffffff", opacity: 0.7 });
+    expect(text.background).toMatchObject({ enabled: false, color: "#fffdf7", opacity: 0.9 });
+  });
+
   it("resizes a page document and scales layer geometry", () => {
     const text = createTextLayer({
       id: "text_1",
@@ -143,6 +152,10 @@ describe("page document helpers", () => {
       width: 600,
       height: 120,
       fontSize: 48,
+      stroke: { enabled: true, color: "#ffffff", width: 4 },
+      shadow: { enabled: true, color: "#202426", opacity: 0.35, offsetX: 6, offsetY: 8, blur: 10 },
+      glow: { enabled: true, color: "#79a9a4", opacity: 0.8, blur: 12 },
+      background: { enabled: true, color: "#fff2b8", opacity: 0.7, padding: 14, radius: 16 },
     });
     const photo = createPhotoLayer({
       assetId: "asset_1",
@@ -166,6 +179,10 @@ describe("page document helpers", () => {
       width: 1200,
       height: 240,
       fontSize: 96,
+      stroke: expect.objectContaining({ width: 8 }),
+      shadow: expect.objectContaining({ offsetX: 12, offsetY: 16, blur: 20 }),
+      glow: expect.objectContaining({ blur: 24 }),
+      background: expect.objectContaining({ padding: 28, radius: 32 }),
     });
     expect(resized.layers[1]).toMatchObject({
       id: "photo_1",
@@ -530,6 +547,37 @@ describe("page document helpers", () => {
     expect(svg).toContain(`data-font-family="${loveYaLikeASisterFontFamily}"`);
     expect(svg).toContain("<path");
     expect(svg).not.toContain("Playful");
+  });
+
+  it("renders text stroke, shadow, glow, highlight, and opacity", () => {
+    const text = createTextLayer({
+      id: "text_1",
+      text: "Effects",
+      opacity: 0.65,
+      stroke: { enabled: true, color: "#ffffff", width: 10 },
+      shadow: {
+        enabled: true,
+        color: "#202426",
+        opacity: 0.35,
+        offsetX: 16,
+        offsetY: 18,
+        blur: 14,
+      },
+      glow: { enabled: true, color: "#79a9a4", opacity: 0.8, blur: 20 },
+      background: { enabled: true, color: "#fff2b8", opacity: 0.7, padding: 18, radius: 12 },
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }), {
+      idPrefix: "test",
+    });
+
+    expect(svg).toContain('opacity="0.65"');
+    expect(svg).toContain('data-text-background="true"');
+    expect(svg).toContain('fill="#fff2b8" opacity="0.7"');
+    expect(svg).toContain('stroke="#ffffff" stroke-width="10"');
+    expect(svg).toContain('filter="url(#test_text_filter_0)"');
+    expect(svg).toContain('<feGaussianBlur in="SourceAlpha" stdDeviation="14"');
+    expect(svg).toContain('flood-color="#202426" flood-opacity="0.35"');
+    expect(svg).toContain('flood-color="#79a9a4" flood-opacity="0.8"');
   });
 
   it("keeps bundled text path geometry stable when moving layers", () => {
