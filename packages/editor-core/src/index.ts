@@ -855,6 +855,115 @@ const renderPaperTextureSvg = (layer: PhotoLayer): string => {
     .join("");
 };
 
+const photoSilhouetteShapeSvg = (
+  layer: PhotoLayer,
+  layout: PhotoFrameLayout,
+  fill: string,
+): string => {
+  const hasVisibleFrame = layer.border.framePreset !== "none" || layer.border.width > 0;
+
+  if (hasVisibleFrame) {
+    const outer = layout.outer;
+
+    return `<rect data-photo-shadow-shape="frame" x="${outer.x}" y="${outer.y}" width="${outer.width}" height="${outer.height}" rx="${outer.radius}" fill="${fill}" />`;
+  }
+
+  const inset = layer.mask.inset;
+  const imageFrame = layout.image;
+  const shapeAttribute = `data-photo-shadow-shape="mask-${layer.mask.shape}"`;
+
+  switch (layer.mask.shape) {
+    case "rectangle":
+      return `<rect ${shapeAttribute} x="${imageFrame.x + imageFrame.width * inset}" y="${imageFrame.y + imageFrame.height * inset}" width="${imageFrame.width * (1 - inset * 2)}" height="${imageFrame.height * (1 - inset * 2)}" rx="${imageFrame.radius}" fill="${fill}" />`;
+    case "ellipse":
+      return `<ellipse ${shapeAttribute} cx="${imageFrame.x + imageFrame.width / 2}" cy="${imageFrame.y + imageFrame.height / 2}" rx="${imageFrame.width * (0.5 - inset)}" ry="${imageFrame.height * (0.5 - inset)}" fill="${fill}" />`;
+    case "arch":
+      return `<polygon ${shapeAttribute} points="${layerPolygon(imageFrame, [
+        [inset, 1],
+        [inset, 0.36],
+        [0.18, 0.08],
+        [0.5, 0],
+        [0.82, 0.08],
+        [1 - inset, 0.36],
+        [1 - inset, 1],
+      ])}" fill="${fill}" />`;
+    case "diamond":
+      return `<polygon ${shapeAttribute} points="${layerPolygon(imageFrame, [
+        [0.5, inset],
+        [1 - inset, 0.5],
+        [0.5, 1 - inset],
+        [inset, 0.5],
+      ])}" fill="${fill}" />`;
+    case "ticket":
+      return `<polygon ${shapeAttribute} points="${layerPolygon(imageFrame, [
+        [inset, inset],
+        [0.42, inset],
+        [0.5, 0.1],
+        [0.58, inset],
+        [1 - inset, inset],
+        [1 - inset, 0.42],
+        [0.9, 0.5],
+        [1 - inset, 0.58],
+        [1 - inset, 1 - inset],
+        [0.58, 1 - inset],
+        [0.5, 0.9],
+        [0.42, 1 - inset],
+        [inset, 1 - inset],
+        [inset, 0.58],
+        [0.1, 0.5],
+        [inset, 0.42],
+      ])}" fill="${fill}" />`;
+  }
+};
+
+const renderPhotoShadowFilterSvg = (layer: PhotoLayer, filterId: string): string => {
+  if (!layer.shadow.enabled || layer.shadow.opacity <= 0) {
+    return "";
+  }
+
+  const blur = Math.max(0, layer.shadow.blur);
+  const spread = layer.shadow.spread;
+  const stdDeviation = blur / 2;
+  const margin = Math.max(
+    24,
+    Math.abs(layer.shadow.offsetX) +
+      Math.abs(layer.shadow.offsetY) +
+      blur * 2 +
+      Math.max(0, spread) * 2,
+  );
+  const parts: string[] = [];
+
+  if (spread > 0) {
+    parts.push(
+      `<feMorphology in="SourceGraphic" operator="dilate" radius="${spread}" result="photo_shadow_spread" />`,
+      `<feGaussianBlur in="photo_shadow_spread" stdDeviation="${stdDeviation}" />`,
+    );
+  } else if (spread < 0) {
+    parts.push(
+      `<feMorphology in="SourceGraphic" operator="erode" radius="${-spread}" result="photo_shadow_spread" />`,
+      `<feGaussianBlur in="photo_shadow_spread" stdDeviation="${stdDeviation}" />`,
+    );
+  } else {
+    parts.push(`<feGaussianBlur in="SourceGraphic" stdDeviation="${stdDeviation}" />`);
+  }
+
+  return `<filter id="${filterId}" filterUnits="userSpaceOnUse" x="${layer.x - margin}" y="${layer.y - margin}" width="${layer.width + margin * 2}" height="${layer.height + margin * 2}" color-interpolation-filters="sRGB">${parts.join("")}</filter>`;
+};
+
+const renderPhotoShadowSvg = (
+  layer: PhotoLayer,
+  layout: PhotoFrameLayout,
+  filterId: string,
+): string => {
+  if (!layer.shadow.enabled || layer.shadow.opacity <= 0) {
+    return "";
+  }
+
+  const shape = photoSilhouetteShapeSvg(layer, layout, escapeXml(layer.shadow.color));
+
+  return `<g data-photo-shadow="true" transform="translate(${layer.shadow.offsetX} ${layer.shadow.offsetY})" opacity="${layer.shadow.opacity}" filter="url(#${filterId})">${shape}</g>`;
+};
+
 const renderPhotoFrameBackgroundSvg = (layer: PhotoLayer, layout: PhotoFrameLayout): string => {
   const fill = escapeXml(photoFrameFill(layer));
 
@@ -1083,6 +1192,9 @@ const renderPhotoLayerSvg = (
   const clipId = idPrefix
     ? createSvgId(idPrefix, "photo", "clip", index)
     : createSvgId("photo", "clip", index);
+  const shadowFilterId = idPrefix
+    ? createSvgId(idPrefix, "photo", "shadow", index)
+    : createSvgId("photo", "shadow", index);
   const frameLayout = getPhotoFrameLayout(layer);
   const imageWidth = frameLayout.image.width / Math.max(layer.crop.width, 0.05);
   const imageHeight = frameLayout.image.height / Math.max(layer.crop.height, 0.05);
@@ -1102,10 +1214,12 @@ const renderPhotoLayerSvg = (
   const scaleY = layer.photoTransform.flipY
     ? -layer.photoTransform.scale
     : layer.photoTransform.scale;
+  const shadowFilter = renderPhotoShadowFilterSvg(layer, shadowFilterId);
+  const shadowBody = renderPhotoShadowSvg(layer, frameLayout, shadowFilterId);
 
   return {
-    defs: photoClipPath(layer, clipId, frameLayout.image),
-    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${renderPhotoFrameBackgroundSvg(layer, frameLayout)}<image href="${escapeXml(href)}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}" clip-path="url(#${clipId})" transform="translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})" />${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
+    defs: `${photoClipPath(layer, clipId, frameLayout.image)}${shadowFilter}`,
+    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${shadowBody}${renderPhotoFrameBackgroundSvg(layer, frameLayout)}<image href="${escapeXml(href)}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}" clip-path="url(#${clipId})" transform="translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})" />${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
   };
 };
 
@@ -1678,6 +1792,17 @@ export const resizePageDocument = (
                 ...layer.background,
                 padding: layer.background.padding * textScale,
                 radius: layer.background.radius * textScale,
+              },
+            }
+          : {}),
+        ...(layer.kind === "photo"
+          ? {
+              shadow: {
+                ...layer.shadow,
+                offsetX: layer.shadow.offsetX * scaleX,
+                offsetY: layer.shadow.offsetY * scaleY,
+                blur: layer.shadow.blur * textScale,
+                spread: layer.shadow.spread * textScale,
               },
             }
           : {}),

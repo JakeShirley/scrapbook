@@ -733,6 +733,68 @@ describe("page document helpers", () => {
     expect(svg).toContain('data-frame-detail="paper-fiber"');
   });
 
+  it("renders an optional photo drop shadow that follows the frame outline", () => {
+    const framedPhoto = createPhotoLayer({
+      assetId: "asset_framed",
+      id: "photo_framed",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 300,
+      border: { color: "#ffffff", framePreset: "polaroid", radius: 12, style: "solid", width: 0 },
+      shadow: {
+        enabled: true,
+        color: "#101418",
+        opacity: 0.4,
+        offsetX: 8,
+        offsetY: 16,
+        blur: 24,
+        spread: 0,
+      },
+    });
+    const maskedPhoto = createPhotoLayer({
+      assetId: "asset_masked",
+      id: "photo_masked",
+      x: 500,
+      y: 0,
+      width: 320,
+      height: 320,
+      border: { color: "#ffffff", framePreset: "none", radius: 0, style: "solid", width: 0 },
+      mask: { shape: "ellipse", inset: 0, feather: 0 },
+      shadow: {
+        enabled: true,
+        color: "#202426",
+        opacity: 0.5,
+        offsetX: 0,
+        offsetY: 12,
+        blur: 20,
+        spread: 0,
+      },
+    });
+    const noShadowPhoto = createPhotoLayer({
+      assetId: "asset_plain",
+      id: "photo_plain",
+      x: 900,
+      y: 0,
+      width: 320,
+      height: 320,
+    });
+    const document = createPageDocument({
+      canvas: { width: 1280, height: 360 },
+      layers: [framedPhoto, maskedPhoto, noShadowPhoto],
+    });
+    const svg = renderPageDocumentSvg(document, {
+      resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    expect(svg).toContain('data-photo-shadow="true"');
+    expect(svg).toContain('data-photo-shadow-shape="frame"');
+    expect(svg).toContain('data-photo-shadow-shape="mask-ellipse"');
+    expect(svg).toContain("translate(8 16)");
+    expect(svg).toContain('id="photo_shadow_0"');
+    expect((svg.match(/data-photo-shadow="true"/g) ?? []).length).toBe(2);
+  });
+
   it("prefixes reusable SVG ids for pages rendered in the same DOM", () => {
     const photo = createPhotoLayer({ assetId: "asset_1", id: "photo_1" });
     const document = createPageDocument({ layers: [photo] });

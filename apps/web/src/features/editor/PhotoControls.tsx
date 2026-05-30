@@ -19,6 +19,8 @@ export function PhotoControls({
     onChange({ mask: { ...layer.mask, ...update } });
   const updateFilter = (update: Partial<PhotoLayer["filter"]>) =>
     onChange({ filter: { ...layer.filter, ...update } });
+  const updateShadow = (update: Partial<PhotoLayer["shadow"]>) =>
+    onChange({ shadow: { ...layer.shadow, ...update } });
 
   return (
     <>
@@ -196,6 +198,78 @@ export function PhotoControls({
             onChange={(event) => updateBorder({ color: event.currentTarget.value })}
           />
         </label>
+      </fieldset>
+      <fieldset className="inspector-section">
+        <legend>Drop shadow</legend>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={layer.shadow.enabled}
+            onChange={(event) => updateShadow({ enabled: event.currentTarget.checked })}
+          />
+          <span>Enable drop shadow</span>
+        </label>
+        <label>
+          <span>Color</span>
+          <input
+            type="color"
+            value={layer.shadow.color}
+            onChange={(event) => updateShadow({ color: event.currentTarget.value })}
+          />
+        </label>
+        <label>
+          <span>Opacity</span>
+          <input
+            max={1}
+            min={0}
+            step={0.05}
+            type="range"
+            value={layer.shadow.opacity}
+            onChange={(event) => updateShadow({ opacity: Number(event.currentTarget.value) })}
+          />
+        </label>
+        <div className="inspector-grid">
+          <label>
+            <span>Offset X</span>
+            <input
+              max={400}
+              min={-400}
+              type="number"
+              value={layer.shadow.offsetX}
+              onChange={(event) => updateShadow({ offsetX: Number(event.currentTarget.value) })}
+            />
+          </label>
+          <label>
+            <span>Offset Y</span>
+            <input
+              max={400}
+              min={-400}
+              type="number"
+              value={layer.shadow.offsetY}
+              onChange={(event) => updateShadow({ offsetY: Number(event.currentTarget.value) })}
+            />
+          </label>
+          <label>
+            <span>Blur</span>
+            <input
+              max={400}
+              min={0}
+              type="number"
+              value={layer.shadow.blur}
+              onChange={(event) => updateShadow({ blur: Number(event.currentTarget.value) })}
+            />
+          </label>
+          <label>
+            <span>Spread</span>
+            <input
+              max={160}
+              min={-120}
+              type="number"
+              value={layer.shadow.spread}
+              onChange={(event) => updateShadow({ spread: Number(event.currentTarget.value) })}
+            />
+          </label>
+        </div>
       </fieldset>
       <Button
         type="button"
