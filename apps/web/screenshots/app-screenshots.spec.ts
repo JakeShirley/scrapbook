@@ -2,7 +2,7 @@ import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const screenshotDirectory = path.resolve(
   process.env.SCRAPBOOK_SCREENSHOT_DIR ??
@@ -21,6 +21,61 @@ type ScreenshotScenario = {
   path: string;
   prepare?: (page: Page) => Promise<void>;
   waitFor: (page: Page) => Promise<void>;
+};
+
+type TextLayerFixtureOptions = {
+  align?: "left" | "center" | "right";
+  background?: {
+    color: string;
+    enabled: boolean;
+    opacity: number;
+    padding: number;
+    radius: number;
+  };
+  color?: string;
+  fontFamily?: string;
+  glow?: { blur: number; color: string; enabled: boolean; opacity: number };
+  opacity?: number;
+  rotation?: number;
+  shadow?: {
+    blur: number;
+    color: string;
+    enabled: boolean;
+    offsetX: number;
+    offsetY: number;
+    opacity: number;
+  };
+  stroke?: { color: string; enabled: boolean; width: number };
+};
+
+type WashiTapeFixtureOptions = {
+  opacity?: number;
+  outline?:
+    | "angled"
+    | "bracket"
+    | "notched"
+    | "pinched"
+    | "rounded"
+    | "scallop"
+    | "stamp"
+    | "straight"
+    | "tapered"
+    | "torn"
+    | "wave";
+  pattern?: {
+    assetId?: string;
+    kind: "checker" | "customPhoto" | "grid" | "polkaDot" | "solid" | "stripe";
+    primaryColor: string;
+    secondaryColor: string;
+  };
+  tile?: Partial<{
+    offsetX: number;
+    offsetY: number;
+    rotation: number;
+    scale: number;
+    scaleX: number;
+    scaleY: number;
+  }>;
 };
 
 const viewports: ScreenshotViewport[] = [
@@ -98,6 +153,156 @@ const pageFixtures = [
       stickerLayer("sticker_notes", "noto:sparkles", 1530, 1280, 300, 300, 9),
     ],
   }),
+  createPage("page_washi_settings", "Tape Settings", {
+    backgroundColor: "#fbfaf2",
+    layers: [
+      textLayer("text_washi_heading", "washi tape settings", 200, 150, 1220, 120, 72, {
+        color: "#2f4947",
+      }),
+      washiTapeLayer("tape_straight_solid", 190, 380, 850, 150, -3, "#f4d35e", "#2f7a75", {
+        outline: "straight",
+        pattern: { kind: "solid", primaryColor: "#f4d35e", secondaryColor: "#2f7a75" },
+        tile: { scaleX: 1.3, scaleY: 0.78 },
+      }),
+      washiTapeLayer("tape_angled_polka", 1240, 380, 870, 150, 4, "#f7f0cf", "#d85f3f", {
+        outline: "angled",
+        pattern: { kind: "polkaDot", primaryColor: "#f7f0cf", secondaryColor: "#d85f3f" },
+        tile: { offsetX: 0.25, scale: 0.78, scaleX: 1.8 },
+      }),
+      washiTapeLayer("tape_rounded_stripe", 210, 660, 830, 160, 2, "#b7d7d2", "#263d5a", {
+        outline: "rounded",
+        pattern: { kind: "stripe", primaryColor: "#b7d7d2", secondaryColor: "#263d5a" },
+        tile: { rotation: 18, scale: 0.92, scaleY: 1.4 },
+      }),
+      washiTapeLayer("tape_torn_grid", 1240, 670, 850, 165, -2, "#f8c6b8", "#36706d", {
+        outline: "torn",
+        pattern: { kind: "grid", primaryColor: "#f8c6b8", secondaryColor: "#36706d" },
+        tile: { offsetY: -0.35, scale: 1.15, scaleX: 1.35 },
+      }),
+      washiTapeLayer("tape_notched_checker", 190, 960, 850, 150, -5, "#f7eee2", "#5580a0", {
+        outline: "notched",
+        pattern: { kind: "checker", primaryColor: "#f7eee2", secondaryColor: "#5580a0" },
+        tile: { rotation: -12, scale: 0.72, scaleY: 1.45 },
+      }),
+      washiTapeLayer("tape_bracket_photo", 1240, 960, 860, 155, 3, "#efd37a", "#4d6d68", {
+        outline: "bracket",
+        pattern: {
+          assetId: "asset_postcards",
+          kind: "customPhoto",
+          primaryColor: "#efd37a",
+          secondaryColor: "#4d6d68",
+        },
+        tile: { offsetX: -0.35, rotation: 8, scale: 1.35, scaleX: 1.6, scaleY: 0.82 },
+      }),
+      washiTapeLayer("tape_pinched_polka", 210, 1260, 820, 150, 5, "#dae8c4", "#774b69", {
+        outline: "pinched",
+        pattern: { kind: "polkaDot", primaryColor: "#dae8c4", secondaryColor: "#774b69" },
+        tile: { offsetX: 0.5, offsetY: 0.25, scale: 0.9, scaleX: 0.72 },
+      }),
+      washiTapeLayer("tape_tapered_stripe", 1240, 1270, 850, 160, -4, "#fed7a8", "#226c73", {
+        outline: "tapered",
+        pattern: { kind: "stripe", primaryColor: "#fed7a8", secondaryColor: "#226c73" },
+        tile: { rotation: 35, scale: 0.8, scaleY: 1.7 },
+      }),
+      washiTapeLayer("tape_scallop_grid", 190, 1560, 850, 160, 2, "#d6e4f2", "#bb4d54", {
+        outline: "scallop",
+        pattern: { kind: "grid", primaryColor: "#d6e4f2", secondaryColor: "#bb4d54" },
+        tile: { offsetY: 0.5, scale: 1.05, scaleX: 1.55 },
+      }),
+      washiTapeLayer("tape_stamp_checker", 1240, 1570, 850, 160, 4, "#f6e7a7", "#435e91", {
+        outline: "stamp",
+        pattern: { kind: "checker", primaryColor: "#f6e7a7", secondaryColor: "#435e91" },
+        tile: { rotation: -22, scale: 0.82, scaleX: 1.2, scaleY: 1.2 },
+      }),
+      washiTapeLayer("tape_wave_photo", 370, 1880, 1580, 190, -1, "#f5d6dc", "#426d78", {
+        outline: "wave",
+        pattern: {
+          assetId: "asset_ocean",
+          kind: "customPhoto",
+          primaryColor: "#f5d6dc",
+          secondaryColor: "#426d78",
+        },
+        tile: { offsetX: 0.4, offsetY: -0.2, rotation: -16, scale: 1.55, scaleX: 1.8 },
+      }),
+    ],
+  }),
+  createPage("page_text_settings", "Text Settings", {
+    backgroundColor: "#f5fbf8",
+    layers: [
+      textLayer("text_effects_title", "GOLDEN HOUR", 260, 270, 1880, 300, 146, {
+        align: "center",
+        background: { color: "#fff0b8", enabled: true, opacity: 0.82, padding: 34, radius: 46 },
+        color: "#d95438",
+        fontFamily: "Bodoni Ultra Bold",
+        glow: { blur: 36, color: "#ffffff", enabled: true, opacity: 0.72 },
+        shadow: {
+          blur: 18,
+          color: "#24545a",
+          enabled: true,
+          offsetX: 18,
+          offsetY: 22,
+          opacity: 0.28,
+        },
+        stroke: { color: "#fffdf7", enabled: true, width: 10 },
+      }),
+      textLayer(
+        "text_effects_left",
+        "left aligned\nwith a soft highlight",
+        300,
+        810,
+        880,
+        420,
+        78,
+        {
+          background: { color: "#ffffff", enabled: true, opacity: 0.76, padding: 22, radius: 18 },
+          color: "#26443f",
+          fontFamily: "Love Ya Like A Sister",
+        },
+      ),
+      textLayer("text_effects_center", "centered stroke", 1250, 820, 760, 220, 88, {
+        align: "center",
+        color: "#2f6391",
+        fontFamily: "Baskerville",
+        rotation: -4,
+        stroke: { color: "#f8d56b", enabled: true, width: 18 },
+      }),
+      textLayer("text_effects_right", "right edge\ndrop shadow", 1040, 1180, 940, 390, 84, {
+        align: "right",
+        color: "#713d5a",
+        fontFamily: "Bodoni",
+        shadow: {
+          blur: 30,
+          color: "#173331",
+          enabled: true,
+          offsetX: -28,
+          offsetY: 28,
+          opacity: 0.32,
+        },
+      }),
+      textLayer("text_effects_glow", "glow", 330, 1410, 670, 210, 120, {
+        color: "#2f7a75",
+        fontFamily: "Love Ya Like A Sister",
+        glow: { blur: 54, color: "#f8d56b", enabled: true, opacity: 0.92 },
+        rotation: 5,
+      }),
+      textLayer(
+        "text_effects_caption",
+        "Small caption with padded background and muted opacity.",
+        440,
+        1810,
+        1540,
+        180,
+        58,
+        {
+          align: "center",
+          background: { color: "#263d5a", enabled: true, opacity: 0.86, padding: 28, radius: 30 },
+          color: "#fffdf7",
+          fontFamily: "Baskerville",
+          opacity: 0.94,
+        },
+      ),
+    ],
+  }),
 ];
 
 const bookFixture = {
@@ -116,7 +321,7 @@ const bookFixture = {
     sortOrder: index,
     updatedAt: now,
   })),
-  spreadCount: 2,
+  spreadCount: 3,
   spreads: [
     {
       kind: "facing",
@@ -131,6 +336,13 @@ const bookFixture = {
       pageIds: ["page_trip", "page_notes"],
       rightPageId: "page_notes",
       spreadIndex: 1,
+    },
+    {
+      kind: "facing",
+      leftPageId: "page_washi_settings",
+      pageIds: ["page_washi_settings", "page_text_settings"],
+      rightPageId: "page_text_settings",
+      spreadIndex: 2,
     },
   ],
   title: "Family Yearbook",
@@ -232,6 +444,16 @@ const scenarios: ScreenshotScenario[] = [
     },
   },
   {
+    name: "book-editor-washi-text-settings",
+    path: "/books/book_summer",
+    prepare: async (page) => {
+      await navigateToSpread(page, "Spread 3 of 3");
+      await expect(page.locator('.book-page-frame[aria-label="Page 5"]')).toBeVisible();
+      await expect(page.locator('.book-page-frame[aria-label="Page 6"]')).toBeVisible();
+    },
+    waitFor: waitForBookEditor,
+  },
+  {
     name: "book-editor-photo-edit",
     path: "/books/book_summer",
     prepare: async (page) => {
@@ -255,6 +477,19 @@ const scenarios: ScreenshotScenario[] = [
     waitFor: waitForBookEditor,
   },
   {
+    name: "book-editor-washi-tape-settings-edit",
+    path: "/books/book_summer",
+    prepare: async (page) => {
+      await navigateToSpread(page, "Spread 3 of 3");
+      await openLayerEditor(page, "Page 5", "washiTape");
+      const dialog = page.getByRole("dialog", { name: "Edit Washi tape layer" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
+      await expect(dialog.getByRole("img", { name: "Washi tape preview" })).toBeVisible();
+    },
+    waitFor: waitForBookEditor,
+  },
+  {
     name: "book-editor-text-edit",
     path: "/books/book_summer",
     prepare: async (page) => {
@@ -263,6 +498,19 @@ const scenarios: ScreenshotScenario[] = [
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
       await expect(dialog.getByRole("textbox", { name: "Text" })).toBeVisible();
+    },
+    waitFor: waitForBookEditor,
+  },
+  {
+    name: "book-editor-text-settings-edit",
+    path: "/books/book_summer",
+    prepare: async (page) => {
+      await navigateToSpread(page, "Spread 3 of 3");
+      await openLayerEditor(page, "Page 6", "text");
+      const dialog = page.getByRole("dialog", { name: "Edit Text layer" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
+      await expect(dialog.getByRole("img", { name: "Text preview" })).toBeVisible();
     },
     waitFor: waitForBookEditor,
   },
@@ -327,7 +575,7 @@ async function waitForFeatureOrFallback(page: Page, heading: string) {
   }
 }
 
-async function isVisible(locator: ReturnType<Page["getByRole"]>) {
+async function isVisible(locator: Locator) {
   try {
     return await locator.isVisible({ timeout: 500 });
   } catch {
@@ -337,7 +585,7 @@ async function isVisible(locator: ReturnType<Page["getByRole"]>) {
 
 async function openLayerEditor(
   page: Page,
-  pageLabel: "Page 1" | "Page 2",
+  pageLabel: "Page 1" | "Page 2" | "Page 5" | "Page 6",
   layerKind: "photo" | "text" | "washiTape",
 ) {
   const layerLabel =
@@ -356,6 +604,26 @@ async function openLayerEditor(
     .getByRole("toolbar", { name: `${layerLabel} actions` })
     .getByRole("button", { name: "Edit layer" })
     .click();
+}
+
+async function navigateToSpread(page: Page, spreadLabel: string) {
+  const spreadStatus = page.locator(".book-modebar-status").filter({ hasText: spreadLabel });
+
+  if (spreadLabel === "Spread 3 of 3") {
+    await page.getByRole("button", { name: "5 Tape Settings" }).click({ force: true });
+    await expect(spreadStatus).toBeVisible();
+    return;
+  }
+
+  for (let navigationAttempt = 0; navigationAttempt < 6; navigationAttempt += 1) {
+    if (await isVisible(spreadStatus)) {
+      return;
+    }
+
+    await page.getByRole("button", { name: "Next" }).click({ force: true });
+  }
+
+  await expect(spreadStatus).toBeVisible();
 }
 
 test.beforeAll(async () => {
@@ -615,12 +883,18 @@ function textLayer(
   width: number,
   height: number,
   fontSize: number,
+  options: TextLayerFixtureOptions = {},
 ) {
   return {
-    ...baseLayer(id, x, y, width, height, 0),
-    align: "left",
-    color: "#24302f",
-    fontFamily: "Love Ya Like A Sister",
+    ...baseLayer(id, x, y, width, height, options.rotation ?? 0),
+    ...(options.opacity === undefined ? {} : { opacity: options.opacity }),
+    ...(options.background ? { background: options.background } : {}),
+    ...(options.glow ? { glow: options.glow } : {}),
+    ...(options.shadow ? { shadow: options.shadow } : {}),
+    ...(options.stroke ? { stroke: options.stroke } : {}),
+    align: options.align ?? "left",
+    color: options.color ?? "#24302f",
+    fontFamily: options.fontFamily ?? "Love Ya Like A Sister",
     fontSize,
     kind: "text",
     text,
@@ -666,13 +940,15 @@ function washiTapeLayer(
   rotation: number,
   primaryColor: string,
   secondaryColor: string,
+  options: WashiTapeFixtureOptions = {},
 ) {
   return {
     ...baseLayer(id, x, y, width, height, rotation),
+    ...(options.opacity === undefined ? {} : { opacity: options.opacity }),
     kind: "washiTape",
-    outline: "torn",
-    pattern: { kind: "stripe", primaryColor, secondaryColor },
-    tile: { offsetX: 0, offsetY: 0, rotation: 0, scale: 1, scaleX: 1, scaleY: 1 },
+    outline: options.outline ?? "torn",
+    pattern: options.pattern ?? { kind: "stripe", primaryColor, secondaryColor },
+    tile: { offsetX: 0, offsetY: 0, rotation: 0, scale: 1, scaleX: 1, scaleY: 1, ...options.tile },
   };
 }
 

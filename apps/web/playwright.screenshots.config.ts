@@ -35,5 +35,9 @@ export default defineConfig({
 });
 
 function shellQuote(value: string) {
+  if (process.platform === "win32") {
+    return `"${value.replaceAll('"', '""')}"`;
+  }
+
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
