@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   addLayer,
@@ -64,6 +64,25 @@ describe("page document helpers", () => {
     expect(reordered.layers.map((layer) => layer.id)).toEqual(["text_1", "photo_1"]);
     expect(duplicated.layers.map((layer) => layer.id)).toEqual(["text_1", "text_2", "photo_1"]);
     expect(deleted.layers.map((layer) => layer.id)).toEqual(["text_1", "text_2"]);
+  });
+
+  it("creates layer ids when native crypto randomUUID is unavailable", () => {
+    vi.stubGlobal("crypto", {
+      getRandomValues(bytes: Uint8Array) {
+        bytes.fill(1);
+        return bytes;
+      },
+    });
+
+    try {
+      const photo = createPhotoLayer({ assetId: "asset_1" });
+
+      expect(photo.id).toMatch(
+        /^layer_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("rounds layer transform values to the nearest tenth", () => {

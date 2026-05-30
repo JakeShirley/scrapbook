@@ -12,6 +12,7 @@ import UTIF from "utif";
 
 import { Panel, WorkspaceHeader } from "../../components/layout";
 import { formatBytes } from "../../lib/format";
+import { createClientId } from "../../lib/ids";
 
 type FitMode = "cover" | "contain";
 type TransformMode = "move" | "resize-east" | "resize-south" | "resize-southeast";
@@ -770,7 +771,7 @@ function createPlacement(imageId: string, index: number, grid: GridSettings): Gr
     column: index % grid.columns,
     columnSpan: 1,
     fit: "cover",
-    id: globalThis.crypto.randomUUID(),
+    id: createClientId(),
     imageId,
     row: Math.floor(index / grid.columns),
     rowSpan: 1,
@@ -871,7 +872,7 @@ async function loadRasterImage(file: File): Promise<LocalImage> {
     bitmap,
     byteSize: file.size,
     height: bitmap.height,
-    id: globalThis.crypto.randomUUID(),
+    id: createClientId(),
     name: file.name,
     previewUrl: URL.createObjectURL(file),
     width: bitmap.width,
@@ -904,7 +905,7 @@ async function loadTiffImage(file: File): Promise<LocalImage> {
     bitmap,
     byteSize: file.size,
     height: directory.height,
-    id: globalThis.crypto.randomUUID(),
+    id: createClientId(),
     name: file.name,
     previewUrl,
     width: directory.width,
