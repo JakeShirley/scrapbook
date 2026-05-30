@@ -139,9 +139,6 @@ export function LibraryView() {
           ) : null}
         </Panel>
 
-        <Panel title="Pages">
-          <p className="empty-state">Create and edit pages from the Pages workspace.</p>
-        </Panel>
       </div>
     </>
   );
