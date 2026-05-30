@@ -126,6 +126,13 @@ const createHeic = (): Buffer =>
     "base64",
   );
 
+const createHeif = (): Buffer => {
+  const buffer = createHeic();
+  buffer.write("mif1", 8, 4, "ascii");
+  buffer.write("mif1", 16, 4, "ascii");
+  return buffer;
+};
+
 const toArrayBuffer = (buffer: Buffer): ArrayBuffer =>
   buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
@@ -467,6 +474,40 @@ describe("api app", () => {
     expect(previewResponse.status).toBe(200);
     expect(previewResponse.headers.get("content-type")).toBe("image/jpeg");
     expect(Buffer.from(await previewResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
+  it("uploads HEIF images and creates browser-readable variants", async () => {
+    const app = await createTestAppWithStorage();
+    const cookie = await registerAccount(app, {
+      displayName: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+    const image = createHeif();
+    const uploadResponse = await uploadImage(
+      app,
+      cookie,
+      new File([toArrayBuffer(image)], "family.heif", { type: "image/heif" }),
+    );
+
+    expect(uploadResponse.status).toBe(201);
+
+    const uploaded = assetResponseSchema.parse(await uploadResponse.json());
+
+    expect(uploaded).toMatchObject({
+      originalFilename: "family.heif",
+      mimeType: "image/heif",
+      byteSize: image.byteLength,
+      width: 12,
+      height: 9,
+    });
+
+    const originalResponse = await app.request(`/api/v1/assets/${uploaded.id}/content`, {
+      headers: { cookie },
+    });
+
+    expect(originalResponse.status).toBe(200);
+    expect(originalResponse.headers.get("content-type")).toBe("image/heif");
+    expect(Buffer.from(await originalResponse.arrayBuffer())).toEqual(image);
   });
 
   it("rejects invalid uploads with documented errors", async () => {

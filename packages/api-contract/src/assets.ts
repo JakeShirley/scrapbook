@@ -99,6 +99,9 @@ const assetBinaryContent = {
   "image/heic": {
     schema: z.string().openapi({ type: "string", format: "binary" }),
   },
+  "image/heif": {
+    schema: z.string().openapi({ type: "string", format: "binary" }),
+  },
   "image/jpeg": {
     schema: z.string().openapi({ type: "string", format: "binary" }),
   },
