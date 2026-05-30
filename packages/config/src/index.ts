@@ -5,9 +5,7 @@ import { z } from "zod";
 const defaultDataDirForEnvironment = (nodeEnv: "development" | "test" | "production") =>
   nodeEnv === "production" ? "/data/scrapbook" : "./storage/dev";
 
-const booleanEnvironmentSchema = z
-  .enum(["true", "false"])
-  .transform((value) => value === "true");
+const booleanEnvironmentSchema = z.enum(["true", "false"]).transform((value) => value === "true");
 
 const runtimeConfigSchema = z
   .object({
