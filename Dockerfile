@@ -25,6 +25,7 @@ FROM base AS api
 ENV NODE_ENV="production"
 ENV API_HOST="0.0.0.0"
 ENV API_PORT="4000"
+ENV SCRAPBOOK_DATA_DIR="/data/scrapbook"
 ENV WEB_ORIGIN="http://localhost:5173"
 ENV WEB_ASSETS_DIR="/app/apps/web/dist"
 
@@ -42,12 +43,13 @@ COPY --from=build /app/packages/api-contract/dist packages/api-contract/dist
 COPY --from=build /app/packages/config/dist packages/config/dist
 COPY --from=build /app/packages/domain/dist packages/domain/dist
 COPY --from=build /app/packages/editor-core/dist packages/editor-core/dist
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN mkdir -p /data/scrapbook \
   && chown -R node:node /app /data/scrapbook
 
-USER node
 EXPOSE 4000
 VOLUME ["/data/scrapbook"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://127.0.0.1:4000/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["pnpm", "--filter", "@scrapbook/api", "start"]
