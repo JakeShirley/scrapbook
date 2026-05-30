@@ -8,7 +8,7 @@ describe("loadConfig", () => {
 
     expect(config.NODE_ENV).toBe("development");
     expect(config.API_PORT).toBe(4000);
-    expect(config.SESSION_COOKIE_SECURE).toBe(false);
+    expect(config.SESSION_COOKIE_SECURE).toBeUndefined();
     expect(config.SCRAPBOOK_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/storage\/dev$/);
   });
 
@@ -18,10 +18,10 @@ describe("loadConfig", () => {
     expect(config.SCRAPBOOK_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/data\/scrapbook$/);
   });
 
-  it("marks session cookies secure for HTTPS web origins", () => {
+  it("leaves session cookie security in auto mode for HTTPS web origins", () => {
     const config = loadConfig({ NODE_ENV: "production", WEB_ORIGIN: "https://scrapbook.test" });
 
-    expect(config.SESSION_COOKIE_SECURE).toBe(true);
+    expect(config.SESSION_COOKIE_SECURE).toBeUndefined();
   });
 
   it("allows the secure session cookie setting to be overridden", () => {

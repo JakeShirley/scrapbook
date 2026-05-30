@@ -127,6 +127,20 @@ type ServerLogEntryInput = Omit<ServerLogEntryResponse, "id" | "timestamp">;
 
 const defaultClock: RepositoryClock = () => new Date();
 
+const readForwardedProto = (context: ApiContext): string | null => {
+  const forwardedProto = context.req.header("x-forwarded-proto");
+
+  return forwardedProto?.split(",")[0]?.trim().toLowerCase() || null;
+};
+
+const requestUsesHttps = (context: ApiContext): boolean =>
+  readForwardedProto(context) === "https" || new URL(context.req.url).protocol === "https:";
+
+const resolveSessionCookieSecure = (
+  context: ApiContext,
+  sessionCookieSecure: CreateAppOptions["sessionCookieSecure"],
+): boolean => sessionCookieSecure ?? requestUsesHttps(context);
+
 const getRequestPath = (url: string): string => {
   try {
     return new URL(url).pathname;
@@ -401,8 +415,9 @@ const readClientIp = (context: ApiContext): string | null => {
 const startBrowserSession = (
   context: ApiContext,
   accountId: string,
-  options: Required<Pick<CreateAppOptions, "clock" | "sessionCookieSecure" | "sessionTtlMs">> & {
+  options: Required<Pick<CreateAppOptions, "clock" | "sessionTtlMs">> & {
     repositories: Repositories;
+    sessionCookieSecure: CreateAppOptions["sessionCookieSecure"];
   },
 ): SessionRecord => {
   const secret = createSessionSecret();
@@ -424,7 +439,7 @@ const startBrowserSession = (
       httpOnly: true,
       path: "/",
       sameSite: "Lax",
-      secure: options.sessionCookieSecure,
+      secure: resolveSessionCookieSecure(context, options.sessionCookieSecure),
     },
   );
 
@@ -462,7 +477,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
   const options = {
     clock: createOptions.clock ?? defaultClock,
     repositories: createOptions.repositories,
-    sessionCookieSecure: createOptions.sessionCookieSecure ?? false,
+    sessionCookieSecure: createOptions.sessionCookieSecure,
     sessionTtlMs: createOptions.sessionTtlMs ?? defaultSessionTtlMs,
     staticAssetsDir: createOptions.staticAssetsDir,
     storage: createOptions.storage,

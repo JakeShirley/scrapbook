@@ -205,6 +205,71 @@ describe("api app", () => {
     );
   });
 
+  it("uses non-secure session cookies for local HTTP requests", async () => {
+    const app = createTestApp();
+    const registerResponse = await postJson(app, "/api/v1/auth/register", {
+      displayName: "Ada Lovelace",
+      email: "ada@example.com",
+      password: "correct horse battery staple",
+    });
+
+    expect(registerResponse.status).toBe(201);
+    expect(registerResponse.headers.get("set-cookie")).not.toContain("; Secure");
+  });
+
+  it("uses secure session cookies for proxied HTTPS requests", async () => {
+    const app = createTestApp();
+    const registerResponse = await app.request("/api/v1/auth/register", {
+      body: JSON.stringify({
+        displayName: "Ada Lovelace",
+        email: "ada@example.com",
+        password: "correct horse battery staple",
+      }),
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-proto": "https",
+      },
+      method: "POST",
+    });
+
+    expect(registerResponse.status).toBe(201);
+    expect(registerResponse.headers.get("set-cookie")).toContain("; Secure");
+  });
+
+  it("allows session cookie security to be explicitly overridden", async () => {
+    const connection = createDatabaseConnection({ databasePath: ":memory:" });
+    const rootDir = mkdtempSync(join(tmpdir(), "scrapbook-api-"));
+    const pageDocuments = createPageDocumentStore({ rootDir });
+
+    connections.push(connection);
+    tempDirs.push(rootDir);
+    runMigrations(connection.sqlite);
+
+    const app = createApp({
+      clock: makeFixedClock(fixedDate),
+      repositories: createRepositories(connection.db, {
+        clock: makeFixedClock(fixedDate),
+        pageDocuments,
+      }),
+      sessionCookieSecure: false,
+    });
+    const registerResponse = await app.request("/api/v1/auth/register", {
+      body: JSON.stringify({
+        displayName: "Ada Lovelace",
+        email: "ada@example.com",
+        password: "correct horse battery staple",
+      }),
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-proto": "https",
+      },
+      method: "POST",
+    });
+
+    expect(registerResponse.status).toBe(201);
+    expect(registerResponse.headers.get("set-cookie")).not.toContain("; Secure");
+  });
+
   it("logs in, rejects duplicate registration, and logs out", async () => {
     const app = createTestApp();
     await postJson(app, "/api/v1/auth/register", {

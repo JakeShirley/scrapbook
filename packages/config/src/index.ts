@@ -20,8 +20,6 @@ const runtimeConfigSchema = z
   })
   .transform((config) => ({
     ...config,
-    SESSION_COOKIE_SECURE:
-      config.SESSION_COOKIE_SECURE ?? new URL(config.WEB_ORIGIN).protocol === "https:",
     SCRAPBOOK_DATA_DIR: resolve(
       config.SCRAPBOOK_DATA_DIR ?? defaultDataDirForEnvironment(config.NODE_ENV),
     ),

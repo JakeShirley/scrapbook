@@ -66,10 +66,12 @@ Scrapbook is configured with environment variables.
 | `NODE_ENV` | `development` | Use `production` in the Docker image. |
 | `API_HOST` | `127.0.0.1` | Use `0.0.0.0` in containers. |
 | `API_PORT` | `4000` | Port the API and web app listen on. |
-| `WEB_ORIGIN` | `http://localhost:5173` | Public browser origin for deployment-sensitive browser behavior. For Docker on localhost, use `http://localhost:4000`; for LAN access, use the exact local HTTP origin users open in their browser. |
-| `SESSION_COOKIE_SECURE` | `true` for HTTPS `WEB_ORIGIN`, otherwise `false` | Whether browser session cookies require HTTPS. Usually leave this derived from `WEB_ORIGIN`. |
+| `WEB_ORIGIN` | `http://localhost:5173` | Public browser origin for the deployed app. For Docker on localhost, use `http://localhost:4000`; for LAN access, use the exact local HTTP origin users open in their browser. |
+| `SESSION_COOKIE_SECURE` | Auto-detected per request | Whether browser session cookies require HTTPS. By default, HTTPS requests and requests with `X-Forwarded-Proto: https` receive `Secure` cookies; local HTTP requests do not. |
 
 For a public deployment, set `WEB_ORIGIN` to the HTTPS origin users will open in their browser, such as `https://scrapbook.example.com`.
+
+If the app is served by both a local HTTP URL and a remote HTTPS reverse proxy, leave `SESSION_COOKIE_SECURE` unset and configure the proxy to pass `X-Forwarded-Proto`. Browsers keep separate host-only session cookies for the local IP and remote domain.
 
 ## Data And Backups
 
