@@ -64,7 +64,13 @@ import {
 } from "@scrapbook/editor-core";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { type AssetStorage, AssetUploadError, createAssetFromUpload } from "./assets.js";
+import {
+  type AssetStorage,
+  AssetUploadError,
+  browserNativeImageMimeTypes,
+  createAssetFromUpload,
+  ensureBrowserPreviewVariant,
+} from "./assets.js";
 import {
   createSessionCookieValue,
   createSessionSecret,
@@ -257,6 +263,32 @@ const toAssetResponse = (asset: AssetRecord, variants: AssetVariantRecord[]): As
     })),
     width: asset.width,
   });
+};
+
+const listAssetVariantsForResponse = async (input: {
+  accountId: string;
+  asset: AssetRecord;
+  repositories: Repositories;
+  storage: AssetStorage | undefined;
+}): Promise<AssetVariantRecord[]> => {
+  const variants = input.repositories.assets.listVariantsForAsset(input.accountId, input.asset.id);
+
+  if (
+    !input.storage ||
+    browserNativeImageMimeTypes.has(input.asset.mimeType) ||
+    variants.some((variant) => variant.kind === "preview")
+  ) {
+    return variants;
+  }
+
+  const preview = await ensureBrowserPreviewVariant({
+    accountId: input.accountId,
+    asset: input.asset,
+    repositories: input.repositories,
+    storage: input.storage,
+  });
+
+  return [...variants, preview];
 };
 
 const parseStoredPageDocument = (page: PageRecord): PageDocument => {
@@ -726,7 +758,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
   });
 
-  app.openapi(assetListRoute, (context) => {
+  app.openapi(assetListRoute, async (context) => {
     if (!options.repositories) {
       return context.json(
         createErrorResponse(context, "assets_unavailable", "Asset storage is unavailable"),
@@ -743,19 +775,26 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
       );
     }
 
-    const assets = options.repositories.assets
-      .listForAccount(authSession.account.id)
-      .map((asset) =>
+    const repositories = options.repositories;
+
+    const assets = await Promise.all(
+      repositories.assets.listForAccount(authSession.account.id).map(async (asset) =>
         toAssetResponse(
           asset,
-          options.repositories?.assets.listVariantsForAsset(authSession.account.id, asset.id) ?? [],
+          await listAssetVariantsForResponse({
+            accountId: authSession.account.id,
+            asset,
+            repositories,
+            storage: options.storage,
+          }),
         ),
-      );
+      ),
+    );
 
     return context.json(assetListResponseSchema.parse({ assets }), 200);
   });
 
-  app.openapi(assetDetailRoute, (context) => {
+  app.openapi(assetDetailRoute, async (context) => {
     if (!options.repositories) {
       return context.json(
         createErrorResponse(context, "assets_unavailable", "Asset storage is unavailable"),
@@ -779,10 +818,17 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
       return context.json(createErrorResponse(context, "asset_not_found", "Asset not found"), 404);
     }
 
+    const repositories = options.repositories;
+
     return context.json(
       toAssetResponse(
         asset,
-        options.repositories.assets.listVariantsForAsset(authSession.account.id, asset.id),
+        await listAssetVariantsForResponse({
+          accountId: authSession.account.id,
+          asset,
+          repositories,
+          storage: options.storage,
+        }),
       ),
       200,
     );

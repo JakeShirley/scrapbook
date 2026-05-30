@@ -116,14 +116,21 @@ const formatLayerKind = (kind: PageLayer["kind"]): string =>
 
 const nativeBrowserImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+const resolveBrowserPreviewHref = (asset: Asset): string | undefined =>
+  asset.variants.find(
+    (variant) => variant.kind === "preview" && nativeBrowserImageMimeTypes.has(variant.mimeType),
+  )?.contentUrl;
+
 const resolveBrowserPhotoHref = (asset: Asset | undefined): string | undefined => {
   if (!asset) {
     return undefined;
   }
 
+  const previewHref = resolveBrowserPreviewHref(asset);
+
   return nativeBrowserImageMimeTypes.has(asset.mimeType)
-    ? (asset.originalContentUrl ?? asset.thumbnailUrl)
-    : (asset.thumbnailUrl ?? asset.originalContentUrl);
+    ? (asset.originalContentUrl ?? previewHref ?? asset.thumbnailUrl)
+    : (previewHref ?? asset.thumbnailUrl ?? asset.originalContentUrl);
 };
 
 const resolveBrowserWashiTapeHref = (

@@ -29,7 +29,10 @@ type SupportedImageFormat = "heic" | "jpeg" | "png" | "webp";
 
 const maxUploadByteSize = 20 * 1024 * 1024;
 const maxImageDimension = 20_000;
+const previewMaxDimension = 2400;
 const thumbnailMaxDimension = 360;
+
+export const browserNativeImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const supportedImageTypes: Record<SupportedImageFormat, { mimeType: string; extension: string }> = {
   heic: { mimeType: "image/heic", extension: ".heic" },
@@ -167,6 +170,72 @@ const createThumbnail = async (buffer: Buffer) => {
   };
 };
 
+const createBrowserPreview = async (buffer: Buffer, options: { preserveAlpha: boolean }) => {
+  const sharpInputBuffer = await createSharpInputBuffer(buffer);
+  const metadata = await sharp(sharpInputBuffer, { failOn: "warning" }).metadata();
+  const hasAlpha = options.preserveAlpha && metadata.hasAlpha;
+  const image = sharp(sharpInputBuffer, { failOn: "warning" }).rotate().resize({
+    fit: "inside",
+    height: previewMaxDimension,
+    withoutEnlargement: true,
+    width: previewMaxDimension,
+  });
+  const result = hasAlpha
+    ? await image.png({ compressionLevel: 9 }).toBuffer({ resolveWithObject: true })
+    : await image.jpeg({ mozjpeg: true, quality: 90 }).toBuffer({ resolveWithObject: true });
+
+  return {
+    buffer: result.data,
+    byteSize: result.data.byteLength,
+    checksumSha256: checksumSha256(result.data),
+    height: result.info.height,
+    mimeType: hasAlpha ? "image/png" : "image/jpeg",
+    width: result.info.width,
+  };
+};
+
+export const ensureBrowserPreviewVariant = async (input: {
+  accountId: string;
+  asset: AssetRecord;
+  repositories: Repositories;
+  storage: AssetStorage;
+}): Promise<AssetVariantRecord> => {
+  const existing = input.repositories.assets.findVariantByKindForAccount(
+    input.accountId,
+    input.asset.id,
+    "preview",
+  );
+
+  if (existing) {
+    return existing;
+  }
+
+  const buffer = await input.storage.read(input.asset.originalStorageKey);
+  const preview = await createBrowserPreview(buffer, {
+    preserveAlpha: input.asset.mimeType !== "image/heic",
+  });
+  const previewStored = await input.storage.write("variants", preview.buffer, {
+    extension: preview.mimeType === "image/png" ? ".png" : ".jpg",
+  });
+
+  try {
+    return input.repositories.assets.createVariant({
+      accountId: input.accountId,
+      assetId: input.asset.id,
+      byteSize: previewStored.byteSize,
+      checksumSha256: preview.checksumSha256,
+      height: preview.height,
+      kind: "preview",
+      mimeType: preview.mimeType,
+      storageKey: previewStored.key,
+      width: preview.width,
+    });
+  } catch (error) {
+    await input.storage.remove(previewStored.key);
+    throw error;
+  }
+};
+
 export const createAssetFromUpload = async (input: {
   accountId: string;
   file: unknown;
@@ -176,11 +245,17 @@ export const createAssetFromUpload = async (input: {
   const buffer = await readUploadBuffer(input.file);
   const metadata = await readImageMetadata(buffer);
   const thumbnail = await createThumbnail(metadata.sharpInputBuffer);
+  const preview = await createBrowserPreview(metadata.sharpInputBuffer, {
+    preserveAlpha: metadata.mimeType !== "image/heic",
+  });
   const originalStored = await input.storage.write("uploads", buffer, {
     extension: metadata.extension,
   });
   const thumbnailStored = await input.storage.write("variants", thumbnail.buffer, {
     extension: ".jpg",
+  });
+  const previewStored = await input.storage.write("variants", preview.buffer, {
+    extension: preview.mimeType === "image/png" ? ".png" : ".jpg",
   });
 
   try {
@@ -197,7 +272,7 @@ export const createAssetFromUpload = async (input: {
       originalStorageKey: originalStored.key,
       width: metadata.width,
     });
-    const variant = input.repositories.assets.createVariant({
+    const thumbnailVariant = input.repositories.assets.createVariant({
       accountId: input.accountId,
       assetId: asset.id,
       byteSize: thumbnailStored.byteSize,
@@ -208,12 +283,24 @@ export const createAssetFromUpload = async (input: {
       storageKey: thumbnailStored.key,
       width: thumbnail.width,
     });
+    const previewVariant = input.repositories.assets.createVariant({
+      accountId: input.accountId,
+      assetId: asset.id,
+      byteSize: previewStored.byteSize,
+      checksumSha256: preview.checksumSha256,
+      height: preview.height,
+      kind: "preview",
+      mimeType: preview.mimeType,
+      storageKey: previewStored.key,
+      width: preview.width,
+    });
 
-    return { asset, variants: [variant] };
+    return { asset, variants: [thumbnailVariant, previewVariant] };
   } catch (error) {
     await Promise.allSettled([
       input.storage.remove(originalStored.key),
       input.storage.remove(thumbnailStored.key),
+      input.storage.remove(previewStored.key),
     ]);
     throw error;
   }

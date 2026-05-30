@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  assetResponseSchema,
   authSessionResponseSchema,
   bookResponseSchema,
   exportJobResponseSchema,
@@ -334,7 +335,7 @@ describe("api app", () => {
     ]);
   });
 
-  it("uploads images, stores metadata, lists assets, and streams original and thumbnail files", async () => {
+  it("uploads images, stores metadata, lists assets, and streams original and variants", async () => {
     const app = await createTestAppWithStorage();
     const cookie = await registerAccount(app, {
       displayName: "Ada Lovelace",
@@ -349,7 +350,7 @@ describe("api app", () => {
 
     expect(uploadResponse.status).toBe(201);
 
-    const uploaded = await uploadResponse.json();
+    const uploaded = assetResponseSchema.parse(await uploadResponse.json());
 
     expect(uploaded).toMatchObject({
       originalFilename: "family.png",
@@ -358,10 +359,21 @@ describe("api app", () => {
       width: 24,
       height: 16,
     });
-    expect(uploaded.thumbnailUrl).toBe(
-      `/api/v1/assets/${uploaded.id}/variants/${uploaded.variants[0].id}`,
-    );
-    expect(uploaded.variants).toHaveLength(1);
+    const thumbnail = uploaded.variants.find((variant) => variant.kind === "thumbnail");
+    const preview = uploaded.variants.find((variant) => variant.kind === "preview");
+
+    if (!thumbnail || !preview) {
+      throw new Error("Expected thumbnail and preview variants");
+    }
+
+    expect(uploaded.thumbnailUrl).toBe(`/api/v1/assets/${uploaded.id}/variants/${thumbnail.id}`);
+    expect(uploaded.variants).toHaveLength(2);
+    expect(preview).toMatchObject({
+      height: 16,
+      kind: "preview",
+      mimeType: "image/png",
+      width: 24,
+    });
 
     const listResponse = await app.request("/api/v1/assets", { headers: { cookie } });
     const detailResponse = await app.request(`/api/v1/assets/${uploaded.id}`, {
@@ -371,7 +383,11 @@ describe("api app", () => {
       headers: { cookie },
     });
     const thumbnailResponse = await app.request(
-      `/api/v1/assets/${uploaded.id}/variants/${uploaded.variants[0].id}`,
+      `/api/v1/assets/${uploaded.id}/variants/${thumbnail.id}`,
+      { headers: { cookie } },
+    );
+    const previewResponse = await app.request(
+      `/api/v1/assets/${uploaded.id}/variants/${preview.id}`,
       { headers: { cookie } },
     );
 
@@ -385,9 +401,12 @@ describe("api app", () => {
     expect(thumbnailResponse.status).toBe(200);
     expect(thumbnailResponse.headers.get("content-type")).toBe("image/jpeg");
     expect(Buffer.from(await thumbnailResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    expect(previewResponse.status).toBe(200);
+    expect(previewResponse.headers.get("content-type")).toBe("image/png");
+    expect(Buffer.from(await previewResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
   });
 
-  it("uploads HEIC images and creates browser-readable thumbnails", async () => {
+  it("uploads HEIC images and creates browser-readable variants", async () => {
     const app = await createTestAppWithStorage();
     const cookie = await registerAccount(app, {
       displayName: "Ada Lovelace",
@@ -402,7 +421,7 @@ describe("api app", () => {
 
     expect(uploadResponse.status).toBe(201);
 
-    const uploaded = await uploadResponse.json();
+    const uploaded = assetResponseSchema.parse(await uploadResponse.json());
 
     expect(uploaded).toMatchObject({
       originalFilename: "family.heic",
@@ -412,11 +431,30 @@ describe("api app", () => {
       height: 9,
     });
 
+    const thumbnail = uploaded.variants.find((variant) => variant.kind === "thumbnail");
+    const preview = uploaded.variants.find((variant) => variant.kind === "preview");
+
+    if (!thumbnail || !preview) {
+      throw new Error("Expected thumbnail and preview variants");
+    }
+
+    expect(uploaded.variants).toHaveLength(2);
+    expect(preview).toMatchObject({
+      height: 9,
+      kind: "preview",
+      mimeType: "image/jpeg",
+      width: 12,
+    });
+
     const originalResponse = await app.request(`/api/v1/assets/${uploaded.id}/content`, {
       headers: { cookie },
     });
     const thumbnailResponse = await app.request(
-      `/api/v1/assets/${uploaded.id}/variants/${uploaded.variants[0].id}`,
+      `/api/v1/assets/${uploaded.id}/variants/${thumbnail.id}`,
+      { headers: { cookie } },
+    );
+    const previewResponse = await app.request(
+      `/api/v1/assets/${uploaded.id}/variants/${preview.id}`,
       { headers: { cookie } },
     );
 
@@ -426,6 +464,9 @@ describe("api app", () => {
     expect(thumbnailResponse.status).toBe(200);
     expect(thumbnailResponse.headers.get("content-type")).toBe("image/jpeg");
     expect(Buffer.from(await thumbnailResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    expect(previewResponse.status).toBe(200);
+    expect(previewResponse.headers.get("content-type")).toBe("image/jpeg");
+    expect(Buffer.from(await previewResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
   });
 
   it("rejects invalid uploads with documented errors", async () => {

@@ -131,7 +131,7 @@ export const assetUploadRoute = createRoute({
   },
   responses: {
     201: {
-      description: "Uploads an original image and creates a thumbnail variant.",
+      description: "Uploads an original image and creates thumbnail and preview variants.",
       content: {
         "application/json": {
           schema: assetResponseSchema,
