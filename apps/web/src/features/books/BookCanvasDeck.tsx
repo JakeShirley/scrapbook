@@ -1,7 +1,8 @@
 import type { PageLayer } from "@scrapbook/editor-core";
 
 import type { Asset, PageDetail } from "../../types";
-import { type CanvasPreviewLayer, PageCanvas } from "../editor/PageCanvas";
+import { type CanvasPreviewLayer, PageCanvas, type SelectLayerOptions } from "../editor/PageCanvas";
+import type { LayerTransformUpdate } from "../editor/transforms";
 import type { EditHistoryMode } from "./bookEditorHistory";
 import type { ViewMode } from "./bookEditorTypes";
 
@@ -10,15 +11,17 @@ type BookCanvasDeckProps = {
   assetById: Map<string, Asset>;
   orderedPageIds: string[];
   pageDetails: Map<string, PageDetail>;
-  selectedLayerId: string | null;
+  selectedLayerIds: string[];
   viewMode: ViewMode;
   visiblePageIds: string[];
   getSpreadPreviewLayers: (pageId: string) => CanvasPreviewLayer[];
   onDeleteLayer: (pageId: string, layerId: string) => void;
   onChooseWashiTapePhoto?: ((pageId: string, layerId: string) => void) | undefined;
   onReorderLayer: (pageId: string, layerId: string, toIndex: number) => void;
-  onSelectLayer: (pageId: string, layerId: string | null) => void;
+  onSelectLayer: (pageId: string, layerId: string | null, options?: SelectLayerOptions) => void;
   onTransformEnd: (pageId: string, layerId: string, update: Partial<PageLayer> | null) => void;
+  onTransformLayers: (pageId: string, updates: LayerTransformUpdate[]) => void;
+  onTransformLayersEnd: (pageId: string, updates: LayerTransformUpdate[] | null) => void;
   onUpdateLayerTransform: (
     pageId: string,
     layerId: string,
@@ -32,7 +35,7 @@ export function BookCanvasDeck({
   assetById,
   orderedPageIds,
   pageDetails,
-  selectedLayerId,
+  selectedLayerIds,
   viewMode,
   visiblePageIds,
   getSpreadPreviewLayers,
@@ -41,6 +44,8 @@ export function BookCanvasDeck({
   onReorderLayer,
   onSelectLayer,
   onTransformEnd,
+  onTransformLayers,
+  onTransformLayersEnd,
   onUpdateLayerTransform,
 }: BookCanvasDeckProps) {
   return (
@@ -64,17 +69,19 @@ export function BookCanvasDeck({
               assetById={assetById}
               document={page.document}
               previewLayers={getSpreadPreviewLayers(pageId)}
-              selectedLayerId={pageId === activePageId ? selectedLayerId : null}
+              selectedLayerIds={pageId === activePageId ? selectedLayerIds : []}
               onChangeLayer={(layerId, update) => onUpdateLayerTransform(pageId, layerId, update)}
               onChooseWashiTapePhoto={(layerId) => onChooseWashiTapePhoto?.(pageId, layerId)}
               onDeleteLayer={(layerId) => onDeleteLayer(pageId, layerId)}
               onReorderLayer={(layerId, toIndex) => onReorderLayer(pageId, layerId, toIndex)}
               onSelectPreviewLayer={onSelectLayer}
-              onSelectLayer={(layerId) => onSelectLayer(pageId, layerId)}
+              onSelectLayer={(layerId, options) => onSelectLayer(pageId, layerId, options)}
               onTransformEnd={(layerId, update) => onTransformEnd(pageId, layerId, update)}
               onTransformLayer={(layerId, update) =>
                 onUpdateLayerTransform(pageId, layerId, update, "group")
               }
+              onTransformLayers={(updates) => onTransformLayers(pageId, updates)}
+              onTransformLayersEnd={(updates) => onTransformLayersEnd(pageId, updates)}
             />
           </section>
         );

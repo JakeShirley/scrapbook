@@ -6,7 +6,7 @@ export type BookEditorHistoryEntry = {
   activePageId: string | null;
   editingPageId: string | null;
   pageDetails: Map<string, PageDetail>;
-  selectedLayerId: string | null;
+  selectedLayerIds: string[];
 };
 
 export type EditHistoryMode = "group" | "record";

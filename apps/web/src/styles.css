@@ -1614,6 +1614,28 @@ textarea:focus-visible {
   box-shadow: 0 0 0 2px rgb(36 118 110 / 16%);
 }
 
+.canvas-layer[data-group-selected="true"] .canvas-layer-content {
+  border-color: #24766e;
+  border-style: dashed;
+  box-shadow: 0 0 0 2px rgb(36 118 110 / 12%);
+}
+
+.canvas-group-selection {
+  position: absolute;
+  z-index: 1000;
+  display: block;
+  border: 1px dashed #24766e;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(255 254 251 / 60%);
+  pointer-events: none;
+}
+
+.canvas-group-selection .transform-resize-handle,
+.canvas-group-selection .transform-rotate-handle {
+  pointer-events: auto;
+}
+
 .transform-resize-handle,
 .transform-rotate-handle {
   position: absolute;

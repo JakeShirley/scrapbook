@@ -30,9 +30,18 @@ import { FontFamilySelect } from "./FontFamilySelect";
 import { LayerInspector } from "./LayerInspector";
 import { TextAlignmentControl } from "./TextAlignmentControl";
 import {
+  applyGroupMove,
+  applyGroupRotate,
+  applyGroupScale,
   getAngle,
+  getGroupScaleFromHandle,
   getLayerCenter,
   getLayerSelectionFrame,
+  getMultiSelectionBoundingBox,
+  type GroupBoundingBox,
+  type LayerTransformUpdate,
+  type MultiSelectionResizeHandle,
+  multiSelectionResizeHandles,
   normalizeRotation,
   resizeHandles,
   resizeLayerFromHandle,
@@ -145,11 +154,25 @@ const resolveBrowserWashiTapeHref = (
     ),
   );
 
+export type SelectLayerOptions = { additive?: boolean };
+
+type ActiveGroupTransform = {
+  layerIds: string[];
+  mode: "move" | "resize" | "rotate";
+  pointerId: number;
+  startBox: GroupBoundingBox;
+  startCenter: CanvasPoint;
+  startLayers: PageLayer[];
+  startPointer: CanvasPoint;
+  startPointerAngle: number;
+  handle?: MultiSelectionResizeHandle;
+};
+
 export function PageCanvas({
   assetById,
   document,
   previewLayers = [],
-  selectedLayerId,
+  selectedLayerIds,
   onDeleteLayer,
   onChangeLayer,
   onReorderLayer,
@@ -158,19 +181,23 @@ export function PageCanvas({
   onChooseWashiTapePhoto,
   onTransformEnd,
   onTransformLayer,
+  onTransformLayers,
+  onTransformLayersEnd,
 }: {
   assetById: Map<string, Asset>;
   document: PageDocument;
   previewLayers?: CanvasPreviewLayer[];
-  selectedLayerId: string | null;
+  selectedLayerIds: string[];
   onDeleteLayer: (layerId: string) => void;
   onChangeLayer?: (layerId: string, update: Partial<PageLayer>) => void;
   onReorderLayer: (layerId: string, toIndex: number) => void;
   onSelectPreviewLayer?: (pageId: string, layerId: string) => void;
-  onSelectLayer: (layerId: string | null) => void;
+  onSelectLayer: (layerId: string | null, options?: SelectLayerOptions) => void;
   onChooseWashiTapePhoto?: ((layerId: string) => void) | undefined;
   onTransformEnd?: (layerId: string, update: Partial<PageLayer> | null) => void;
   onTransformLayer: (layerId: string, update: Partial<PageLayer>) => void;
+  onTransformLayers?: (updates: LayerTransformUpdate[]) => void;
+  onTransformLayersEnd?: (updates: LayerTransformUpdate[] | null) => void;
 }) {
   const svgIdPrefix = useId();
   const canvasRef = useRef<HTMLFieldSetElement>(null);
@@ -182,10 +209,17 @@ export function PageCanvas({
     localTransform: string | null;
     outerTransform: string | null;
   } | null>(null);
+  const suppressNextClickRef = useRef(false);
   const [activeTransform, setActiveTransform] = useState<ActiveTransform | null>(null);
   const [activeTransformUpdate, setActiveTransformUpdate] = useState<Partial<PageLayer> | null>(
     null,
   );
+  const [activeGroupTransform, setActiveGroupTransform] = useState<ActiveGroupTransform | null>(
+    null,
+  );
+  const [activeGroupTransformUpdates, setActiveGroupTransformUpdates] = useState<
+    LayerTransformUpdate[] | null
+  >(null);
   const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
@@ -210,6 +244,23 @@ export function PageCanvas({
     [document, interactiveLayers],
   );
   const displayedInteractiveLayers = useMemo<InteractiveCanvasLayer[]>(() => {
+    if (activeGroupTransformUpdates && activeGroupTransform) {
+      const updatesById = new Map(
+        activeGroupTransformUpdates.map((entry) => [entry.layerId, entry.update]),
+      );
+
+      return interactiveLayers.map((interactiveLayer) => {
+        if (interactiveLayer.kind !== "document") return interactiveLayer;
+        const groupUpdate = updatesById.get(interactiveLayer.layer.id);
+        return groupUpdate
+          ? {
+              ...interactiveLayer,
+              layer: applyLayerUpdate(interactiveLayer.layer, groupUpdate),
+            }
+          : interactiveLayer;
+      });
+    }
+
     if (!activeTransformUpdate || !activeTransform) {
       return interactiveLayers;
     }
@@ -222,7 +273,13 @@ export function PageCanvas({
           }
         : interactiveLayer,
     );
-  }, [activeTransform, activeTransformUpdate, interactiveLayers]);
+  }, [
+    activeGroupTransform,
+    activeGroupTransformUpdates,
+    activeTransform,
+    activeTransformUpdate,
+    interactiveLayers,
+  ]);
   const renderedSvg = useMemo(
     () =>
       renderPageDocumentSvg(renderedDocument, {
@@ -237,11 +294,32 @@ export function PageCanvas({
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)
     : -1;
   const contextLayer = contextLayerIndex >= 0 ? document.layers[contextLayerIndex] : null;
+  const primarySelectedLayerId = selectedLayerIds.length === 1 ? selectedLayerIds[0] : null;
+  const isMultiSelected = selectedLayerIds.length > 1;
   const selectedLayer =
     displayedInteractiveLayers.find(
       (interactiveLayer) =>
-        interactiveLayer.kind === "document" && interactiveLayer.layer.id === selectedLayerId,
+        interactiveLayer.kind === "document" && interactiveLayer.layer.id === primarySelectedLayerId,
     )?.layer ?? null;
+  const multiSelectedLayers = useMemo<PageLayer[]>(
+    () =>
+      isMultiSelected
+        ? selectedLayerIds
+            .map(
+              (layerId) =>
+                displayedInteractiveLayers.find(
+                  (interactiveLayer) =>
+                    interactiveLayer.kind === "document" && interactiveLayer.layer.id === layerId,
+                )?.layer,
+            )
+            .filter((layer): layer is PageLayer => Boolean(layer))
+        : [],
+    [displayedInteractiveLayers, isMultiSelected, selectedLayerIds],
+  );
+  const multiSelectionBoundingBox = useMemo(
+    () => (multiSelectedLayers.length > 0 ? getMultiSelectionBoundingBox(multiSelectedLayers) : null),
+    [multiSelectedLayers],
+  );
   const selectedLayerLabel = selectedLayer ? `${formatLayerKind(selectedLayer.kind)} layer` : null;
   const contextLayerLabel = contextLayer ? `${formatLayerKind(contextLayer.kind)} layer` : null;
   const selectedSelectionFrame = selectedLayer ? getLayerSelectionFrame(selectedLayer) : null;
@@ -329,8 +407,8 @@ export function PageCanvas({
   }, [stickerIds, stickerSvgById]);
 
   useEffect(() => {
-    if (!selectedLayerId) setActiveSelectionPanel(null);
-  }, [selectedLayerId]);
+    if (!primarySelectedLayerId) setActiveSelectionPanel(null);
+  }, [primarySelectedLayerId]);
 
   useEffect(() => {
     if (activeTransform) setActiveSelectionPanel(null);
@@ -455,6 +533,62 @@ export function PageCanvas({
       startPointerAngle: getAngle(center, pointer),
     });
   };
+  const startGroupTransform = (
+    event: ReactPointerEvent<HTMLElement>,
+    mode: "move" | "resize" | "rotate",
+    handle?: MultiSelectionResizeHandle,
+  ) => {
+    if (event.button !== 0) return;
+    if (!multiSelectionBoundingBox || multiSelectedLayers.length === 0) return;
+    const movableLayers = multiSelectedLayers.filter((layer) => !layer.locked);
+    if (movableLayers.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeContextMenu();
+    const pointer = getCanvasPoint(event);
+    if (!pointer) return;
+    const center: CanvasPoint = {
+      x: multiSelectionBoundingBox.x + multiSelectionBoundingBox.width / 2,
+      y: multiSelectionBoundingBox.y + multiSelectionBoundingBox.height / 2,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setActiveGroupTransformUpdates(null);
+    setActiveGroupTransform({
+      ...(handle ? { handle } : {}),
+      layerIds: movableLayers.map((layer) => layer.id),
+      mode,
+      pointerId: event.pointerId,
+      startBox: multiSelectionBoundingBox,
+      startCenter: center,
+      startLayers: movableLayers,
+      startPointer: pointer,
+      startPointerAngle: getAngle(center, pointer),
+    });
+  };
+  const computeGroupUpdates = (
+    transform: ActiveGroupTransform,
+    pointer: CanvasPoint,
+  ): LayerTransformUpdate[] => {
+    if (transform.mode === "move") {
+      return applyGroupMove(transform.startLayers, {
+        x: pointer.x - transform.startPointer.x,
+        y: pointer.y - transform.startPointer.y,
+      });
+    }
+    if (transform.mode === "resize" && transform.handle) {
+      const { pivot, scale } = getGroupScaleFromHandle(
+        transform.handle,
+        transform.startBox,
+        pointer,
+        transform.startPointer,
+      );
+      return applyGroupScale(transform.startLayers, pivot, scale);
+    }
+    const angleDelta = normalizeRotation(
+      getAngle(transform.startCenter, pointer) - transform.startPointerAngle,
+    );
+    return applyGroupRotate(transform.startLayers, transform.startCenter, angleDelta);
+  };
   const getTransformUpdate = (
     transform: ActiveTransform,
     pointer: CanvasPoint,
@@ -483,6 +617,18 @@ export function PageCanvas({
     };
   };
   const transformLayer = (event: ReactPointerEvent<HTMLElement>) => {
+    if (activeGroupTransform && event.pointerId === activeGroupTransform.pointerId) {
+      const pointer = getCanvasPoint(event);
+      if (!pointer) return;
+      event.preventDefault();
+      const updates = computeGroupUpdates(activeGroupTransform, pointer);
+      if (onTransformLayers) {
+        onTransformLayers(updates);
+      } else {
+        setActiveGroupTransformUpdates(updates);
+      }
+      return;
+    }
     if (!activeTransform || event.pointerId !== activeTransform.pointerId) return;
     const pointer = getCanvasPoint(event);
     if (!pointer) return;
@@ -497,6 +643,22 @@ export function PageCanvas({
     onTransformLayer(activeTransform.layerId, update);
   };
   const stopTransform = (event: ReactPointerEvent<HTMLElement>) => {
+    if (activeGroupTransform && event.pointerId === activeGroupTransform.pointerId) {
+      const groupTransform = activeGroupTransform;
+      const pointer = getCanvasPoint(event);
+      const updates = pointer ? computeGroupUpdates(groupTransform, pointer) : null;
+      setActiveGroupTransform(null);
+      setActiveGroupTransformUpdates(null);
+      suppressNextClickRef.current = true;
+      if (onTransformLayersEnd) {
+        onTransformLayersEnd(updates);
+        return;
+      }
+      if (updates && onTransformLayers) {
+        onTransformLayers(updates);
+      }
+      return;
+    }
     if (activeTransform?.pointerId !== event.pointerId) return;
     const transform = activeTransform;
     const pointer = getCanvasPoint(event);
@@ -504,6 +666,7 @@ export function PageCanvas({
 
     setActiveTransform(null);
     setActiveTransformUpdate(null);
+    suppressNextClickRef.current = true;
 
     if (onTransformEnd) {
       onTransformEnd(transform.layerId, update);
@@ -596,7 +759,7 @@ export function PageCanvas({
     } as Partial<PageLayer>);
   };
   const clearSelection = (event: ReactPointerEvent<HTMLFieldSetElement>) => {
-    if (event.button !== 0 || activeTransform) return;
+    if (event.button !== 0 || activeTransform || activeGroupTransform) return;
     if (contextMenuRef.current?.contains(event.target as Node)) return;
     closeContextMenu();
     setActiveSelectionPanel(null);
@@ -631,7 +794,8 @@ export function PageCanvas({
       {displayedInteractiveLayers.map((interactiveLayer, layerIndex) => {
         const { layer } = interactiveLayer;
         const isPreview = interactiveLayer.kind === "preview";
-        const isSelected = !isPreview && layer.id === selectedLayerId;
+        const isSelected = !isPreview && layer.id === primarySelectedLayerId;
+        const isGroupSelected = !isPreview && isMultiSelected && selectedLayerIds.includes(layer.id);
         const layerStyle: CSSProperties = {
           left: `${(layer.x / document.canvas.width) * 100}%`,
           top: `${(layer.y / document.canvas.height) * 100}%`,
@@ -658,20 +822,33 @@ export function PageCanvas({
             data-locked={layer.locked}
             data-preview={isPreview}
             data-selected={isSelected}
-            data-transforming={activeTransform?.layerId === layer.id}
+            data-group-selected={isGroupSelected}
+            data-transforming={
+              activeTransform?.layerId === layer.id ||
+              activeGroupTransform?.layerIds.includes(layer.id)
+            }
             style={layerStyle}
           >
             <button
               type="button"
               aria-label={`${layerLabel}${isPreview ? " from adjacent page" : ""}`}
               className="canvas-layer-hitbox"
-              onClick={() => {
+              onClick={(event) => {
                 if (interactiveLayer.kind === "preview") {
                   onSelectPreviewLayer?.(interactiveLayer.sourcePageId, layer.id);
                   return;
                 }
 
-                onSelectLayer(layer.id);
+                if (suppressNextClickRef.current) {
+                  suppressNextClickRef.current = false;
+                  return;
+                }
+
+                if (event.shiftKey && event.detail > 0) {
+                  return;
+                }
+
+                onSelectLayer(layer.id, { additive: event.shiftKey });
               }}
               onContextMenu={(event) => {
                 if (interactiveLayer.kind === "preview") {
@@ -691,6 +868,20 @@ export function PageCanvas({
               onPointerDown={(event) => {
                 if (interactiveLayer.kind === "preview") {
                   selectPreviewLayer(event, interactiveLayer);
+                  return;
+                }
+
+                if (event.shiftKey) {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  closeContextMenu();
+                  onSelectLayer(layer.id, { additive: true });
+                  return;
+                }
+
+                if (isMultiSelected && selectedLayerIds.includes(layer.id)) {
+                  startGroupTransform(event, "move");
                   return;
                 }
 
@@ -727,6 +918,41 @@ export function PageCanvas({
           </div>
         );
       })}
+      {isMultiSelected && multiSelectionBoundingBox ? (
+        <div
+          className="canvas-group-selection"
+          aria-label="Group selection"
+          data-transforming={Boolean(activeGroupTransform)}
+          style={{
+            left: `${(multiSelectionBoundingBox.x / document.canvas.width) * 100}%`,
+            top: `${(multiSelectionBoundingBox.y / document.canvas.height) * 100}%`,
+            width: `${(multiSelectionBoundingBox.width / document.canvas.width) * 100}%`,
+            height: `${(multiSelectionBoundingBox.height / document.canvas.height) * 100}%`,
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            aria-label="Rotate selection"
+            className="transform-rotate-handle"
+            title="Rotate"
+            onPointerDown={(event) => startGroupTransform(event, "rotate")}
+          >
+            <ArrowClockwiseRegular />
+          </button>
+          {multiSelectionResizeHandles.map(({ handle, label }) => (
+            <button
+              type="button"
+              aria-label={label}
+              className="transform-resize-handle"
+              data-handle={handle}
+              key={handle}
+              title={label}
+              onPointerDown={(event) => startGroupTransform(event, "resize", handle)}
+            />
+          ))}
+        </div>
+      ) : null}
       {selectedLayer && selectedLayerMenuStyle && !activeTransform ? (
         <div
           className="selected-layer-tools"

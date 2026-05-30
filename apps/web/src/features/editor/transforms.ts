@@ -1,6 +1,22 @@
-import type { PageLayer, PhotoLayer } from "@scrapbook/editor-core";
+import type { PageLayer, PhotoLayer, TextLayer } from "@scrapbook/editor-core";
 
 import type { CanvasPoint, ResizeHandle } from "./editorTypes";
+
+export type MultiSelectionResizeHandle = "nw" | "ne" | "se" | "sw";
+
+export const multiSelectionResizeHandles: Array<{
+  handle: MultiSelectionResizeHandle;
+  label: string;
+}> = [
+  { handle: "nw", label: "Scale group from top left" },
+  { handle: "ne", label: "Scale group from top right" },
+  { handle: "se", label: "Scale group from bottom right" },
+  { handle: "sw", label: "Scale group from bottom left" },
+];
+
+export type LayerTransformUpdate = { layerId: string; update: Partial<PageLayer> };
+
+export type GroupBoundingBox = { height: number; width: number; x: number; y: number };
 
 export const resizeHandles: Array<{ handle: ResizeHandle; label: string }> = [
   { handle: "nw", label: "Resize from top left" },
@@ -120,3 +136,134 @@ const getPhotoSelectionFrame = (layer: PhotoLayer): SelectionFrame => {
     y: center.y - height / 2,
   };
 };
+
+const getRotatedFrameCorners = (frame: SelectionFrame): CanvasPoint[] => {
+  const centerX = frame.x + frame.width / 2;
+  const centerY = frame.y + frame.height / 2;
+  const halfWidth = frame.width / 2;
+  const halfHeight = frame.height / 2;
+  const corners: CanvasPoint[] = [
+    { x: -halfWidth, y: -halfHeight },
+    { x: halfWidth, y: -halfHeight },
+    { x: halfWidth, y: halfHeight },
+    { x: -halfWidth, y: halfHeight },
+  ];
+
+  return corners.map((corner) => {
+    const rotated = rotatePoint(corner, frame.rotation);
+
+    return { x: centerX + rotated.x, y: centerY + rotated.y };
+  });
+};
+
+export const getMultiSelectionBoundingBox = (
+  layers: PageLayer[],
+): GroupBoundingBox | null => {
+  if (layers.length === 0) return null;
+
+  let left = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+
+  for (const layer of layers) {
+    for (const corner of getRotatedFrameCorners(getLayerSelectionFrame(layer))) {
+      if (corner.x < left) left = corner.x;
+      if (corner.x > right) right = corner.x;
+      if (corner.y < top) top = corner.y;
+      if (corner.y > bottom) bottom = corner.y;
+    }
+  }
+
+  if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
+
+  return { height: bottom - top, width: right - left, x: left, y: top };
+};
+
+export const applyGroupMove = (
+  startLayers: PageLayer[],
+  delta: CanvasPoint,
+): LayerTransformUpdate[] =>
+  startLayers.map((layer) => ({
+    layerId: layer.id,
+    update: { x: layer.x + delta.x, y: layer.y + delta.y } as Partial<PageLayer>,
+  }));
+
+export const applyGroupRotate = (
+  startLayers: PageLayer[],
+  origin: CanvasPoint,
+  angleDelta: number,
+): LayerTransformUpdate[] => {
+  if (angleDelta === 0) {
+    return startLayers.map((layer) => ({ layerId: layer.id, update: {} }));
+  }
+
+  return startLayers.map((layer) => {
+    const center = getLayerCenter(layer);
+    const rotated = rotatePoint(
+      { x: center.x - origin.x, y: center.y - origin.y },
+      angleDelta,
+    );
+    const nextCenter = { x: origin.x + rotated.x, y: origin.y + rotated.y };
+
+    return {
+      layerId: layer.id,
+      update: {
+        rotation: normalizeRotation(layer.rotation + angleDelta),
+        x: nextCenter.x - layer.width / 2,
+        y: nextCenter.y - layer.height / 2,
+      } as Partial<PageLayer>,
+    };
+  });
+};
+
+const minimumGroupScale = 0.05;
+
+export const getGroupScaleFromHandle = (
+  handle: MultiSelectionResizeHandle,
+  startBox: GroupBoundingBox,
+  pointer: CanvasPoint,
+  startPointer: CanvasPoint,
+): { pivot: CanvasPoint; scale: number } => {
+  const startCornerX = handle.includes("e") ? startBox.x + startBox.width : startBox.x;
+  const startCornerY = handle.includes("s") ? startBox.y + startBox.height : startBox.y;
+  const pivot: CanvasPoint = {
+    x: handle.includes("e") ? startBox.x : startBox.x + startBox.width,
+    y: handle.includes("s") ? startBox.y : startBox.y + startBox.height,
+  };
+  const startDiagonalX = startCornerX - pivot.x;
+  const startDiagonalY = startCornerY - pivot.y;
+  const nextCornerX = startCornerX + (pointer.x - startPointer.x);
+  const nextCornerY = startCornerY + (pointer.y - startPointer.y);
+  const scaleX = startDiagonalX === 0 ? 1 : (nextCornerX - pivot.x) / startDiagonalX;
+  const scaleY = startDiagonalY === 0 ? 1 : (nextCornerY - pivot.y) / startDiagonalY;
+  const uniformScale = Math.max(Math.min(scaleX, scaleY), minimumGroupScale);
+
+  return { pivot, scale: uniformScale };
+};
+
+export const applyGroupScale = (
+  startLayers: PageLayer[],
+  pivot: CanvasPoint,
+  scale: number,
+): LayerTransformUpdate[] =>
+  startLayers.map((layer) => {
+    const nextWidth = Math.max(layer.width * scale, 1);
+    const nextHeight = Math.max(layer.height * scale, 1);
+    const nextX = pivot.x + (layer.x - pivot.x) * scale;
+    const nextY = pivot.y + (layer.y - pivot.y) * scale;
+    const update: Partial<PageLayer> = {
+      height: nextHeight,
+      width: nextWidth,
+      x: nextX,
+      y: nextY,
+    };
+
+    if (layer.kind === "text") {
+      const textLayer = layer as TextLayer;
+      const nextFontSize = Math.min(Math.max(textLayer.fontSize * scale, 6), 240);
+      (update as Partial<TextLayer>).fontSize = nextFontSize;
+    }
+
+    return { layerId: layer.id, update };
+  });

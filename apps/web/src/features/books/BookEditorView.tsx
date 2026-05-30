@@ -82,7 +82,7 @@ export function BookEditorView() {
   const [pageStatuses, setPageStatuses] = useState<Record<string, EditorSaveStatus>>({});
   const [assets, setAssets] = useState<Asset[]>([]);
   const [activePageId, setActivePageId] = useState<string | null>(null);
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("spread");
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [pendingExportFormat, setPendingExportFormat] = useState<"pdf" | "png" | null>(null);
@@ -117,7 +117,7 @@ export function BookEditorView() {
       resetHistory();
       setPageStatuses(Object.fromEntries(loadedBook.pages.map((page) => [page.id, "saved"])));
       setActivePageId(nextActivePageId);
-      setSelectedLayerId(null);
+      setSelectedLayerIds([]);
     },
     [resetHistory],
   );
@@ -209,7 +209,28 @@ export function BookEditorView() {
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
   const selectPage = (pageId: string, layerId: string | null = null) => {
     setActivePageId(pageId);
-    setSelectedLayerId(layerId);
+    setSelectedLayerIds(layerId ? [layerId] : []);
+  };
+
+  const selectLayer = (
+    pageId: string,
+    layerId: string | null,
+    options?: { additive?: boolean },
+  ) => {
+    setActivePageId(pageId);
+    if (layerId === null) {
+      setSelectedLayerIds([]);
+      return;
+    }
+    if (options?.additive) {
+      setSelectedLayerIds((currentIds) =>
+        currentIds.includes(layerId)
+          ? currentIds.filter((id) => id !== layerId)
+          : [...currentIds, layerId],
+      );
+      return;
+    }
+    setSelectedLayerIds([layerId]);
   };
 
   const setPageStatus = (pageId: string, status: EditorSaveStatus) => {
@@ -232,9 +253,9 @@ export function BookEditorView() {
       activePageId,
       editingPageId,
       pageDetails: new Map(pageDetails),
-      selectedLayerId,
+      selectedLayerIds,
     }),
-    [activePageId, editingPageId, pageDetails, selectedLayerId],
+    [activePageId, editingPageId, pageDetails, selectedLayerIds],
   );
 
   const applyHistoryEntry = useCallback(
@@ -251,7 +272,7 @@ export function BookEditorView() {
 
       setPageDetails(new Map(entry.pageDetails));
       setActivePageId(nextActivePageId);
-      setSelectedLayerId(entry.selectedLayerId);
+      setSelectedLayerIds(entry.selectedLayerIds);
       setEditingPageId(nextEditingPageId);
       setPagesStatus(changedPageIds, "unsaved");
     },
@@ -444,7 +465,7 @@ export function BookEditorView() {
     options: {
       historyMode?: EditHistoryMode;
       selectContainingPage?: boolean;
-      selectedLayerId?: string;
+      selectedLayerIds?: string[];
     } = {},
   ) => {
     if (result.changedPageIds.length > 0) {
@@ -458,8 +479,8 @@ export function BookEditorView() {
       setActivePageId(result.containingPageId);
     }
 
-    if (options.selectedLayerId !== undefined) {
-      setSelectedLayerId(options.selectedLayerId);
+    if (options.selectedLayerIds !== undefined) {
+      setSelectedLayerIds(options.selectedLayerIds);
     }
   };
 
@@ -479,8 +500,8 @@ export function BookEditorView() {
     const syncOptions: {
       historyMode?: EditHistoryMode;
       selectContainingPage: boolean;
-      selectedLayerId: string;
-    } = { selectContainingPage, selectedLayerId: sourceLayer.id };
+      selectedLayerIds: string[];
+    } = { selectContainingPage, selectedLayerIds: [sourceLayer.id] };
 
     if (historyMode !== undefined) {
       syncOptions.historyMode = historyMode;
@@ -560,6 +581,30 @@ export function BookEditorView() {
     endHistoryGroup();
   };
 
+  const updateLayerTransforms = (
+    pageId: string,
+    updates: { layerId: string; update: Partial<PageLayer> }[],
+  ) => {
+    if (updates.length === 0) return;
+    const page = pageDetails.get(pageId);
+    if (!page) return;
+    let nextDocument = page.document;
+    for (const { layerId, update } of updates) {
+      nextDocument = updateLayer(nextDocument, layerId, update);
+    }
+    editPageDocument(pageId, nextDocument, "group");
+  };
+
+  const finishLayerTransforms = (
+    pageId: string,
+    updates: { layerId: string; update: Partial<PageLayer> }[] | null,
+  ) => {
+    if (updates && updates.length > 0) {
+      updateLayerTransforms(pageId, updates);
+    }
+    endHistoryGroup();
+  };
+
   const reorderPageLayer = (pageId: string, layerId: string, toIndex: number) => {
     const page = pageDetails.get(pageId);
 
@@ -582,7 +627,7 @@ export function BookEditorView() {
           sourcePageId: pageId,
           spreadPageIds: visiblePageIds,
         }),
-        { selectedLayerId: layerId },
+        { selectedLayerIds: [layerId] },
       );
       setActivePageId(pageId);
       return;
@@ -590,7 +635,7 @@ export function BookEditorView() {
 
     editPageDocument(pageId, nextDocument);
     setActivePageId(pageId);
-    setSelectedLayerId(layerId);
+    setSelectedLayerIds([layerId]);
   };
 
   const deletePageLayer = (pageId: string, layerId: string) => {
@@ -622,13 +667,13 @@ export function BookEditorView() {
 
       applySpreadLayerSync({ changedPageIds, containingPageId: pageId, details: nextDetails });
       setActivePageId(pageId);
-      setSelectedLayerId((currentLayerId) => (currentLayerId === layerId ? null : currentLayerId));
+      setSelectedLayerIds((currentIds) => currentIds.filter((id) => id !== layerId));
       return;
     }
 
     editPageDocument(pageId, deleteLayer(page.document, layerId));
     setActivePageId(pageId);
-    setSelectedLayerId((currentLayerId) => (currentLayerId === layerId ? null : currentLayerId));
+    setSelectedLayerIds((currentIds) => currentIds.filter((id) => id !== layerId));
   };
 
   const addText = () => {
@@ -638,7 +683,7 @@ export function BookEditorView() {
 
     const layer = createTextLayer({ text: "New text" });
     editPageDocument(activePage.id, addLayer(activePage.document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
 
   const addPhoto = (asset: Asset) => {
@@ -653,7 +698,7 @@ export function BookEditorView() {
     });
 
     editPageDocument(activePage.id, addLayer(activePage.document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
 
   const addWashiTape = () => {
@@ -669,7 +714,7 @@ export function BookEditorView() {
     });
 
     editPageDocument(activePage.id, addLayer(activePage.document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
 
   const setWashiTapePhotoPattern = (asset: Asset) => {
@@ -697,7 +742,7 @@ export function BookEditorView() {
       } as Partial<WashiTapeLayer> as Partial<PageLayer>),
     );
     setActivePageId(page.id);
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
 
   const addEmbellishment = (preset: EmbellishmentPreset) => {
@@ -714,7 +759,7 @@ export function BookEditorView() {
     });
 
     editPageDocument(activePage.id, addLayer(activePage.document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
 
   const addSticker = (sticker: StickerDefinition) => {
@@ -736,7 +781,7 @@ export function BookEditorView() {
     });
 
     editPageDocument(activePage.id, addLayer(activePage.document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
 
   const renameBook = async (event: FormEvent<HTMLFormElement>) => {
@@ -1289,7 +1334,7 @@ export function BookEditorView() {
                 getSpreadPreviewLayers={getSpreadPreviewLayers}
                 orderedPageIds={orderedPageIds}
                 pageDetails={pageDetails}
-                selectedLayerId={selectedLayerId}
+                selectedLayerIds={selectedLayerIds}
                 viewMode={viewMode}
                 visiblePageIds={visiblePageIds}
                 onChooseWashiTapePhoto={(pageId, layerId) =>
@@ -1297,8 +1342,10 @@ export function BookEditorView() {
                 }
                 onDeleteLayer={deletePageLayer}
                 onReorderLayer={reorderPageLayer}
-                onSelectLayer={selectPage}
+                onSelectLayer={selectLayer}
                 onTransformEnd={finishLayerTransform}
+                onTransformLayers={updateLayerTransforms}
+                onTransformLayersEnd={finishLayerTransforms}
                 onUpdateLayerTransform={updateLayerTransform}
               />
               {editingPage && editingPageId ? (

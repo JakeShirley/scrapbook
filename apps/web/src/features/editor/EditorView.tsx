@@ -48,7 +48,7 @@ export function EditorView() {
   const [document, setDocument] = useState<PageDocument | null>(null);
   const [title, setTitle] = useState("Untitled page");
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [pendingExportFormat, setPendingExportFormat] = useState<"pdf" | "png" | null>(null);
   const [photoPickerMode, setPhotoPickerMode] = useState<PhotoPickerMode | null>(null);
@@ -74,7 +74,7 @@ export function EditorView() {
           setDocument(loadedPage.document);
           setTitle(loadedPage.title);
           setAssets(assetResponse.assets);
-          setSelectedLayerId(null);
+          setSelectedLayerIds([]);
           setStatus("saved");
           setError(null);
         }
@@ -92,6 +92,21 @@ export function EditorView() {
   }, [navigate, pageId]);
 
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
+  const selectLayer = (layerId: string | null, options?: { additive?: boolean }) => {
+    if (layerId === null) {
+      setSelectedLayerIds([]);
+      return;
+    }
+    if (options?.additive) {
+      setSelectedLayerIds((currentIds) =>
+        currentIds.includes(layerId)
+          ? currentIds.filter((id) => id !== layerId)
+          : [...currentIds, layerId],
+      );
+      return;
+    }
+    setSelectedLayerIds([layerId]);
+  };
   const editDocument = (nextDocument: PageDocument) => {
     setDocument(nextDocument);
     setStatus("unsaved");
@@ -99,21 +114,31 @@ export function EditorView() {
   const updateLayerTransform = (layerId: string, update: Partial<PageLayer>) => {
     if (document) editDocument(updateLayer(document, layerId, update));
   };
+  const updateLayerTransforms = (
+    updates: Array<{ layerId: string; update: Partial<PageLayer> }>,
+  ) => {
+    if (!document || updates.length === 0) return;
+    let nextDocument = document;
+    for (const { layerId, update } of updates) {
+      nextDocument = updateLayer(nextDocument, layerId, update);
+    }
+    editDocument(nextDocument);
+  };
   const reorderCanvasLayer = (layerId: string, toIndex: number) => {
     if (!document) return;
     editDocument(reorderLayer(document, layerId, toIndex));
-    setSelectedLayerId(layerId);
+    setSelectedLayerIds([layerId]);
   };
   const deleteCanvasLayer = (layerId: string) => {
     if (!document) return;
     editDocument(deleteLayer(document, layerId));
-    setSelectedLayerId((currentLayerId) => (currentLayerId === layerId ? null : currentLayerId));
+    setSelectedLayerIds((currentIds) => currentIds.filter((id) => id !== layerId));
   };
   const addText = () => {
     if (!document) return;
     const layer = createTextLayer({ text: "New text" });
     editDocument(addLayer(document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
   const addPhoto = (asset: Asset) => {
     if (!document) return;
@@ -123,7 +148,7 @@ export function EditorView() {
       height: Math.min(document.canvas.height * 0.34, 760),
     });
     editDocument(addLayer(document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
   const addWashiTape = () => {
     if (!document) return;
@@ -134,7 +159,7 @@ export function EditorView() {
       y: document.canvas.height * 0.16,
     });
     editDocument(addLayer(document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
   const setWashiTapePhotoPattern = (asset: Asset) => {
     if (!document || photoPickerMode?.kind !== "washiTapePattern") return;
@@ -153,7 +178,7 @@ export function EditorView() {
         },
       } as Partial<WashiTapeLayer> as Partial<PageLayer>),
     );
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
   const addEmbellishment = (preset: EmbellishmentPreset) => {
     if (!document) return;
@@ -165,7 +190,7 @@ export function EditorView() {
       y: document.canvas.height * 0.12,
     });
     editDocument(addLayer(document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
   const addSticker = (sticker: StickerDefinition) => {
     if (!document) return;
@@ -178,7 +203,7 @@ export function EditorView() {
       y: document.canvas.height * 0.12,
     });
     editDocument(addLayer(document, layer));
-    setSelectedLayerId(layer.id);
+    setSelectedLayerIds([layer.id]);
   };
   const savePage = async () => {
     if (!page || !document) return;
@@ -379,15 +404,16 @@ export function EditorView() {
           <PageCanvas
             assetById={assetById}
             document={document}
-            selectedLayerId={selectedLayerId}
+            selectedLayerIds={selectedLayerIds}
             onChangeLayer={updateLayerTransform}
             onDeleteLayer={deleteCanvasLayer}
             onReorderLayer={reorderCanvasLayer}
-            onSelectLayer={setSelectedLayerId}
+            onSelectLayer={selectLayer}
             onChooseWashiTapePhoto={(layerId) =>
               setPhotoPickerMode({ kind: "washiTapePattern", layerId })
             }
             onTransformLayer={updateLayerTransform}
+            onTransformLayers={updateLayerTransforms}
           />
         </section>
       </div>
