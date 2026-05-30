@@ -51,7 +51,11 @@ export const renderSvgRasterImage = async (
 ): Promise<RenderedRasterImage> => {
   const dpi = resolveRasterDpi(settings);
   const scale = renderScaleForSettings(settings);
-  const image = sharp(Buffer.from(svg), { density: 72, limitInputPixels: false }).resize({
+  const image = sharp(Buffer.from(svg), {
+    density: 72,
+    limitInputPixels: false,
+    unlimited: true,
+  }).resize({
     width: Math.round(readSvgDimension(svg, "width") * scale),
     withoutEnlargement: false,
   });
