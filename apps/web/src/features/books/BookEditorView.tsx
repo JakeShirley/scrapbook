@@ -19,7 +19,7 @@ import {
   type WashiTapeLayer,
 } from "@scrapbook/editor-core";
 import type { DragEvent, FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { apiClient } from "../../apiClient";
@@ -366,6 +366,60 @@ export function BookEditorView() {
     undoBookEdit,
   ]);
 
+  useEffect(() => {
+    const handleDeleteShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        (event.key !== "Delete" && event.key !== "Backspace") ||
+        isBookSettingsOpen ||
+        photoPickerMode !== null ||
+        isStickerPickerOpen ||
+        pngExportTarget ||
+        editingPageId
+      ) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tagName = target.tagName;
+        if (
+          tagName === "INPUT" ||
+          tagName === "TEXTAREA" ||
+          tagName === "SELECT" ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+
+      if (!activePageId || selectedLayerIds.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+
+      for (const layerId of selectedLayerIds) {
+        deletePageLayerRef.current(activePageId, layerId);
+      }
+    };
+
+    document.addEventListener("keydown", handleDeleteShortcut);
+
+    return () => document.removeEventListener("keydown", handleDeleteShortcut);
+  }, [
+    activePageId,
+    editingPageId,
+    isBookSettingsOpen,
+    isStickerPickerOpen,
+    photoPickerMode,
+    pngExportTarget,
+    selectedLayerIds,
+  ]);
+
   const changePageTitle = (pageId: string, title: string) => {
     updatePageDetail(pageId, (page) => ({ ...page, title }));
     setPageStatus(pageId, "unsaved");
@@ -675,6 +729,9 @@ export function BookEditorView() {
     setActivePageId(pageId);
     setSelectedLayerIds((currentIds) => currentIds.filter((id) => id !== layerId));
   };
+
+  const deletePageLayerRef = useRef(deletePageLayer);
+  deletePageLayerRef.current = deletePageLayer;
 
   const addText = () => {
     if (!activePage) {
