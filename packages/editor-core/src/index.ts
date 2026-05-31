@@ -1062,10 +1062,53 @@ const renderTextEffectFilterSvg = (layer: TextLayer, filterId: string): string =
 
 const textTruncationEllipsis = "…";
 
-const fallbackFontAdvanceFactor = 0.55;
+const fallbackFontAdvanceFactor = 0.5;
 
 const fallbackFontAdvance = (line: string, fontSize: number): number =>
   line.length * fontSize * fallbackFontAdvanceFactor;
+
+type CanvasTextMeasurer = (line: string) => number;
+
+const canvasMeasurerCache = new Map<string, CanvasTextMeasurer>();
+let canvasMeasurerUnavailable = false;
+
+const getCanvasTextMeasurer = (
+  fontFamily: string,
+  fontSize: number,
+): CanvasTextMeasurer | null => {
+  if (canvasMeasurerUnavailable) return null;
+
+  const documentRef = (globalThis as { document?: { createElement?(tag: string): unknown } })
+    .document;
+
+  if (!documentRef?.createElement) {
+    canvasMeasurerUnavailable = true;
+    return null;
+  }
+
+  const cacheKey = `${fontSize}::${fontFamily}`;
+  const cached = canvasMeasurerCache.get(cacheKey);
+  if (cached) return cached;
+
+  let context: CanvasRenderingContext2D | null = null;
+  try {
+    const canvas = documentRef.createElement("canvas") as HTMLCanvasElement;
+    context = canvas.getContext("2d");
+  } catch {
+    canvasMeasurerUnavailable = true;
+    return null;
+  }
+
+  if (!context) {
+    canvasMeasurerUnavailable = true;
+    return null;
+  }
+
+  context.font = `${fontSize}px ${fontFamily}`;
+  const measurer: CanvasTextMeasurer = (line) => context.measureText(line).width;
+  canvasMeasurerCache.set(cacheKey, measurer);
+  return measurer;
+};
 
 const wrapTextLinesToBox = (
   text: string,
@@ -1193,9 +1236,14 @@ const computeTextLayerLines = (
 ): { lines: string[]; lineHeight: number } => {
   const lineHeight = layer.fontSize * 1.2;
   const maxLines = Math.max(1, Math.floor(layer.height / lineHeight));
-  const measure = bundledFont
+  const canvasMeasure = bundledFont
+    ? null
+    : getCanvasTextMeasurer(layer.fontFamily, layer.fontSize);
+  const measure: CanvasTextMeasurer = bundledFont
     ? (line: string) => bundledFont.getAdvanceWidth(line, layer.fontSize)
-    : (line: string) => fallbackFontAdvance(line, layer.fontSize);
+    : canvasMeasure
+      ? canvasMeasure
+      : (line: string) => fallbackFontAdvance(line, layer.fontSize);
   const { lines, truncated } = wrapTextLinesToBox(layer.text, layer.width, maxLines, measure);
   const displayLines = truncated ? appendEllipsisToLastLine(lines, layer.width, measure) : lines;
 
