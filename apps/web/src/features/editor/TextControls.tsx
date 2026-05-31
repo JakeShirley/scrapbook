@@ -1,11 +1,28 @@
 import { type PageLayer, renderPageDocumentSvg } from "@scrapbook/editor-core";
-import { useId, useMemo } from "react";
+import { useId, useMemo, useRef } from "react";
 
 import { FontFamilySelect } from "./FontFamilySelect";
 import { TextAlignmentControl } from "./TextAlignmentControl";
 
 type TextLayer = Extract<PageLayer, { kind: "text" }>;
 type TextEffectKey = "background" | "glow" | "shadow" | "stroke";
+
+const wrapSelectionWithMarker = (
+  source: string,
+  selectionStart: number,
+  selectionEnd: number,
+  marker: string,
+): { text: string; selectionStart: number; selectionEnd: number } => {
+  const before = source.slice(0, selectionStart);
+  const selected = source.slice(selectionStart, selectionEnd);
+  const after = source.slice(selectionEnd);
+  const placeholder = selected.length > 0 ? selected : "text";
+  const inserted = `${marker}${placeholder}${marker}`;
+  const text = `${before}${inserted}${after}`;
+  const insertionStart = before.length + marker.length;
+  const insertionEnd = insertionStart + placeholder.length;
+  return { text, selectionStart: insertionStart, selectionEnd: insertionEnd };
+};
 
 export function TextControls({
   layer,
@@ -15,10 +32,28 @@ export function TextControls({
   onChange: (update: Partial<PageLayer>) => void;
 }) {
   const previewId = useId();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const updateEffect = <Key extends TextEffectKey>(key: Key, update: Partial<TextLayer[Key]>) =>
     onChange({
       [key]: { ...layer[key], ...update },
     } as Partial<PageLayer>);
+
+  const applyInlineMarker = (marker: string) => {
+    const textarea = textareaRef.current;
+    const source = layer.text;
+    const selectionStart = textarea?.selectionStart ?? source.length;
+    const selectionEnd = textarea?.selectionEnd ?? source.length;
+    const result = wrapSelectionWithMarker(source, selectionStart, selectionEnd, marker);
+    onChange({ text: result.text } as Partial<PageLayer>);
+
+    requestAnimationFrame(() => {
+      const liveTextarea = textareaRef.current;
+      if (!liveTextarea) return;
+      liveTextarea.focus();
+      liveTextarea.setSelectionRange(result.selectionStart, result.selectionEnd);
+    });
+  };
+
   const previewSvg = useMemo(() => {
     const previewLayer: TextLayer = {
       ...layer,
@@ -53,11 +88,48 @@ export function TextControls({
         <div className="text-controls-grid">
           <label className="text-content-field">
             <span>Text</span>
+            <div className="text-content-toolbar" role="toolbar" aria-label="Text formatting">
+              <button
+                type="button"
+                className="text-content-toolbar-button"
+                title="Bold (Ctrl/Cmd+B) — wraps selection in **double asterisks**"
+                aria-label="Bold"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => applyInlineMarker("**")}
+              >
+                <strong>B</strong>
+              </button>
+              <button
+                type="button"
+                className="text-content-toolbar-button"
+                title="Italic (Ctrl/Cmd+I) — wraps selection in *single asterisks*"
+                aria-label="Italic"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => applyInlineMarker("*")}
+              >
+                <em>I</em>
+              </button>
+              <span className="text-content-toolbar-hint">
+                Use **bold**, *italic*, or ***both***.
+              </span>
+            </div>
             <textarea
+              ref={textareaRef}
               value={layer.text}
               onChange={(event) =>
                 onChange({ text: event.currentTarget.value } as Partial<PageLayer>)
               }
+              onKeyDown={(event) => {
+                if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+                const key = event.key.toLowerCase();
+                if (key === "b") {
+                  event.preventDefault();
+                  applyInlineMarker("**");
+                } else if (key === "i") {
+                  event.preventDefault();
+                  applyInlineMarker("*");
+                }
+              }}
             />
           </label>
           <label htmlFor="text-layer-font-family">

@@ -702,6 +702,42 @@ describe("page document helpers", () => {
     expect(svg).not.toContain("line five");
   });
 
+  it("renders fallback-font markdown bold and italic as styled tspans", () => {
+    const text = createTextLayer({
+      id: "text_md",
+      text: "Hello **brave** _new_ world",
+      width: 800,
+      height: 200,
+      fontSize: 32,
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }));
+
+    expect(svg).toContain('font-weight="bold"');
+    expect(svg).toContain(">brave</tspan>");
+    expect(svg).toContain('font-style="italic"');
+    expect(svg).toContain(">new</tspan>");
+    expect(svg).not.toContain("**");
+    expect(svg).not.toContain("_new_");
+  });
+
+  it("renders bundled-font markdown bold with faux-bold stroke and italic with skew", () => {
+    const text = createTextLayer({
+      fontFamily: loveYaLikeASisterFontFamily,
+      id: "text_md_bundled",
+      text: "Hi **bold** and *slant* rest",
+      width: 800,
+      height: 200,
+      fontSize: 48,
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }));
+
+    expect(svg).toContain('stroke-linejoin="round"');
+    expect(svg).toContain('paint-order="stroke fill"');
+    expect(svg).toContain("skewX(-12)");
+    expect(svg).not.toContain("**");
+    expect(svg).not.toContain("*slant*");
+  });
+
   it("renders photo frame presets as visible frame geometry", () => {
     const matPhoto = createPhotoLayer({
       assetId: "asset_mat",

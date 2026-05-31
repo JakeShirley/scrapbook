@@ -2,6 +2,7 @@ import type { Font, Path, PathCommand } from "opentype.js";
 import { z } from "zod";
 
 import { defaultTextFontFamily, getBundledEditorFont } from "./fonts.js";
+import { parseRichText, type RichTextRun } from "./text-markdown.js";
 
 export {
   defaultTextFontFamily,
@@ -12,6 +13,13 @@ export {
   getEditorFontByFamily,
   loveYaLikeASisterFontFamily,
 } from "./fonts.js";
+
+export {
+  parseInlineRuns,
+  parseRichText,
+  type RichTextParagraph,
+  type RichTextRun,
+} from "./text-markdown.js";
 
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const layerIdSchema = z.string().min(1).max(160);
@@ -1072,10 +1080,7 @@ type CanvasTextMeasurer = (line: string) => number;
 const canvasMeasurerCache = new Map<string, CanvasTextMeasurer>();
 let canvasMeasurerUnavailable = false;
 
-const getCanvasTextMeasurer = (
-  fontFamily: string,
-  fontSize: number,
-): CanvasTextMeasurer | null => {
+const getCanvasTextMeasurer = (fontFamily: string, fontSize: number): CanvasTextMeasurer | null => {
   if (canvasMeasurerUnavailable) return null;
 
   const documentRef = (globalThis as { document?: { createElement?(tag: string): unknown } })
@@ -1110,130 +1115,219 @@ const getCanvasTextMeasurer = (
   return measurer;
 };
 
-const wrapTextLinesToBox = (
-  text: string,
+type StyledToken = {
+  text: string;
+  bold: boolean;
+  italic: boolean;
+  isSpace: boolean;
+};
+
+const tokenizeRichParagraph = (runs: RichTextRun[]): StyledToken[] => {
+  const tokens: StyledToken[] = [];
+
+  for (const run of runs) {
+    if (run.text.length === 0) continue;
+
+    const matches = run.text.match(/\s+|\S+/g);
+    if (!matches) continue;
+
+    for (const match of matches) {
+      tokens.push({
+        text: match,
+        bold: run.bold,
+        italic: run.italic,
+        isSpace: /^\s+$/.test(match),
+      });
+    }
+  }
+
+  return tokens;
+};
+
+const tokensJoinText = (tokens: StyledToken[]): string =>
+  tokens.map((token) => token.text).join("");
+
+const mergeTokensIntoRuns = (tokens: StyledToken[]): RichTextRun[] => {
+  const runs: RichTextRun[] = [];
+
+  for (const token of tokens) {
+    if (token.text.length === 0) continue;
+    const previous = runs[runs.length - 1];
+
+    if (previous && previous.bold === token.bold && previous.italic === token.italic) {
+      previous.text += token.text;
+      continue;
+    }
+
+    runs.push({ text: token.text, bold: token.bold, italic: token.italic });
+  }
+
+  return runs;
+};
+
+const trimTrailingSpaceTokens = (tokens: StyledToken[]): StyledToken[] => {
+  let end = tokens.length;
+  while (end > 0 && tokens[end - 1]?.isSpace === true) {
+    end -= 1;
+  }
+  return tokens.slice(0, end);
+};
+
+const wrapRichTextLinesToBox = (
+  paragraphs: RichTextRun[][],
   maxWidth: number,
   maxLines: number,
   measure: (line: string) => number,
-): { lines: string[]; truncated: boolean } => {
+): { lines: RichTextRun[][]; truncated: boolean } => {
+  const plainTextLength = paragraphs.reduce(
+    (total, paragraph) =>
+      total + paragraph.reduce((paragraphTotal, run) => paragraphTotal + run.text.length, 0),
+    0,
+  );
+
   if (maxLines <= 0) {
-    return { lines: [], truncated: text.length > 0 };
+    return { lines: [], truncated: plainTextLength > 0 };
   }
 
-  if (text.length === 0) {
+  if (plainTextLength === 0 && paragraphs.length === 0) {
     return { lines: [], truncated: false };
   }
 
-  const lines: string[] = [];
+  const lines: RichTextRun[][] = [];
   let truncated = false;
 
-  const emit = (line: string): boolean => {
+  const emit = (tokens: StyledToken[]): boolean => {
     if (lines.length >= maxLines) {
       truncated = true;
       return false;
     }
 
-    lines.push(line);
+    lines.push(mergeTokensIntoRuns(trimTrailingSpaceTokens(tokens)));
     return true;
   };
 
-  const paragraphs = text.split(/\r?\n/);
+  const splitTokenByCharacter = (token: StyledToken): StyledToken[] => {
+    return Array.from(token.text, (character) => ({
+      text: character,
+      bold: token.bold,
+      italic: token.italic,
+      isSpace: token.isSpace,
+    }));
+  };
 
   paragraphLoop: for (let p = 0; p < paragraphs.length; p += 1) {
-    const paragraph = paragraphs[p] ?? "";
+    const paragraph = paragraphs[p] ?? [];
+    const tokens = tokenizeRichParagraph(paragraph);
 
-    if (paragraph.length === 0) {
-      if (!emit("")) break;
+    if (tokens.length === 0) {
+      if (!emit([])) break;
       continue;
     }
 
-    const tokens = paragraph.match(/\s+|\S+/g) ?? [];
-    let line = "";
+    let line: StyledToken[] = [];
 
     for (const token of tokens) {
-      const isSpace = /^\s+$/.test(token);
-
-      if (isSpace) {
+      if (token.isSpace) {
         if (line.length === 0) continue;
 
-        if (measure(line + token) <= maxWidth) {
-          line = line + token;
+        if (measure(tokensJoinText(line) + token.text) <= maxWidth) {
+          line.push(token);
         } else {
-          if (!emit(line.replace(/\s+$/, ""))) break paragraphLoop;
-          line = "";
+          if (!emit(line)) break paragraphLoop;
+          line = [];
         }
         continue;
       }
 
-      if (line.length === 0 || measure(line + token) <= maxWidth) {
-        if (line.length === 0 && measure(token) > maxWidth) {
-          let buffer = "";
-          for (const char of token) {
-            if (buffer.length === 0 || measure(buffer + char) <= maxWidth) {
-              buffer = buffer + char;
+      const tokenAdvance = measure(token.text);
+
+      if (line.length === 0 || measure(tokensJoinText(line) + token.text) <= maxWidth) {
+        if (line.length === 0 && tokenAdvance > maxWidth) {
+          let bufferChars: StyledToken[] = [];
+          for (const characterToken of splitTokenByCharacter(token)) {
+            const candidate = tokensJoinText(bufferChars) + characterToken.text;
+            if (bufferChars.length === 0 || measure(candidate) <= maxWidth) {
+              bufferChars.push(characterToken);
             } else {
-              if (!emit(buffer)) break paragraphLoop;
-              buffer = char;
+              if (!emit(bufferChars)) break paragraphLoop;
+              bufferChars = [characterToken];
             }
           }
-          line = buffer;
+          line = bufferChars;
         } else {
-          line = line + token;
+          line.push(token);
         }
         continue;
       }
 
-      if (!emit(line.replace(/\s+$/, ""))) break paragraphLoop;
-      line = "";
+      if (!emit(line)) break paragraphLoop;
+      line = [];
 
-      if (measure(token) <= maxWidth) {
-        line = token;
+      if (tokenAdvance <= maxWidth) {
+        line.push(token);
         continue;
       }
 
-      let buffer = "";
-      for (const char of token) {
-        if (buffer.length === 0 || measure(buffer + char) <= maxWidth) {
-          buffer = buffer + char;
+      let bufferChars: StyledToken[] = [];
+      for (const characterToken of splitTokenByCharacter(token)) {
+        const candidate = tokensJoinText(bufferChars) + characterToken.text;
+        if (bufferChars.length === 0 || measure(candidate) <= maxWidth) {
+          bufferChars.push(characterToken);
         } else {
-          if (!emit(buffer)) break paragraphLoop;
-          buffer = char;
+          if (!emit(bufferChars)) break paragraphLoop;
+          bufferChars = [characterToken];
         }
       }
-      line = buffer;
+      line = bufferChars;
     }
 
     if (line.length > 0) {
-      if (!emit(line.replace(/\s+$/, ""))) break paragraphLoop;
+      if (!emit(line)) break;
     }
   }
 
   return { lines, truncated };
 };
 
-const appendEllipsisToLastLine = (
-  lines: string[],
+const appendEllipsisToLastRichLine = (
+  lines: RichTextRun[][],
   maxWidth: number,
   measure: (line: string) => number,
-): string[] => {
+): RichTextRun[][] => {
   if (lines.length === 0) return lines;
 
   const lastIndex = lines.length - 1;
-  let lastLine = lines[lastIndex] ?? "";
+  const lastLine = lines[lastIndex] ?? [];
+  const working: RichTextRun[] = lastLine.map((run) => ({ ...run }));
 
-  while (lastLine.length > 0 && measure(lastLine + textTruncationEllipsis) > maxWidth) {
-    lastLine = lastLine.slice(0, -1);
+  const lineText = (): string => working.map((run) => run.text).join("");
+
+  while (working.length > 0 && measure(lineText() + textTruncationEllipsis) > maxWidth) {
+    let runIndex = working.length - 1;
+    while (runIndex >= 0 && (working[runIndex]?.text.length ?? 0) === 0) runIndex -= 1;
+    if (runIndex < 0) break;
+    const targetRun = working[runIndex];
+    if (!targetRun) break;
+    targetRun.text = targetRun.text.slice(0, -1);
   }
 
+  const filtered = working.filter((run) => run.text.length > 0);
+  const finalRuns: RichTextRun[] =
+    filtered.length > 0
+      ? filtered.map((run, index) =>
+          index === filtered.length - 1 ? { ...run, text: run.text + textTruncationEllipsis } : run,
+        )
+      : [{ text: textTruncationEllipsis, bold: false, italic: false }];
+
   const result = lines.slice();
-  result[lastIndex] = lastLine + textTruncationEllipsis;
+  result[lastIndex] = finalRuns;
   return result;
 };
 
 const computeTextLayerLines = (
   layer: TextLayer,
   bundledFont: Font | null,
-): { lines: string[]; lineHeight: number } => {
+): { lines: RichTextRun[][]; lineHeight: number } => {
   const lineHeight = layer.fontSize * 1.2;
   const maxLines = Math.max(1, Math.floor(layer.height / lineHeight));
   const canvasMeasure = bundledFont
@@ -1244,8 +1338,11 @@ const computeTextLayerLines = (
     : canvasMeasure
       ? canvasMeasure
       : (line: string) => fallbackFontAdvance(line, layer.fontSize);
-  const { lines, truncated } = wrapTextLinesToBox(layer.text, layer.width, maxLines, measure);
-  const displayLines = truncated ? appendEllipsisToLastLine(lines, layer.width, measure) : lines;
+  const paragraphs = parseRichText(layer.text);
+  const { lines, truncated } = wrapRichTextLinesToBox(paragraphs, layer.width, maxLines, measure);
+  const displayLines = truncated
+    ? appendEllipsisToLastRichLine(lines, layer.width, measure)
+    : lines;
 
   return { lines: displayLines, lineHeight };
 };
@@ -1288,14 +1385,28 @@ const renderTextLayerSvg = (
   const x = layer.align === "center" ? layer.width / 2 : layer.align === "right" ? layer.width : 0;
   const strokeAttributes = textStrokeSvgAttributes(layer);
 
+  const tspans = lines
+    .map((line, lineIndex) => {
+      const runs = line.length > 0 ? line : [{ text: "", bold: false, italic: false }];
+      return runs
+        .map((run, runIndex) => {
+          const styleAttributes: string[] = [];
+          if (runIndex === 0) {
+            styleAttributes.push(`x="${x}"`, `dy="${lineIndex === 0 ? 0 : lineHeight}"`);
+          }
+          if (run.bold) styleAttributes.push('font-weight="bold"');
+          if (run.italic) styleAttributes.push('font-style="italic"');
+          const attributesString =
+            styleAttributes.length > 0 ? ` ${styleAttributes.join(" ")}` : "";
+          return `<tspan${attributesString}>${escapeXml(run.text)}</tspan>`;
+        })
+        .join("");
+    })
+    .join("");
+
   return {
     defs,
-    body: `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g${contentAttributes}><text x="${x}" y="${layer.fontSize}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${layer.fontSize}" text-anchor="${anchor}"${strokeAttributes}>${lines
-      .map(
-        (line, lineIndex) =>
-          `<tspan x="${x}" dy="${lineIndex === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
-      )
-      .join("")}</text></g></g></g>`,
+    body: `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g${contentAttributes}><text x="${x}" y="${layer.fontSize}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${layer.fontSize}" text-anchor="${anchor}"${strokeAttributes}>${tspans}</text></g></g></g>`,
   };
 };
 
@@ -1350,7 +1461,7 @@ const pathData = (path: Path): string =>
 const renderBundledFontTextLayerSvg = (
   layer: TextLayer,
   bundledFont: Font,
-  lines: string[],
+  lines: RichTextRun[][],
   lineHeight: number,
   background: string,
   contentAttributes: string,
@@ -1358,27 +1469,54 @@ const renderBundledFontTextLayerSvg = (
   const anchorX =
     layer.align === "center" ? layer.width / 2 : layer.align === "right" ? layer.width : 0;
   const strokeAttributes = textStrokeSvgAttributes(layer);
-  const paths = lines
+  const fauxBoldStrokeWidth = layer.fontSize * 0.06;
+  const italicSkewDegrees = 12;
+  const body = lines
     .map((line, lineIndex) => {
-      const advanceWidth = bundledFont.getAdvanceWidth(line, layer.fontSize);
-      const lineX =
+      if (line.length === 0) return "";
+      const lineText = line.map((run) => run.text).join("");
+      const totalAdvance = bundledFont.getAdvanceWidth(lineText, layer.fontSize);
+      const lineStartX =
         layer.align === "center"
-          ? anchorX - advanceWidth / 2
+          ? anchorX - totalAdvance / 2
           : layer.align === "right"
-            ? anchorX - advanceWidth
+            ? anchorX - totalAdvance
             : anchorX;
       const baselineY = layer.fontSize + lineIndex * lineHeight;
 
-      return bundledFont
-        .getPaths(line, lineX, baselineY, layer.fontSize)
-        .map(pathData)
-        .filter((pathData) => pathData.length > 0)
-        .map((pathData) => `<path d="${pathData}" />`)
-        .join("");
+      let cursorX = lineStartX;
+      const runFragments: string[] = [];
+      for (const run of line) {
+        if (run.text.length === 0) continue;
+        const runAdvance = bundledFont.getAdvanceWidth(run.text, layer.fontSize);
+        const runPaths = bundledFont
+          .getPaths(run.text, 0, 0, layer.fontSize)
+          .map(pathData)
+          .filter((pathString) => pathString.length > 0)
+          .map((pathString) => `<path d="${pathString}" />`)
+          .join("");
+
+        if (runPaths.length === 0) {
+          cursorX += runAdvance;
+          continue;
+        }
+
+        const transformParts = [`translate(${cursorX} ${baselineY})`];
+        if (run.italic) {
+          transformParts.push(`skewX(-${italicSkewDegrees})`);
+        }
+        const transform = transformParts.join(" ");
+        const groupAttributes = run.bold
+          ? ` stroke="${escapeXml(layer.color)}" stroke-width="${fauxBoldStrokeWidth}" stroke-linejoin="round" paint-order="stroke fill"`
+          : "";
+        runFragments.push(`<g transform="${transform}"${groupAttributes}>${runPaths}</g>`);
+        cursorX += runAdvance;
+      }
+      return runFragments.join("");
     })
     .join("");
 
-  return `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g fill="${escapeXml(layer.color)}"${strokeAttributes}${contentAttributes}>${paths}</g></g></g>`;
+  return `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g fill="${escapeXml(layer.color)}"${strokeAttributes}${contentAttributes}>${body}</g></g></g>`;
 };
 
 const renderPhotoLayerSvg = (

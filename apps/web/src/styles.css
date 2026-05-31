@@ -2315,6 +2315,45 @@ textarea:focus-visible {
   gap: 8px;
 }
 
+.text-content-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.text-content-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 6px;
+  background: var(--sb-neutral-background-2);
+  color: var(--sb-neutral-foreground-1);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.text-content-toolbar-button:hover {
+  background: var(--sb-neutral-background-1-hover);
+}
+
+.text-content-toolbar-button:focus-visible {
+  outline: 2px solid var(--sb-brand-stroke-1);
+  outline-offset: 1px;
+}
+
+.text-content-toolbar-hint {
+  margin-left: 4px;
+  color: var(--sb-neutral-foreground-3);
+  font-size: 0.72rem;
+}
+
 .text-effects-layout {
   display: grid;
   grid-template-columns: 1fr;
