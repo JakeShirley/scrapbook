@@ -1060,6 +1060,148 @@ const renderTextEffectFilterSvg = (layer: TextLayer, filterId: string): string =
   return `<filter id="${filterId}" filterUnits="userSpaceOnUse" x="${-margin}" y="${-margin}" width="${layer.width + margin * 2}" height="${layer.height + margin * 2}" color-interpolation-filters="sRGB">${filterParts.join("")}<feMerge>${mergeNodes.join("")}<feMergeNode in="SourceGraphic" /></feMerge></filter>`;
 };
 
+const textTruncationEllipsis = "…";
+
+const fallbackFontAdvanceFactor = 0.55;
+
+const fallbackFontAdvance = (line: string, fontSize: number): number =>
+  line.length * fontSize * fallbackFontAdvanceFactor;
+
+const wrapTextLinesToBox = (
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+  measure: (line: string) => number,
+): { lines: string[]; truncated: boolean } => {
+  if (maxLines <= 0) {
+    return { lines: [], truncated: text.length > 0 };
+  }
+
+  if (text.length === 0) {
+    return { lines: [], truncated: false };
+  }
+
+  const lines: string[] = [];
+  let truncated = false;
+
+  const emit = (line: string): boolean => {
+    if (lines.length >= maxLines) {
+      truncated = true;
+      return false;
+    }
+
+    lines.push(line);
+    return true;
+  };
+
+  const paragraphs = text.split(/\r?\n/);
+
+  paragraphLoop: for (let p = 0; p < paragraphs.length; p += 1) {
+    const paragraph = paragraphs[p] ?? "";
+
+    if (paragraph.length === 0) {
+      if (!emit("")) break;
+      continue;
+    }
+
+    const tokens = paragraph.match(/\s+|\S+/g) ?? [];
+    let line = "";
+
+    for (const token of tokens) {
+      const isSpace = /^\s+$/.test(token);
+
+      if (isSpace) {
+        if (line.length === 0) continue;
+
+        if (measure(line + token) <= maxWidth) {
+          line = line + token;
+        } else {
+          if (!emit(line.replace(/\s+$/, ""))) break paragraphLoop;
+          line = "";
+        }
+        continue;
+      }
+
+      if (line.length === 0 || measure(line + token) <= maxWidth) {
+        if (line.length === 0 && measure(token) > maxWidth) {
+          let buffer = "";
+          for (const char of token) {
+            if (buffer.length === 0 || measure(buffer + char) <= maxWidth) {
+              buffer = buffer + char;
+            } else {
+              if (!emit(buffer)) break paragraphLoop;
+              buffer = char;
+            }
+          }
+          line = buffer;
+        } else {
+          line = line + token;
+        }
+        continue;
+      }
+
+      if (!emit(line.replace(/\s+$/, ""))) break paragraphLoop;
+      line = "";
+
+      if (measure(token) <= maxWidth) {
+        line = token;
+        continue;
+      }
+
+      let buffer = "";
+      for (const char of token) {
+        if (buffer.length === 0 || measure(buffer + char) <= maxWidth) {
+          buffer = buffer + char;
+        } else {
+          if (!emit(buffer)) break paragraphLoop;
+          buffer = char;
+        }
+      }
+      line = buffer;
+    }
+
+    if (line.length > 0) {
+      if (!emit(line.replace(/\s+$/, ""))) break paragraphLoop;
+    }
+  }
+
+  return { lines, truncated };
+};
+
+const appendEllipsisToLastLine = (
+  lines: string[],
+  maxWidth: number,
+  measure: (line: string) => number,
+): string[] => {
+  if (lines.length === 0) return lines;
+
+  const lastIndex = lines.length - 1;
+  let lastLine = lines[lastIndex] ?? "";
+
+  while (lastLine.length > 0 && measure(lastLine + textTruncationEllipsis) > maxWidth) {
+    lastLine = lastLine.slice(0, -1);
+  }
+
+  const result = lines.slice();
+  result[lastIndex] = lastLine + textTruncationEllipsis;
+  return result;
+};
+
+const computeTextLayerLines = (
+  layer: TextLayer,
+  bundledFont: Font | null,
+): { lines: string[]; lineHeight: number } => {
+  const lineHeight = layer.fontSize * 1.2;
+  const maxLines = Math.max(1, Math.floor(layer.height / lineHeight));
+  const measure = bundledFont
+    ? (line: string) => bundledFont.getAdvanceWidth(line, layer.fontSize)
+    : (line: string) => fallbackFontAdvance(line, layer.fontSize);
+  const { lines, truncated } = wrapTextLinesToBox(layer.text, layer.width, maxLines, measure);
+  const displayLines = truncated ? appendEllipsisToLastLine(lines, layer.width, measure) : lines;
+
+  return { lines: displayLines, lineHeight };
+};
+
 const renderTextLayerSvg = (
   layer: TextLayer,
   index: number,
@@ -1069,29 +1211,41 @@ const renderTextLayerSvg = (
   const filterId = idPrefix
     ? createSvgId(idPrefix, "text", "filter", index)
     : createSvgId("text", "filter", index);
+  const clipId = idPrefix
+    ? createSvgId(idPrefix, "text", "clip", index)
+    : createSvgId("text", "clip", index);
   const filterDef = renderTextEffectFilterSvg(layer, filterId);
-  const contentAttributes = filterDef ? ` filter="url(#${filterId})"` : "";
+  const filterAttribute = filterDef ? ` filter="url(#${filterId})"` : "";
+  const clipDef = `<clipPath id="${clipId}"><rect x="0" y="0" width="${layer.width}" height="${layer.height}" /></clipPath>`;
+  const contentAttributes = `${filterAttribute} clip-path="url(#${clipId})"`;
   const background = renderTextBackgroundSvg(layer);
+  const defs = `${clipDef}${filterDef}`;
+  const { lines, lineHeight } = computeTextLayerLines(layer, bundledFont);
 
   if (bundledFont) {
     return {
-      body: renderBundledFontTextLayerSvg(layer, bundledFont, background, contentAttributes),
-      defs: filterDef,
+      body: renderBundledFontTextLayerSvg(
+        layer,
+        bundledFont,
+        lines,
+        lineHeight,
+        background,
+        contentAttributes,
+      ),
+      defs,
     };
   }
 
-  const lines = layer.text.split(/\r?\n/).slice(0, 20);
-  const lineHeight = layer.fontSize * 1.2;
   const anchor = layer.align === "center" ? "middle" : layer.align === "right" ? "end" : "start";
   const x = layer.align === "center" ? layer.width / 2 : layer.align === "right" ? layer.width : 0;
   const strokeAttributes = textStrokeSvgAttributes(layer);
 
   return {
-    defs: filterDef,
+    defs,
     body: `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g${contentAttributes}><text x="${x}" y="${layer.fontSize}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${layer.fontSize}" text-anchor="${anchor}"${strokeAttributes}>${lines
       .map(
-        (line, index) =>
-          `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
+        (line, lineIndex) =>
+          `<tspan x="${x}" dy="${lineIndex === 0 ? 0 : lineHeight}">${escapeXml(line)}</tspan>`,
       )
       .join("")}</text></g></g></g>`,
   };
@@ -1148,11 +1302,11 @@ const pathData = (path: Path): string =>
 const renderBundledFontTextLayerSvg = (
   layer: TextLayer,
   bundledFont: Font,
+  lines: string[],
+  lineHeight: number,
   background: string,
   contentAttributes: string,
 ): string => {
-  const lines = layer.text.split(/\r?\n/).slice(0, 20);
-  const lineHeight = layer.fontSize * 1.2;
   const anchorX =
     layer.align === "center" ? layer.width / 2 : layer.align === "right" ? layer.width : 0;
   const strokeAttributes = textStrokeSvgAttributes(layer);

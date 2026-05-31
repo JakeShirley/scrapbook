@@ -665,6 +665,43 @@ describe("page document helpers", () => {
     expect(svg).not.toContain("Bundled Google font");
   });
 
+  it("wraps fallback-font text to the layer width and clips to the bounding box", () => {
+    const text = createTextLayer({
+      id: "text_wrap",
+      text: "One two three four five six seven eight nine ten",
+      width: 320,
+      height: 600,
+      fontSize: 48,
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }), {
+      idPrefix: "test",
+    });
+
+    const tspanMatches = svg.match(/<tspan /g) ?? [];
+
+    expect(tspanMatches.length).toBeGreaterThan(1);
+    expect(svg).toContain('<clipPath id="test_text_clip_0">');
+    expect(svg).toContain('<rect x="0" y="0" width="320" height="600"');
+    expect(svg).toContain('clip-path="url(#test_text_clip_0)"');
+  });
+
+  it("truncates fallback-font text that exceeds the bounding box height", () => {
+    const text = createTextLayer({
+      id: "text_truncate",
+      text: "line one\nline two\nline three\nline four\nline five",
+      width: 480,
+      height: 100,
+      fontSize: 36,
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }));
+
+    const tspanMatches = svg.match(/<tspan /g) ?? [];
+
+    expect(tspanMatches.length).toBeLessThanOrEqual(2);
+    expect(svg).toContain("…");
+    expect(svg).not.toContain("line five");
+  });
+
   it("renders photo frame presets as visible frame geometry", () => {
     const matPhoto = createPhotoLayer({
       assetId: "asset_mat",
