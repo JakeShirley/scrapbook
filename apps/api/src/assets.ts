@@ -2,7 +2,12 @@ import { createHash } from "node:crypto";
 
 import sharp from "sharp";
 
-import { createSharpInputBuffer, isHeicImage, isHeifImage } from "./image-decoding.js";
+import {
+  createSharpInputBuffer,
+  isHeicImage,
+  isHeifImage,
+  isTiffImage,
+} from "./image-decoding.js";
 import type { Repositories } from "./persistence/repositories.js";
 import type { AssetRecord, AssetVariantRecord } from "./persistence/schema.js";
 import type { StorageArea, StoredObject } from "./storage/disk.js";
@@ -25,7 +30,7 @@ type UploadFile = {
   size?: number;
 };
 
-type SupportedImageFormat = "heic" | "heif" | "jpeg" | "png" | "webp";
+type SupportedImageFormat = "heic" | "heif" | "jpeg" | "png" | "tiff" | "webp";
 
 const maxUploadByteSize = 20 * 1024 * 1024;
 const maxImageDimension = 20_000;
@@ -41,6 +46,7 @@ const supportedImageTypes: Record<SupportedImageFormat, { mimeType: string; exte
   heif: { mimeType: "image/heif", extension: ".heif" },
   jpeg: { mimeType: "image/jpeg", extension: ".jpg" },
   png: { mimeType: "image/png", extension: ".png" },
+  tiff: { mimeType: "image/tiff", extension: ".tiff" },
   webp: { mimeType: "image/webp", extension: ".webp" },
 };
 
@@ -122,14 +128,16 @@ const readImageMetadata = async (buffer: Buffer) => {
     ? isHeicImage(buffer)
       ? supportedImageTypes.heic
       : supportedImageTypes.heif
-    : format && format !== "heif"
-      ? supportedImageTypes[format]
-      : undefined;
+    : format === "tiff" || (format === undefined && isTiffImage(buffer))
+      ? supportedImageTypes.tiff
+      : format && format !== "heif"
+        ? supportedImageTypes[format]
+        : undefined;
 
   if (!imageType) {
     throw new AssetUploadError(
       "unsupported_image_type",
-      "Uploaded image must be JPEG, PNG, WebP, HEIC, or HEIF",
+      "Uploaded image must be JPEG, PNG, WebP, HEIC, HEIF, TIFF, or DNG/RAW",
     );
   }
 

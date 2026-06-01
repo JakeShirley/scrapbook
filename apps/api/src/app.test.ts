@@ -133,6 +133,18 @@ const createHeif = (): Buffer => {
   return buffer;
 };
 
+const createTiff = (): Promise<Buffer> =>
+  sharp({
+    create: {
+      background: { b: 60, g: 140, r: 220 },
+      channels: 3,
+      height: 18,
+      width: 24,
+    },
+  })
+    .tiff({ compression: "none" })
+    .toBuffer();
+
 const toArrayBuffer = (buffer: Buffer): ArrayBuffer =>
   buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
@@ -508,6 +520,61 @@ describe("api app", () => {
     expect(originalResponse.status).toBe(200);
     expect(originalResponse.headers.get("content-type")).toBe("image/heif");
     expect(Buffer.from(await originalResponse.arrayBuffer())).toEqual(image);
+  });
+
+  it("uploads TIFF/DNG-family images and creates browser-readable variants", async () => {
+    const app = await createTestAppWithStorage();
+    const cookie = await registerAccount(app, {
+      displayName: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+    const image = await createTiff();
+    const uploadResponse = await uploadImage(
+      app,
+      cookie,
+      new File([toArrayBuffer(image)], "IMG_2807.raw", { type: "" }),
+    );
+
+    expect(uploadResponse.status).toBe(201);
+
+    const uploaded = assetResponseSchema.parse(await uploadResponse.json());
+
+    expect(uploaded).toMatchObject({
+      originalFilename: "IMG_2807.raw",
+      mimeType: "image/tiff",
+      byteSize: image.byteLength,
+      width: 24,
+      height: 18,
+    });
+
+    const thumbnail = uploaded.variants.find((variant) => variant.kind === "thumbnail");
+    const preview = uploaded.variants.find((variant) => variant.kind === "preview");
+
+    if (!thumbnail || !preview) {
+      throw new Error("Expected thumbnail and preview variants");
+    }
+
+    const originalResponse = await app.request(`/api/v1/assets/${uploaded.id}/content`, {
+      headers: { cookie },
+    });
+    const thumbnailResponse = await app.request(
+      `/api/v1/assets/${uploaded.id}/variants/${thumbnail.id}`,
+      { headers: { cookie } },
+    );
+    const previewResponse = await app.request(
+      `/api/v1/assets/${uploaded.id}/variants/${preview.id}`,
+      { headers: { cookie } },
+    );
+
+    expect(originalResponse.status).toBe(200);
+    expect(originalResponse.headers.get("content-type")).toBe("image/tiff");
+    expect(Buffer.from(await originalResponse.arrayBuffer())).toEqual(image);
+    expect(thumbnailResponse.status).toBe(200);
+    expect(thumbnailResponse.headers.get("content-type")).toBe("image/jpeg");
+    expect(Buffer.from(await thumbnailResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    expect(previewResponse.status).toBe(200);
+    expect(previewResponse.headers.get("content-type")).toBe("image/jpeg");
+    expect(Buffer.from(await previewResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
   });
 
   it("rejects invalid uploads with documented errors", async () => {

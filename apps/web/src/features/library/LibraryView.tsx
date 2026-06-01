@@ -90,7 +90,7 @@ export function LibraryView() {
       <WorkspaceHeader title="Library">
         <input
           ref={fileInputRef}
-          accept="image/heic,image/heif,image/jpeg,image/png,image/webp,.heic,.heif"
+          accept="image/heic,image/heif,image/jpeg,image/png,image/tiff,image/webp,image/x-adobe-dng,.heic,.heif,.tif,.tiff,.dng,.raw"
           className="visually-hidden"
           multiple
           type="file"
