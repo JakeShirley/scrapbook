@@ -2,12 +2,7 @@ import { createHash } from "node:crypto";
 
 import sharp from "sharp";
 
-import {
-  createSharpInputBuffer,
-  isHeicImage,
-  isHeifImage,
-  isTiffImage,
-} from "./image-decoding.js";
+import { createSharpInputBuffer, isHeicImage, isHeifImage, isTiffImage } from "./image-decoding.js";
 import type { Repositories } from "./persistence/repositories.js";
 import type { AssetRecord, AssetVariantRecord } from "./persistence/schema.js";
 import type { StorageArea, StoredObject } from "./storage/disk.js";
