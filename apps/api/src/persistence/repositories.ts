@@ -16,8 +16,10 @@ import {
   assets,
   assetVariants,
   authIdentities,
+  type BookAssetRecord,
   type BookPageRecord,
   type BookRecord,
+  bookAssets,
   bookPages,
   books,
   type ExportFormat,
@@ -701,6 +703,122 @@ export class BookRepository {
       .run();
 
     return records;
+  }
+
+  listAssetsForBook(accountId: string, bookId: string): AssetRecord[] {
+    return this.db
+      .select({ asset: assets })
+      .from(bookAssets)
+      .innerJoin(assets, and(eq(bookAssets.assetId, assets.id), eq(assets.accountId, accountId)))
+      .where(and(eq(bookAssets.accountId, accountId), eq(bookAssets.bookId, bookId)))
+      .orderBy(desc(bookAssets.sortOrder))
+      .all()
+      .map(({ asset }) => asset);
+  }
+
+  addAssetsToBook(input: {
+    accountId: string;
+    bookId: string;
+    assetIds: string[];
+  }): BookAssetRecord[] {
+    const book = this.findByIdForAccount(input.accountId, input.bookId);
+
+    if (!book) {
+      throw new OwnershipError("Book does not belong to the account");
+    }
+
+    const uniqueAssetIds = Array.from(new Set(input.assetIds));
+
+    if (uniqueAssetIds.length === 0) {
+      return [];
+    }
+
+    for (const assetId of uniqueAssetIds) {
+      const asset =
+        this.db
+          .select({ id: assets.id })
+          .from(assets)
+          .where(and(eq(assets.accountId, input.accountId), eq(assets.id, assetId)))
+          .get() ?? null;
+
+      if (!asset) {
+        throw new OwnershipError("Book assets cannot cross account boundaries");
+      }
+    }
+
+    const existingAssetIds = new Set(
+      this.db
+        .select({ assetId: bookAssets.assetId })
+        .from(bookAssets)
+        .where(and(eq(bookAssets.accountId, input.accountId), eq(bookAssets.bookId, input.bookId)))
+        .all()
+        .map((row) => row.assetId),
+    );
+
+    const newAssetIds = uniqueAssetIds.filter((assetId) => !existingAssetIds.has(assetId));
+
+    if (newAssetIds.length === 0) {
+      return [];
+    }
+
+    const maxSortRow = this.db
+      .select({ value: bookAssets.sortOrder })
+      .from(bookAssets)
+      .where(and(eq(bookAssets.accountId, input.accountId), eq(bookAssets.bookId, input.bookId)))
+      .orderBy(desc(bookAssets.sortOrder))
+      .limit(1)
+      .get();
+    const nextSortOrderStart = (maxSortRow?.value ?? -1) + 1;
+
+    const timestamp = now(this.clock);
+    const records = newAssetIds.map<BookAssetRecord>((assetId, index) => ({
+      id: createInternalId("bookAsset"),
+      accountId: input.accountId,
+      bookId: input.bookId,
+      assetId,
+      sortOrder: nextSortOrderStart + index,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }));
+
+    this.db.insert(bookAssets).values(records).run();
+
+    this.db
+      .update(books)
+      .set({ updatedAt: timestamp })
+      .where(and(eq(books.accountId, input.accountId), eq(books.id, input.bookId)))
+      .run();
+
+    return records;
+  }
+
+  removeAssetFromBook(input: { accountId: string; bookId: string; assetId: string }): boolean {
+    const book = this.findByIdForAccount(input.accountId, input.bookId);
+
+    if (!book) {
+      throw new OwnershipError("Book does not belong to the account");
+    }
+
+    const result = this.db
+      .delete(bookAssets)
+      .where(
+        and(
+          eq(bookAssets.accountId, input.accountId),
+          eq(bookAssets.bookId, input.bookId),
+          eq(bookAssets.assetId, input.assetId),
+        ),
+      )
+      .run();
+
+    if (result.changes > 0) {
+      this.db
+        .update(books)
+        .set({ updatedAt: now(this.clock) })
+        .where(and(eq(books.accountId, input.accountId), eq(books.id, input.bookId)))
+        .run();
+    }
+
+    return result.changes > 0;
   }
 }
 

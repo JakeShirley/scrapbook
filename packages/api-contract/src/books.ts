@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { assetListResponseSchema } from "./assets.js";
 import { pageSummaryResponseSchema } from "./pages.js";
 import { errorResponseSchema } from "./shared.js";
-
 export const defaultBookPageSize = {
   key: "9x9-google-photos-hardcover",
   label: "9 x 9 in (Google Photos Hardcover)",
@@ -144,11 +144,39 @@ export const bookSetPagesRequestSchema = z
   })
   .openapi("BookSetPagesRequest");
 
+export const bookAssetsAddRequestSchema = z
+  .object({
+    assetIds: z.array(z.string().min(1)).min(1).max(240),
+  })
+  .superRefine((input, context) => {
+    const seen = new Set<string>();
+
+    for (const [index, assetId] of input.assetIds.entries()) {
+      if (seen.has(assetId)) {
+        context.addIssue({
+          code: "custom",
+          message: "An asset can only appear once in the request",
+          path: ["assetIds", index],
+        });
+      }
+
+      seen.add(assetId);
+    }
+  })
+  .openapi("BookAssetsAddRequest");
+
 const bookParamsSchema = z.object({
   bookId: z
     .string()
     .min(1)
     .openapi({ param: { name: "bookId", in: "path" } }),
+});
+
+const bookAssetParamsSchema = bookParamsSchema.extend({
+  assetId: z
+    .string()
+    .min(1)
+    .openapi({ param: { name: "assetId", in: "path" } }),
 });
 
 const bookJsonResponses = {
@@ -194,6 +222,7 @@ export type BookListResponse = z.infer<typeof bookListResponseSchema>;
 export type BookCreateRequest = z.infer<typeof bookCreateRequestSchema>;
 export type BookPatchRequest = z.infer<typeof bookPatchRequestSchema>;
 export type BookSetPagesRequest = z.infer<typeof bookSetPagesRequestSchema>;
+export type BookAssetsAddRequest = z.infer<typeof bookAssetsAddRequestSchema>;
 
 export const bookCreateRoute = createRoute({
   method: "post",
@@ -326,6 +355,70 @@ export const bookSetPagesRoute = createRoute({
           schema: bookResponseSchema,
         },
       },
+    },
+    ...bookJsonResponses,
+  },
+});
+
+export const bookAssetListRoute = createRoute({
+  method: "get",
+  path: "/api/v1/books/{bookId}/assets",
+  tags: ["Books"],
+  request: {
+    params: bookParamsSchema,
+  },
+  responses: {
+    200: {
+      description: "Lists assets referenced by a book in newest-first order.",
+      content: {
+        "application/json": {
+          schema: assetListResponseSchema,
+        },
+      },
+    },
+    ...bookJsonResponses,
+  },
+});
+
+export const bookAssetsAddRoute = createRoute({
+  method: "post",
+  path: "/api/v1/books/{bookId}/assets",
+  tags: ["Books"],
+  request: {
+    params: bookParamsSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: bookAssetsAddRequestSchema,
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description:
+        "Adds assets to a book's referenced photo list. Assets already referenced are ignored. Returns the updated newest-first reference list.",
+      content: {
+        "application/json": {
+          schema: assetListResponseSchema,
+        },
+      },
+    },
+    ...bookJsonResponses,
+  },
+});
+
+export const bookAssetRemoveRoute = createRoute({
+  method: "delete",
+  path: "/api/v1/books/{bookId}/assets/{assetId}",
+  tags: ["Books"],
+  request: {
+    params: bookAssetParamsSchema,
+  },
+  responses: {
+    204: {
+      description: "Removes an asset from the book's referenced photo list.",
     },
     ...bookJsonResponses,
   },

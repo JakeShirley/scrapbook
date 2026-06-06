@@ -185,6 +185,29 @@ export const bookPages = sqliteTable(
   ],
 );
 
+export const bookAssets = sqliteTable(
+  "book_assets",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    bookId: text("book_id")
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull(),
+    ...timestampColumns(),
+  },
+  (table) => [
+    index("book_assets_account_id_idx").on(table.accountId),
+    index("book_assets_book_id_idx").on(table.bookId),
+    uniqueIndex("book_assets_book_asset_unique").on(table.bookId, table.assetId),
+  ],
+);
+
 export const exportJobs = sqliteTable(
   "exports",
   {
@@ -216,4 +239,5 @@ export type AssetVariantRecord = typeof assetVariants.$inferSelect;
 export type PageRecord = typeof pages.$inferSelect;
 export type BookRecord = typeof books.$inferSelect;
 export type BookPageRecord = typeof bookPages.$inferSelect;
+export type BookAssetRecord = typeof bookAssets.$inferSelect;
 export type ExportJobRecord = typeof exportJobs.$inferSelect;

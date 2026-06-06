@@ -1,46 +1,81 @@
 import { Button } from "@fluentui/react-components";
-import { AddRegular, EmojiSparkleRegular, TextTRegular } from "@fluentui/react-icons";
+import {
+  AddRegular,
+  EmojiSparkleRegular,
+  ImageAddRegular,
+  TextTRegular,
+} from "@fluentui/react-icons";
 import { stickerLibrarySummaries } from "@scrapbook/editor-core";
 import type { CSSProperties } from "react";
 
+import type { Asset } from "../../types";
 import { type EmbellishmentPreset, embellishmentPresets } from "./embellishments";
 
-export function AssetRail({
-  assetCount,
-  isPhotoPickerDisabled = false,
-  isStickerPickerDisabled = false,
-  onAddEmbellishment,
-  onAddText,
-  onOpenPhotoPicker,
-  onOpenWashiTapePicker,
-  onOpenStickerPicker,
-}: {
-  assetCount: number;
+type AssetRailCommonProps = {
   isPhotoPickerDisabled?: boolean;
   isStickerPickerDisabled?: boolean;
   onAddEmbellishment: (preset: EmbellishmentPreset) => void;
   onAddText: () => void;
-  onOpenPhotoPicker: () => void;
-  onOpenWashiTapePicker: () => void;
   onOpenStickerPicker: () => void;
-}) {
+  onOpenWashiTapePicker: () => void;
+};
+
+type AssetRailModalProps = AssetRailCommonProps & {
+  mode?: "modal";
+  assetCount: number;
+  onOpenPhotoPicker: () => void;
+};
+
+type AssetRailReferencedProps = AssetRailCommonProps & {
+  mode: "referenced";
+  referencedAssets: Asset[];
+  onAddPhoto: (asset: Asset) => void;
+  onOpenLibraryPicker: () => void;
+};
+
+export type AssetRailProps = AssetRailModalProps | AssetRailReferencedProps;
+
+export function AssetRail(props: AssetRailProps) {
+  const {
+    isPhotoPickerDisabled = false,
+    isStickerPickerDisabled = false,
+    onAddEmbellishment,
+    onAddText,
+    onOpenStickerPicker,
+    onOpenWashiTapePicker,
+  } = props;
+  const isReferencedMode = props.mode === "referenced";
+  const photoCount = isReferencedMode ? props.referencedAssets.length : props.assetCount;
+
   return (
     <aside className="editor-panel editor-asset-rail" aria-label="Assets">
       <div className="panel-heading compact-heading">
         <h3>Photos</h3>
-        <span>{assetCount}</span>
+        <span>{photoCount}</span>
       </div>
       <div className="asset-rail-actions">
-        <Button
-          appearance="primary"
-          type="button"
-          className="primary-button full-width-button"
-          disabled={isPhotoPickerDisabled}
-          icon={<AddRegular />}
-          onClick={onOpenPhotoPicker}
-        >
-          Add photo
-        </Button>
+        {isReferencedMode ? (
+          <Button
+            appearance="primary"
+            type="button"
+            className="primary-button full-width-button"
+            icon={<ImageAddRegular />}
+            onClick={props.onOpenLibraryPicker}
+          >
+            Get more photos
+          </Button>
+        ) : (
+          <Button
+            appearance="primary"
+            type="button"
+            className="primary-button full-width-button"
+            disabled={isPhotoPickerDisabled}
+            icon={<AddRegular />}
+            onClick={props.onOpenPhotoPicker}
+          >
+            Add photo
+          </Button>
+        )}
         <Button
           type="button"
           className="secondary-button full-width-button"
@@ -51,6 +86,32 @@ export function AssetRail({
           Add washi tape
         </Button>
       </div>
+      {isReferencedMode ? (
+        <ul className="asset-rail-photos" aria-label="Photos referenced by this book">
+          {props.referencedAssets.length === 0 ? (
+            <li className="asset-rail-photos-empty-item">
+              <p className="asset-rail-photos-empty">
+                No photos yet. Click <em>Get more photos</em> to add some from your library.
+              </p>
+            </li>
+          ) : (
+            props.referencedAssets.map((asset) => (
+              <li key={asset.id} className="asset-rail-photo-item">
+                <button
+                  type="button"
+                  className="asset-rail-photo"
+                  aria-label={`Add ${asset.originalFilename} to page`}
+                  title={asset.originalFilename}
+                  disabled={isPhotoPickerDisabled}
+                  onClick={() => props.onAddPhoto(asset)}
+                >
+                  <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      ) : null}
       <div className="panel-heading compact-heading nested-heading">
         <h3>Stickers</h3>
         <span>{stickerLibrarySummaries.length} packs</span>
