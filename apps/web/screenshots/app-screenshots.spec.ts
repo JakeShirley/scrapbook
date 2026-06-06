@@ -426,6 +426,7 @@ const scenarios: ScreenshotScenario[] = [
     waitFor: async (page) => {
       await expect(page.getByRole("heading", { name: "Scrapbook" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+      await expect(page.getByText("0.0.0-development")).toBeVisible();
     },
   },
   {
@@ -670,6 +671,18 @@ async function installMockApi(page: Page, authenticated: boolean) {
           ? { json: session }
           : { json: errorResponse("Authentication is required."), status: 401 },
       );
+      return;
+    }
+
+    if (pathName === "/api/v1/health") {
+      await route.fulfill({
+        json: {
+          service: "scrapbook-api",
+          status: "ok",
+          timestamp: "2026-05-17T12:00:00.000Z",
+          version: "0.0.0-development",
+        },
+      });
       return;
     }
 
