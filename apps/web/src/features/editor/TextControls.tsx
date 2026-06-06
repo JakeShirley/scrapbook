@@ -87,7 +87,7 @@ export function TextControls({
       <fieldset className="inspector-section text-controls-section">
         <legend>Text</legend>
         <div className="text-controls-grid">
-          <label className="text-content-field">
+          <label className="text-content-field" htmlFor="text-layer-text">
             <span>Text</span>
             <div className="text-content-toolbar" role="toolbar" aria-label="Text formatting">
               <button
@@ -115,6 +115,7 @@ export function TextControls({
               </span>
             </div>
             <textarea
+              id="text-layer-text"
               ref={textareaRef}
               value={layer.text}
               onChange={(event) =>
