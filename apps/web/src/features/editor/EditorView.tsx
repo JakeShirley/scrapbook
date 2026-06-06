@@ -9,7 +9,6 @@ import {
 } from "@fluentui/react-icons";
 import {
   addLayer,
-  createEmbellishmentLayer,
   createPhotoLayer,
   createStickerLayer,
   createTextLayer,
@@ -33,7 +32,6 @@ import type { Asset, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "./AssetRail";
 import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
-import type { EmbellishmentPreset } from "./embellishments";
 import { PageCanvas } from "./PageCanvas";
 import { PhotoPickerModal } from "./PhotoPickerModal";
 import { type PngExportSettings, PngExportSettingsModal } from "./PngExportSettingsModal";
@@ -178,18 +176,6 @@ export function EditorView() {
         },
       } as Partial<WashiTapeLayer> as Partial<PageLayer>),
     );
-    setSelectedLayerIds([layer.id]);
-  };
-  const addEmbellishment = (preset: EmbellishmentPreset) => {
-    if (!document) return;
-    const layer = createEmbellishmentLayer({
-      ...preset,
-      width: Math.min(document.canvas.width * 0.28, 620),
-      height: Math.min(document.canvas.height * 0.12, 320),
-      x: document.canvas.width * 0.12,
-      y: document.canvas.height * 0.12,
-    });
-    editDocument(addLayer(document, layer));
     setSelectedLayerIds([layer.id]);
   };
   const addSticker = (sticker: StickerDefinition) => {
@@ -382,7 +368,6 @@ export function EditorView() {
       <div className="editor-shell">
         <AssetRail
           assetCount={assets.length}
-          onAddEmbellishment={addEmbellishment}
           onAddText={addText}
           onOpenPhotoPicker={() => setPhotoPickerMode({ kind: "photo" })}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}

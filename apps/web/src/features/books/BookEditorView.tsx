@@ -2,7 +2,6 @@ import { Button } from "@fluentui/react-components";
 import { AddRegular, DeleteRegular, DismissRegular } from "@fluentui/react-icons";
 import {
   addLayer,
-  createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
   createStickerLayer,
@@ -28,7 +27,6 @@ import { getErrorMessage } from "../../lib/errors";
 import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
 import type { EditorSaveStatus } from "../editor/editorTypes";
-import type { EmbellishmentPreset } from "../editor/embellishments";
 import type { CanvasPreviewLayer } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
 import { type PngExportSettings, PngExportSettingsModal } from "../editor/PngExportSettingsModal";
@@ -812,23 +810,6 @@ export function BookEditorView() {
     setSelectedLayerIds([layer.id]);
   };
 
-  const addEmbellishment = (preset: EmbellishmentPreset) => {
-    if (!activePage) {
-      return;
-    }
-
-    const layer = createEmbellishmentLayer({
-      ...preset,
-      width: Math.min(activePage.document.canvas.width * 0.28, 620),
-      height: Math.min(activePage.document.canvas.height * 0.12, 320),
-      x: activePage.document.canvas.width * 0.12,
-      y: activePage.document.canvas.height * 0.12,
-    });
-
-    editPageDocument(activePage.id, addLayer(activePage.document, layer));
-    setSelectedLayerIds([layer.id]);
-  };
-
   const addSticker = (sticker: StickerDefinition) => {
     if (!activePage) {
       return;
@@ -1383,7 +1364,6 @@ export function BookEditorView() {
           referencedAssets={assets}
           isPhotoPickerDisabled={!activePage}
           isStickerPickerDisabled={!activePage}
-          onAddEmbellishment={addEmbellishment}
           onAddText={addText}
           onOpenLibraryPicker={() => setIsLibraryPickerOpen(true)}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}

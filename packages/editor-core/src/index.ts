@@ -314,14 +314,6 @@ export const textLayerSchema = pageLayerBaseSchema.extend({
     .default(defaultTextBackground),
 });
 
-export const embellishmentLayerSchema = pageLayerBaseSchema.extend({
-  kind: z.literal("embellishment"),
-  element: z.enum(["paper-label", "washi-tape", "photo-corner", "pattern-paper"]),
-  color: colorSchema,
-  accentColor: colorSchema,
-  label: z.string().max(80),
-});
-
 export const stickerLayerSchema = pageLayerBaseSchema.extend({
   kind: z.literal("sticker"),
   stickerId: stickerIdSchema,
@@ -366,7 +358,6 @@ export const washiTapeLayerSchema = pageLayerBaseSchema.extend({
 export const pageLayerSchema = z.discriminatedUnion("kind", [
   photoLayerSchema,
   textLayerSchema,
-  embellishmentLayerSchema,
   stickerLayerSchema,
   washiTapeLayerSchema,
 ]);
@@ -385,7 +376,6 @@ export type PageDocument = z.infer<typeof pageDocumentSchema>;
 export type PageLayer = z.infer<typeof pageLayerSchema>;
 export type PhotoLayer = z.infer<typeof photoLayerSchema>;
 export type TextLayer = z.infer<typeof textLayerSchema>;
-export type EmbellishmentLayer = z.infer<typeof embellishmentLayerSchema>;
 export type StickerLayer = z.infer<typeof stickerLayerSchema>;
 export type WashiTapeLayer = z.infer<typeof washiTapeLayerSchema>;
 export type PageLayerKind = PageLayer["kind"];
@@ -466,24 +456,6 @@ export type CreateTextLayerInput = Partial<
 > & {
   text: string;
 };
-
-export type CreateEmbellishmentLayerInput = Partial<
-  Pick<
-    EmbellishmentLayer,
-    | "accentColor"
-    | "color"
-    | "element"
-    | "height"
-    | "id"
-    | "label"
-    | "locked"
-    | "opacity"
-    | "rotation"
-    | "width"
-    | "x"
-    | "y"
-  >
->;
 
 export type CreateStickerLayerInput = Partial<
   Pick<StickerLayer, "height" | "id" | "locked" | "opacity" | "rotation" | "width" | "x" | "y">
@@ -1563,50 +1535,6 @@ const renderPhotoLayerSvg = (
   };
 };
 
-const renderEmbellishmentLayerSvg = (layer: EmbellishmentLayer): string => {
-  const label = escapeXml(layer.label);
-  const labelText = `<text x="${layer.x + layer.width / 2}" y="${layer.y + layer.height / 2}" dominant-baseline="middle" text-anchor="middle" fill="#202426" font-family="Inter, sans-serif" font-size="${Math.max(24, Math.min(96, layer.height / 3))}" font-weight="700">${label}</text>`;
-  const fill = escapeXml(layer.color);
-  const accent = escapeXml(layer.accentColor);
-  let body: string;
-
-  switch (layer.element) {
-    case "paper-label":
-      body = `<rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="8" fill="${fill}" stroke="${accent}" stroke-width="8" /><rect x="${layer.x + 16}" y="${layer.y + 16}" width="${Math.max(0, layer.width - 32)}" height="${Math.max(0, layer.height - 32)}" rx="4" fill="none" stroke="#ffffff" stroke-opacity="0.48" stroke-width="5" />${labelText}`;
-      break;
-    case "washi-tape": {
-      const stripes: string[] = [];
-
-      for (let offset = -layer.height; offset < layer.width + layer.height; offset += 32) {
-        stripes.push(
-          `<path d="M ${layer.x + offset} ${layer.y + layer.height} L ${layer.x + offset + layer.height} ${layer.y}" stroke="#ffffff" stroke-opacity="0.34" stroke-width="12" />`,
-        );
-      }
-
-      body = `<rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="4" fill="${fill}" />${stripes.join("")}${label ? labelText : ""}`;
-      break;
-    }
-    case "photo-corner":
-      body = `<polygon points="${layerPoint(layer, 0, 0)} ${layerPoint(layer, 0.42, 0)} ${layerPoint(layer, 0, 0.42)}" fill="${fill}" /><polygon points="${layerPoint(layer, 1, 1)} ${layerPoint(layer, 0.58, 1)} ${layerPoint(layer, 1, 0.58)}" fill="${accent}" />${label ? labelText : ""}`;
-      break;
-    case "pattern-paper": {
-      const dots: string[] = [];
-      const dotSpacing = 22;
-
-      for (let centerY = layer.y + 8; centerY < layer.y + layer.height; centerY += dotSpacing) {
-        for (let centerX = layer.x + 8; centerX < layer.x + layer.width; centerX += dotSpacing) {
-          dots.push(`<circle cx="${centerX}" cy="${centerY}" r="3" fill="${accent}" />`);
-        }
-      }
-
-      body = `<rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" fill="${fill}" stroke="#202426" stroke-opacity="0.15" />${dots.join("")}${label ? labelText : ""}`;
-      break;
-    }
-  }
-
-  return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${body}</g>`;
-};
-
 const renderStickerLayerSvg = (
   layer: StickerLayer,
   stickerSvg: StickerSvg | null | undefined,
@@ -1866,11 +1794,7 @@ export const renderPageDocumentSvg = (
       continue;
     }
 
-    bodies.push(
-      layer.kind === "embellishment"
-        ? renderEmbellishmentLayerSvg(layer)
-        : renderStickerLayerSvg(layer, options.resolveStickerSvg?.(layer)),
-    );
+    bodies.push(renderStickerLayerSvg(layer, options.resolveStickerSvg?.(layer)));
   }
 
   const background =
@@ -1933,25 +1857,6 @@ export const createTextLayer = (input: CreateTextLayerInput): TextLayer =>
     shadow: input.shadow ?? defaultTextShadow,
     glow: input.glow ?? defaultTextGlow,
     background: input.background ?? defaultTextBackground,
-  });
-
-export const createEmbellishmentLayer = (
-  input: CreateEmbellishmentLayerInput = {},
-): EmbellishmentLayer =>
-  embellishmentLayerSchema.parse({
-    id: input.id ?? createLayerId(),
-    kind: "embellishment",
-    x: input.x ?? 320,
-    y: input.y ?? 320,
-    width: input.width ?? 420,
-    height: input.height ?? 220,
-    rotation: input.rotation ?? -4,
-    opacity: input.opacity ?? 1,
-    locked: input.locked ?? false,
-    element: input.element ?? "paper-label",
-    color: input.color ?? "#d6a537",
-    accentColor: input.accentColor ?? "#24766e",
-    label: input.label ?? "",
   });
 
 export const createStickerLayer = (input: CreateStickerLayerInput = {}): StickerLayer =>

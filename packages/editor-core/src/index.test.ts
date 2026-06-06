@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
   addLayer,
   createBookSpreads,
-  createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
   createStickerLayer,
@@ -278,24 +277,6 @@ describe("page document helpers", () => {
     expect(reset.mask.shape).toBe("rectangle");
   });
 
-  it("creates scrapbook embellishment layers", () => {
-    const embellishment = createEmbellishmentLayer({
-      id: "sticker_1",
-      element: "paper-label",
-      color: "#fffdf7",
-      accentColor: "#d56d46",
-      label: "Picnic",
-    });
-    const document = addLayer(createPageDocument(), embellishment);
-
-    expect(document.layers[0]).toMatchObject({
-      id: "sticker_1",
-      kind: "embellishment",
-      element: "paper-label",
-      label: "Picnic",
-    });
-  });
-
   it("creates package-backed sticker layers and normalizes legacy ids", () => {
     const sticker = createStickerLayer({ id: "sticker_1", stickerId: "rainbow" });
     const document = addLayer(createPageDocument(), sticker);
@@ -491,15 +472,10 @@ describe("page document helpers", () => {
       mask: { shape: "ticket", inset: 0.08, feather: 0 },
     });
     const text = createTextLayer({ id: "text_1", text: "Family & friends" });
-    const embellishment = createEmbellishmentLayer({
-      id: "sticker_1",
-      element: "washi-tape",
-      color: "#79a9a4",
-    });
     const sticker = createStickerLayer({ id: "sticker_2", stickerId: "noto:star" });
     const washiTape = createWashiTapeLayer({ assetId: "asset_2", id: "washi_1" });
     const document = createPageDocument({
-      layers: [photo, text, embellishment, sticker, washiTape],
+      layers: [photo, text, sticker, washiTape],
     });
     const svg = renderPageDocumentSvg(document, {
       resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
@@ -515,9 +491,8 @@ describe("page document helpers", () => {
     expect(svg).toContain("Family &amp; friends");
     expect(svg).toContain("/assets/asset_1/content");
     expect(svg).toContain("/assets/asset_2/content");
-    expect(svg).toContain("washi_pattern_4");
+    expect(svg).toContain("washi_pattern_3");
     expect(svg).toContain('data-washi-outline="torn"');
-    expect(svg).toContain('stroke-opacity="0.34"');
     expect(svg).toContain('fill="#f4bd3f"');
   });
 

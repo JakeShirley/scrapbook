@@ -1,7 +1,6 @@
 import type { PageLayer, PhotoLayer, WashiTapeLayer } from "@scrapbook/editor-core";
 
 import { NumericInput } from "../../components/NumericInput";
-import { EmbellishmentControls } from "./EmbellishmentControls";
 import { PhotoControls } from "./PhotoControls";
 import { TextControls } from "./TextControls";
 import { WashiTapeControls } from "./WashiTapeControls";
@@ -79,9 +78,6 @@ export function LayerInspector({
           onChoosePhoto={onChooseWashiTapePhoto}
           resolveHref={resolveWashiTapeHref}
         />
-      ) : null}
-      {layer.kind === "embellishment" ? (
-        <EmbellishmentControls layer={layer} onChange={onChange} />
       ) : null}
     </form>
   );

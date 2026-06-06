@@ -113,7 +113,6 @@ const pageFixtures = [
     backgroundColor: "#fff6e6",
     layers: [
       photoLayer("photo_cover", "asset_sunroom", 220, 240, 1240, 980, -3),
-      embellishmentLayer("label_cover", 1220, 1120, 700, 320, "Summer notes"),
       textLayer("text_cover", "A little book of bright days", 360, 1320, 1320, 260, 92),
       stickerLayer("sticker_cover", "noto:sun-with-face", 1660, 300, 360, 360, 8),
     ],
@@ -124,7 +123,6 @@ const pageFixtures = [
       photoLayer("photo_market", "asset_postcards", 260, 280, 1180, 1500, 2),
       washiTapeLayer("tape_market", 230, 250, 1260, 160, -2, "#f8d56b", "#2f7a75"),
       textLayer("text_market", "market finds", 1480, 520, 640, 260, 76),
-      embellishmentLayer("note_market", 1450, 900, 620, 360, "fresh flowers"),
     ],
   }),
   createPage("page_trip", "Train Ride", {
@@ -140,7 +138,6 @@ const pageFixtures = [
     backgroundColor: "#fffdf7",
     layers: [
       washiTapeLayer("tape_notes", 320, 340, 1420, 170, 3, "#9cc9c5", "#fffdf7"),
-      embellishmentLayer("label_notes", 420, 780, 1100, 520, "favorite ordinary magic"),
       textLayer(
         "text_notes",
         "Keep the receipt, the flower, the tiny map.",
@@ -911,24 +908,6 @@ function textLayer(
     fontSize,
     kind: "text",
     text,
-  };
-}
-
-function embellishmentLayer(
-  id: string,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  label: string,
-) {
-  return {
-    ...baseLayer(id, x, y, width, height, -4),
-    accentColor: "#2f7a75",
-    color: "#f0c04f",
-    element: "paper-label",
-    kind: "embellishment",
-    label,
   };
 }
 
