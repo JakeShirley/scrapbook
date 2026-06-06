@@ -253,6 +253,19 @@ export class AssetRepository {
     checksumSha256: string;
     width?: number | null;
     height?: number | null;
+    dateTaken?: string | null;
+    cameraMake?: string | null;
+    cameraModel?: string | null;
+    lensModel?: string | null;
+    isoSpeed?: number | null;
+    fNumber?: number | null;
+    exposureTimeSeconds?: number | null;
+    focalLengthMm?: number | null;
+    focalLength35mmMm?: number | null;
+    orientation?: number | null;
+    gpsLatitude?: number | null;
+    gpsLongitude?: number | null;
+    gpsAltitudeMeters?: number | null;
     id?: string;
   }): AssetRecord {
     const timestamp = now(this.clock);
@@ -266,6 +279,19 @@ export class AssetRepository {
       width: input.width ?? null,
       height: input.height ?? null,
       checksumSha256: input.checksumSha256,
+      dateTaken: input.dateTaken ?? null,
+      cameraMake: input.cameraMake ?? null,
+      cameraModel: input.cameraModel ?? null,
+      lensModel: input.lensModel ?? null,
+      isoSpeed: input.isoSpeed ?? null,
+      fNumber: input.fNumber ?? null,
+      exposureTimeSeconds: input.exposureTimeSeconds ?? null,
+      focalLengthMm: input.focalLengthMm ?? null,
+      focalLength35mmMm: input.focalLength35mmMm ?? null,
+      orientation: input.orientation ?? null,
+      gpsLatitude: input.gpsLatitude ?? null,
+      gpsLongitude: input.gpsLongitude ?? null,
+      gpsAltitudeMeters: input.gpsAltitudeMeters ?? null,
       createdAt: timestamp,
       updatedAt: timestamp,
     };

@@ -6,6 +6,16 @@ import { AppModal } from "../../components/layout";
 import { formatBytes, formatDimensions } from "../../lib/format";
 import type { Asset } from "../../types";
 
+type SortMode = "taken" | "uploaded";
+
+const sortModeLabels: Record<SortMode, string> = {
+  taken: "Date taken (newest)",
+  uploaded: "Date uploaded (newest)",
+};
+
+const sortKeyFor = (asset: Asset, mode: SortMode): string =>
+  mode === "taken" ? (asset.dateTaken ?? asset.createdAt) : asset.createdAt;
+
 export function PhotoPickerModal({
   actionLabel = "Add",
   assets,
@@ -20,19 +30,22 @@ export function PhotoPickerModal({
   title?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("taken");
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleAssets = useMemo(() => {
-    if (!normalizedQuery) {
-      return assets;
-    }
+    const filtered = normalizedQuery
+      ? assets.filter((asset) =>
+          [asset.originalFilename, formatDimensions(asset), formatBytes(asset.byteSize)]
+            .join(" ")
+            .toLocaleLowerCase()
+            .includes(normalizedQuery),
+        )
+      : assets;
 
-    return assets.filter((asset) =>
-      [asset.originalFilename, formatDimensions(asset), formatBytes(asset.byteSize)]
-        .join(" ")
-        .toLocaleLowerCase()
-        .includes(normalizedQuery),
+    return [...filtered].sort((a, b) =>
+      sortKeyFor(b, sortMode).localeCompare(sortKeyFor(a, sortMode)),
     );
-  }, [assets, normalizedQuery]);
+  }, [assets, normalizedQuery, sortMode]);
 
   const addPhoto = (asset: Asset) => {
     onAddPhoto(asset);
@@ -50,6 +63,20 @@ export function PhotoPickerModal({
               onChange={(event) => setQuery(event.currentTarget.value)}
             />
           </Field>
+          <label className="photo-picker-sort" htmlFor="photo-picker-sort">
+            <span>Sort by</span>
+            <select
+              id="photo-picker-sort"
+              value={sortMode}
+              onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}
+            >
+              {(Object.keys(sortModeLabels) as SortMode[]).map((mode) => (
+                <option key={mode} value={mode}>
+                  {sortModeLabels[mode]}
+                </option>
+              ))}
+            </select>
+          </label>
           <span className="photo-picker-count">
             {visibleAssets.length} of {assets.length}
           </span>

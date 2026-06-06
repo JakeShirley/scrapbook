@@ -527,6 +527,26 @@ textarea:focus-visible {
   padding: 14px;
 }
 
+.library-sort-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 14px 0;
+}
+
+.library-sort-toolbar label {
+  display: inline-grid;
+  gap: 4px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--sb-neutral-foreground-2);
+}
+
+.library-sort-toolbar select {
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
 .asset-tile {
   display: grid;
   grid-template-columns: 78px minmax(0, 1fr);
@@ -2502,6 +2522,13 @@ textarea:focus-visible {
   max-height: min(720px, calc(100vh - 48px));
 }
 
+.app-modal-dialog[data-size="auto"] {
+  width: auto;
+  height: auto;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+}
+
 .app-modal-header {
   display: flex;
   align-items: center;
@@ -2556,6 +2583,10 @@ textarea:focus-visible {
   background: var(--sb-neutral-background-2);
 }
 
+.app-modal-dialog[data-size="auto"] .app-modal-body {
+  overflow: hidden;
+}
+
 .app-modal-dialog[data-size="compact"] .app-modal-body {
   padding: 16px 18px 18px;
   background: var(--sb-neutral-background);
@@ -2590,12 +2621,26 @@ textarea:focus-visible {
 
 .photo-picker-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 420px) auto;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
   align-items: end;
   gap: 12px;
   border-bottom: 1px solid var(--sb-neutral-stroke-3);
   padding: 14px 18px;
   background: var(--sb-neutral-background);
+}
+
+.photo-picker-sort {
+  display: grid;
+  gap: 4px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--sb-neutral-foreground-2);
+}
+
+.photo-picker-sort select {
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 4px;
 }
 
 .photo-picker-count {
@@ -2682,6 +2727,110 @@ textarea:focus-visible {
 .photo-picker-add-indicator svg {
   width: 18px;
   height: 18px;
+}
+
+.photo-info-modal {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(260px, 320px);
+  gap: 20px;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+  padding: 20px;
+  background: var(--sb-neutral-background-2);
+}
+
+.photo-info-preview {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 8px;
+  background: var(--sb-neutral-background-4);
+}
+
+.photo-info-preview img {
+  display: block;
+  /* Cap the preview so the dialog never needs to scroll. The offsets account
+     for the dialog inset, header, body padding, the details column, and the
+     grid gap; rounded up to stay safe from sub-pixel discrepancies. */
+  max-width: calc(100vw - 432px);
+  max-height: calc(100vh - 160px);
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.photo-info-details-stack {
+  display: grid;
+  align-self: stretch;
+  align-content: start;
+  gap: 12px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.photo-info-section {
+  display: grid;
+  gap: 8px;
+}
+
+.photo-info-section h4 {
+  margin: 0;
+  color: var(--sb-neutral-foreground-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.photo-info-details {
+  display: grid;
+  align-self: start;
+  align-content: start;
+  gap: 12px;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--sb-neutral-stroke-3);
+  border-radius: 8px;
+  background: var(--sb-neutral-background);
+}
+
+.photo-info-details > div {
+  display: grid;
+  gap: 2px;
+}
+
+.photo-info-details dt {
+  color: var(--sb-neutral-foreground-3);
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.photo-info-details dd {
+  margin: 0;
+  color: var(--sb-neutral-foreground);
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+
+.photo-info-details code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .photo-info-modal {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .photo-info-preview img {
+    max-width: calc(100vw - 80px);
+    max-height: 50vh;
+  }
 }
 
 .book-library-picker-modal {
@@ -2812,6 +2961,10 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
     gap: 6px;
     padding: 12px;
+  }
+
+  .photo-picker-sort {
+    justify-self: stretch;
   }
 
   .photo-picker-count {
