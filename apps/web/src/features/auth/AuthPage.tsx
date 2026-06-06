@@ -8,9 +8,10 @@ import {
   TabList,
 } from "@fluentui/react-components";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
+import { apiClient } from "../../apiClient";
 import { getErrorMessage } from "../../lib/errors";
 import type { AuthMode } from "../../types";
 
@@ -24,7 +25,27 @@ export function AuthPage({
   const [mode, setMode] = useState<AuthMode>("login");
   const [error, setError] = useState<string | null>(initialMessage ?? null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    apiClient
+      .getHealth()
+      .then((health) => {
+        if (isMounted) {
+          setVersion(health.version);
+        }
+      })
+      .catch(() => {
+        // Hide the version line if the health endpoint is unreachable.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -50,7 +71,7 @@ export function AuthPage({
           </div>
           <div>
             <h1 id="auth-heading">Scrapbook</h1>
-            <p>0.0.0-development</p>
+            {version ? <p>{version}</p> : null}
           </div>
         </div>
 
