@@ -2173,40 +2173,6 @@ textarea:focus-visible {
   background: var(--sb-brand-tint);
 }
 
-.element-preview {
-  --element-accent: #24766e;
-  --element-color: #d6a537;
-  background: var(--element-color);
-}
-
-.element-preview {
-  display: block;
-  width: 46px;
-  aspect-ratio: 1;
-  border: 1px solid #d8ddd8;
-  border-radius: 6px;
-}
-
-.text-element-preview {
-  display: grid;
-  place-items: center;
-  color: #202426;
-  background: #ffffff;
-}
-
-.text-element-preview svg {
-  width: 23px;
-  height: 23px;
-}
-
-.asset-rail-list,
-.layer-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 12px;
-}
-
 .asset-rail-actions {
   display: grid;
   gap: 8px;
@@ -2274,31 +2240,15 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
-.element-rail-item {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 54px;
-  border: 1px solid #d8ddd8;
-  border-radius: 8px;
-  padding: 5px;
-  color: #202426;
-  text-align: left;
-  background: #fbfbf8;
-}
-
 .nested-heading {
   border-top: 1px solid #edf0ed;
 }
 
-.element-rail-item span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .layer-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
   list-style: none;
 }
 
@@ -3641,7 +3591,6 @@ body {
 .book-page-list li,
 .spread-preview-row span,
 .book-filmstrip-select,
-.element-rail-item,
 .layer-list li,
 .inspector-section {
   border-color: var(--sb-neutral-stroke-2);
@@ -3654,7 +3603,6 @@ body {
 .asset-tile:hover,
 .item-list button:hover,
 .book-card-list button:hover,
-.element-rail-item:hover,
 .book-filmstrip-select:hover {
   border-color: var(--sb-brand);
   background: var(--sb-brand-tint);
@@ -3673,8 +3621,7 @@ body {
   background: var(--sb-neutral-background-4);
 }
 
-.asset-swatch,
-.element-preview {
+.asset-swatch {
   border-color: var(--sb-neutral-stroke-2);
   border-radius: 6px;
 }
@@ -4348,16 +4295,6 @@ body {
   max-height: calc((var(--asset-rail-photo-size, 92px) + 6px) * 4 + 12px);
   min-height: 0;
   overflow-y: auto;
-}
-
-.book-editor-page .asset-rail-list {
-  min-height: 0;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-.book-editor-page .element-rail-item {
-  min-height: 50px;
 }
 
 .book-editor-page .book-editor-stage {

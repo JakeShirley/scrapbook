@@ -82,6 +82,14 @@ export function AssetRail(props: AssetRailProps) {
         >
           Add washi tape
         </Button>
+        <Button
+          type="button"
+          className="secondary-button full-width-button"
+          icon={<TextTRegular />}
+          onClick={onAddText}
+        >
+          Add text
+        </Button>
       </div>
       {isReferencedMode ? (
         <ul className="asset-rail-photos" aria-label="Photos referenced by this book">
@@ -139,18 +147,6 @@ export function AssetRail(props: AssetRailProps) {
         >
           Add sticker
         </Button>
-      </div>
-      <div className="panel-heading compact-heading nested-heading">
-        <h3>Elements</h3>
-        <span>1</span>
-      </div>
-      <div className="asset-rail-list">
-        <button type="button" className="element-rail-item" onClick={onAddText}>
-          <span className="element-preview text-element-preview" aria-hidden="true">
-            <TextTRegular />
-          </span>
-          <span>Text</span>
-        </button>
       </div>
     </aside>
   );
