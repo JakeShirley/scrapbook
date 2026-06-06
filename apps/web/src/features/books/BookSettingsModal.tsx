@@ -39,12 +39,7 @@ export function BookSettingsModal({
   onTitleDraftChange,
 }: BookSettingsModalProps) {
   return (
-    <AppModal
-      title="Book settings"
-      size="compact"
-      closeDisabled={closeDisabled}
-      onClose={onClose}
-    >
+    <AppModal title="Book settings" size="compact" closeDisabled={closeDisabled} onClose={onClose}>
       <form className="book-settings-form" onSubmit={onSubmit}>
         <Field label="Book title">
           <Input
