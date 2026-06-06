@@ -15,6 +15,8 @@ describe("SQLite migrations", () => {
         "0004_add_page_document_storage_key",
         "0005_add_book_cover_spread_enabled",
         "0006_add_book_assets",
+        "0007_add_assets_date_taken",
+        "0008_add_assets_exif_details",
       ]);
       expect(runMigrations(connection.sqlite)).toEqual([]);
       expect(getAppliedMigrations(connection.sqlite)).toEqual([
@@ -24,6 +26,8 @@ describe("SQLite migrations", () => {
         "0004_add_page_document_storage_key",
         "0005_add_book_cover_spread_enabled",
         "0006_add_book_assets",
+        "0007_add_assets_date_taken",
+        "0008_add_assets_exif_details",
       ]);
 
       const tableNames = connection.sqlite

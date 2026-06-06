@@ -79,7 +79,7 @@ export function AppModal({
   title: string;
   children: ReactNode;
   closeDisabled?: boolean;
-  size?: "compact" | "wide";
+  size?: "auto" | "compact" | "wide";
   onClose: () => void;
 }) {
   const titleId = useId();

@@ -175,6 +175,29 @@ CREATE INDEX book_assets_account_id_idx ON book_assets (account_id);
 CREATE INDEX book_assets_book_id_idx ON book_assets (book_id);
 `,
   },
+  {
+    id: "0007_add_assets_date_taken",
+    sql: `
+ALTER TABLE assets ADD COLUMN date_taken TEXT;
+`,
+  },
+  {
+    id: "0008_add_assets_exif_details",
+    sql: `
+ALTER TABLE assets ADD COLUMN camera_make TEXT;
+ALTER TABLE assets ADD COLUMN camera_model TEXT;
+ALTER TABLE assets ADD COLUMN lens_model TEXT;
+ALTER TABLE assets ADD COLUMN iso_speed INTEGER;
+ALTER TABLE assets ADD COLUMN f_number REAL;
+ALTER TABLE assets ADD COLUMN exposure_time_seconds REAL;
+ALTER TABLE assets ADD COLUMN focal_length_mm REAL;
+ALTER TABLE assets ADD COLUMN focal_length_35mm_mm INTEGER;
+ALTER TABLE assets ADD COLUMN orientation INTEGER;
+ALTER TABLE assets ADD COLUMN gps_latitude REAL;
+ALTER TABLE assets ADD COLUMN gps_longitude REAL;
+ALTER TABLE assets ADD COLUMN gps_altitude_meters REAL;
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

@@ -1,20 +1,45 @@
 import { Button } from "@fluentui/react-components";
 import { ArrowUploadRegular } from "@fluentui/react-icons";
 import type { ChangeEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apiClient } from "../../apiClient";
 import { Panel, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import { formatBytes, formatDimensions } from "../../lib/format";
 import type { Asset } from "../../types";
+import { PhotoInfoModal } from "./PhotoInfoModal";
+
+type SortMode = "taken" | "uploaded";
+
+const sortModeLabels: Record<SortMode, string> = {
+  taken: "Date taken (newest)",
+  uploaded: "Date uploaded (newest)",
+};
+
+const sortKeyFor = (asset: Asset, mode: SortMode): string =>
+  mode === "taken" ? (asset.dateTaken ?? asset.createdAt) : asset.createdAt;
 
 export function LibraryView() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("taken");
+  const [inspectedAssetId, setInspectedAssetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const sortedAssets = useMemo(
+    () =>
+      [...assets].sort((a, b) => sortKeyFor(b, sortMode).localeCompare(sortKeyFor(a, sortMode))),
+    [assets, sortMode],
+  );
+
+  const inspectedAsset = useMemo(
+    () =>
+      inspectedAssetId ? (assets.find((asset) => asset.id === inspectedAssetId) ?? null) : null,
+    [assets, inspectedAssetId],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -123,22 +148,49 @@ export function LibraryView() {
           {isLoading ? <p className="empty-state">Loading assets</p> : null}
           {!isLoading && assets.length === 0 ? <p className="empty-state">No assets yet</p> : null}
           {assets.length > 0 ? (
-            <div className="asset-grid">
-              {assets.map((asset) => (
-                <button className="asset-tile" type="button" key={asset.id}>
-                  <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
-                  <span className="asset-tile-copy">
-                    <span>{asset.originalFilename}</span>
-                    <span>
-                      {formatDimensions(asset)} / {formatBytes(asset.byteSize)}
+            <>
+              <div className="library-sort-toolbar">
+                <label htmlFor="library-sort">
+                  <span>Sort by</span>
+                  <select
+                    id="library-sort"
+                    value={sortMode}
+                    onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}
+                  >
+                    {(Object.keys(sortModeLabels) as SortMode[]).map((mode) => (
+                      <option key={mode} value={mode}>
+                        {sortModeLabels[mode]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="asset-grid">
+                {sortedAssets.map((asset) => (
+                  <button
+                    className="asset-tile"
+                    type="button"
+                    key={asset.id}
+                    aria-label={`View info for ${asset.originalFilename}`}
+                    onClick={() => setInspectedAssetId(asset.id)}
+                  >
+                    <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
+                    <span className="asset-tile-copy">
+                      <span>{asset.originalFilename}</span>
+                      <span>
+                        {formatDimensions(asset)} / {formatBytes(asset.byteSize)}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            </>
           ) : null}
         </Panel>
       </div>
+      {inspectedAsset ? (
+        <PhotoInfoModal asset={inspectedAsset} onClose={() => setInspectedAssetId(null)} />
+      ) : null}
     </>
   );
 }

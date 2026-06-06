@@ -145,6 +145,52 @@ const createTiff = (): Promise<Buffer> =>
     .tiff({ compression: "none" })
     .toBuffer();
 
+const createJpegWithExif = (input: {
+  dateTimeOriginal?: string;
+  offsetTimeOriginal?: string;
+  make?: string;
+  model?: string;
+  lensModel?: string;
+  iso?: string;
+  fNumber?: string;
+  exposureTime?: string;
+  focalLength?: string;
+  focalLengthIn35mmFormat?: string;
+  orientation?: string;
+}): Promise<Buffer> => {
+  const ifd0: Record<string, string> = {};
+  const ifd2: Record<string, string> = {};
+
+  if (input.make) ifd0.Make = input.make;
+  if (input.model) ifd0.Model = input.model;
+  if (input.orientation) ifd0.Orientation = input.orientation;
+
+  if (input.dateTimeOriginal) ifd2.DateTimeOriginal = input.dateTimeOriginal;
+  if (input.offsetTimeOriginal) ifd2.OffsetTimeOriginal = input.offsetTimeOriginal;
+  if (input.lensModel) ifd2.LensModel = input.lensModel;
+  if (input.iso) ifd2.ISOSpeedRatings = input.iso;
+  if (input.fNumber) ifd2.FNumber = input.fNumber;
+  if (input.exposureTime) ifd2.ExposureTime = input.exposureTime;
+  if (input.focalLength) ifd2.FocalLength = input.focalLength;
+  if (input.focalLengthIn35mmFormat) ifd2.FocalLengthIn35mmFilm = input.focalLengthIn35mmFormat;
+
+  const exif: Record<string, Record<string, string>> = {};
+  if (Object.keys(ifd0).length > 0) exif.IFD0 = ifd0;
+  if (Object.keys(ifd2).length > 0) exif.IFD2 = ifd2;
+
+  return sharp({
+    create: {
+      background: { b: 60, g: 140, r: 220 },
+      channels: 3,
+      height: 16,
+      width: 24,
+    },
+  })
+    .withExif(exif)
+    .jpeg()
+    .toBuffer();
+};
+
 const toArrayBuffer = (buffer: Buffer): ArrayBuffer =>
   buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 
@@ -575,6 +621,66 @@ describe("api app", () => {
     expect(previewResponse.status).toBe(200);
     expect(previewResponse.headers.get("content-type")).toBe("image/jpeg");
     expect(Buffer.from(await previewResponse.arrayBuffer()).byteLength).toBeGreaterThan(0);
+  });
+
+  it("extracts EXIF date taken from uploaded photos", async () => {
+    const app = await createTestAppWithStorage();
+    const cookie = await registerAccount(app, {
+      displayName: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    const withExif = await createJpegWithExif({
+      dateTimeOriginal: "2024:03:14 09:26:53",
+      offsetTimeOriginal: "+00:00",
+      make: "Canon",
+      model: "EOS R5",
+      lensModel: "RF 24-70mm F2.8 L IS USM",
+      iso: "400",
+      fNumber: "2.8",
+      exposureTime: "1/250",
+      focalLength: "50",
+      focalLengthIn35mmFormat: "50",
+      orientation: "1",
+    });
+    const withExifResponse = await uploadImage(
+      app,
+      cookie,
+      new File([toArrayBuffer(withExif)], "trip.jpg", { type: "image/jpeg" }),
+    );
+
+    expect(withExifResponse.status).toBe(201);
+
+    const withExifAsset = assetResponseSchema.parse(await withExifResponse.json());
+
+    expect(withExifAsset.dateTaken).toBe("2024-03-14T09:26:53.000Z");
+    expect(withExifAsset.cameraMake).toBe("Canon");
+    expect(withExifAsset.cameraModel).toBe("EOS R5");
+    expect(withExifAsset.lensModel).toBe("RF 24-70mm F2.8 L IS USM");
+    expect(withExifAsset.isoSpeed).toBe(400);
+    expect(withExifAsset.fNumber).toBeCloseTo(2.8, 1);
+    expect(withExifAsset.exposureTimeSeconds).toBeCloseTo(1 / 250, 5);
+    expect(withExifAsset.focalLengthMm).toBeCloseTo(50, 1);
+    expect(withExifAsset.focalLength35mmMm).toBe(50);
+    expect(withExifAsset.orientation).toBe(1);
+    expect(withExifAsset.gpsLatitude).toBeNull();
+    expect(withExifAsset.gpsLongitude).toBeNull();
+
+    const withoutExif = await createPng();
+    const withoutExifResponse = await uploadImage(
+      app,
+      cookie,
+      new File([toArrayBuffer(withoutExif)], "plain.png", { type: "image/png" }),
+    );
+
+    expect(withoutExifResponse.status).toBe(201);
+
+    const withoutExifAsset = assetResponseSchema.parse(await withoutExifResponse.json());
+
+    expect(withoutExifAsset.dateTaken).toBeNull();
+    expect(withoutExifAsset.cameraMake).toBeNull();
+    expect(withoutExifAsset.isoSpeed).toBeNull();
+    expect(withoutExifAsset.gpsLatitude).toBeNull();
   });
 
   it("rejects invalid uploads with documented errors", async () => {

@@ -8,6 +8,16 @@ import { getErrorMessage } from "../../lib/errors";
 import { formatBytes, formatDimensions } from "../../lib/format";
 import type { Asset } from "../../types";
 
+type SortMode = "taken" | "uploaded";
+
+const sortModeLabels: Record<SortMode, string> = {
+  taken: "Date taken (newest)",
+  uploaded: "Date uploaded (newest)",
+};
+
+const sortKeyFor = (asset: Asset, mode: SortMode): string =>
+  mode === "taken" ? (asset.dateTaken ?? asset.createdAt) : asset.createdAt;
+
 export function BookLibraryPickerModal({
   bookId,
   referencedAssetIds,
@@ -22,6 +32,7 @@ export function BookLibraryPickerModal({
   const [libraryAssets, setLibraryAssets] = useState<Asset[] | null>(null);
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("taken");
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,16 +63,18 @@ export function BookLibraryPickerModal({
     if (!libraryAssets) {
       return [];
     }
-    if (!normalizedQuery) {
-      return libraryAssets;
-    }
-    return libraryAssets.filter((asset) =>
-      [asset.originalFilename, formatDimensions(asset), formatBytes(asset.byteSize)]
-        .join(" ")
-        .toLocaleLowerCase()
-        .includes(normalizedQuery),
+    const filtered = normalizedQuery
+      ? libraryAssets.filter((asset) =>
+          [asset.originalFilename, formatDimensions(asset), formatBytes(asset.byteSize)]
+            .join(" ")
+            .toLocaleLowerCase()
+            .includes(normalizedQuery),
+        )
+      : libraryAssets;
+    return [...filtered].sort((a, b) =>
+      sortKeyFor(b, sortMode).localeCompare(sortKeyFor(a, sortMode)),
     );
-  }, [libraryAssets, normalizedQuery]);
+  }, [libraryAssets, normalizedQuery, sortMode]);
 
   const selectableSelectedCount = useMemo(() => {
     let count = 0;
@@ -126,6 +139,21 @@ export function BookLibraryPickerModal({
               onChange={(event) => setQuery(event.currentTarget.value)}
             />
           </Field>
+          <label className="photo-picker-sort" htmlFor="book-library-picker-sort">
+            <span>Sort by</span>
+            <select
+              id="book-library-picker-sort"
+              value={sortMode}
+              disabled={libraryAssets === null}
+              onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}
+            >
+              {(Object.keys(sortModeLabels) as SortMode[]).map((mode) => (
+                <option key={mode} value={mode}>
+                  {sortModeLabels[mode]}
+                </option>
+              ))}
+            </select>
+          </label>
           <span className="photo-picker-count">
             {libraryAssets === null
               ? "Loading..."

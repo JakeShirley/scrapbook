@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const authIdentityProviders = ["email_password", "passkey", "native_token"] as const;
 export const assetVariantKinds = ["thumbnail", "preview", "render", "export"] as const;
@@ -88,6 +88,19 @@ export const assets = sqliteTable(
     width: integer("width"),
     height: integer("height"),
     checksumSha256: text("checksum_sha256").notNull(),
+    dateTaken: text("date_taken"),
+    cameraMake: text("camera_make"),
+    cameraModel: text("camera_model"),
+    lensModel: text("lens_model"),
+    isoSpeed: integer("iso_speed"),
+    fNumber: real("f_number"),
+    exposureTimeSeconds: real("exposure_time_seconds"),
+    focalLengthMm: real("focal_length_mm"),
+    focalLength35mmMm: integer("focal_length_35mm_mm"),
+    orientation: integer("orientation"),
+    gpsLatitude: real("gps_latitude"),
+    gpsLongitude: real("gps_longitude"),
+    gpsAltitudeMeters: real("gps_altitude_meters"),
     ...timestampColumns(),
   },
   (table) => [
