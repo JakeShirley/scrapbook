@@ -1,6 +1,6 @@
 import type { PageLayer, PhotoLayer, WashiTapeLayer } from "@scrapbook/editor-core";
-import type { ChangeEvent } from "react";
 
+import { NumericInput } from "../../components/NumericInput";
 import { EmbellishmentControls } from "./EmbellishmentControls";
 import { PhotoControls } from "./PhotoControls";
 import { TextControls } from "./TextControls";
@@ -18,10 +18,8 @@ export function LayerInspector({
   resolveWashiTapeHref?: ((layer: WashiTapeLayer) => string | null | undefined) | undefined;
 }) {
   if (!layer) return <p className="empty-state">Select a layer to edit it.</p>;
-  const updateNumber =
-    (key: "height" | "opacity" | "rotation" | "width" | "x" | "y") =>
-    (event: ChangeEvent<HTMLInputElement>) =>
-      onChange({ [key]: Number(event.currentTarget.value) } as Partial<PageLayer>);
+  const updateNumber = (key: "height" | "rotation" | "width" | "x" | "y") => (value: number) =>
+    onChange({ [key]: value } as Partial<PageLayer>);
   const updatePhotoLayer = (update: Partial<PhotoLayer>) => onChange(update as Partial<PageLayer>);
   const updateWashiTapeLayer = (update: Partial<WashiTapeLayer>) =>
     onChange(update as Partial<PageLayer>);
@@ -33,23 +31,23 @@ export function LayerInspector({
         <div className="layer-controls-grid">
           <label>
             <span>X</span>
-            <input type="number" value={layer.x} onChange={updateNumber("x")} />
+            <NumericInput value={layer.x} onChange={updateNumber("x")} />
           </label>
           <label>
             <span>Y</span>
-            <input type="number" value={layer.y} onChange={updateNumber("y")} />
+            <NumericInput value={layer.y} onChange={updateNumber("y")} />
           </label>
           <label>
             <span>W</span>
-            <input min={1} type="number" value={layer.width} onChange={updateNumber("width")} />
+            <NumericInput min={1} value={layer.width} onChange={updateNumber("width")} />
           </label>
           <label>
             <span>H</span>
-            <input min={1} type="number" value={layer.height} onChange={updateNumber("height")} />
+            <NumericInput min={1} value={layer.height} onChange={updateNumber("height")} />
           </label>
           <label className="rotation-field">
             <span>Rotation</span>
-            <input type="number" value={layer.rotation} onChange={updateNumber("rotation")} />
+            <NumericInput value={layer.rotation} onChange={updateNumber("rotation")} />
           </label>
           <label className="opacity-field">
             <span>Opacity</span>
@@ -59,7 +57,7 @@ export function LayerInspector({
               step={0.05}
               type="range"
               value={layer.opacity}
-              onChange={updateNumber("opacity")}
+              onChange={(event) => onChange({ opacity: Number(event.currentTarget.value) })}
             />
           </label>
           <label className="checkbox-label">

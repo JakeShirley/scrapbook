@@ -2,6 +2,8 @@ import { Button } from "@fluentui/react-components";
 import { PageFitRegular } from "@fluentui/react-icons";
 import { type PhotoLayer, resetPhotoLayerEdits } from "@scrapbook/editor-core";
 
+import { NumericInput } from "../../components/NumericInput";
+
 export function PhotoControls({
   layer,
   onChange,
@@ -69,28 +71,22 @@ export function PhotoControls({
         <div className="inspector-grid">
           <label>
             <span>Offset X</span>
-            <input
+            <NumericInput
               max={1}
               min={-1}
               step={0.01}
-              type="number"
               value={layer.photoTransform.offsetX}
-              onChange={(event) =>
-                updatePhotoTransform({ offsetX: Number(event.currentTarget.value) })
-              }
+              onChange={(offsetX) => updatePhotoTransform({ offsetX })}
             />
           </label>
           <label>
             <span>Offset Y</span>
-            <input
+            <NumericInput
               max={1}
               min={-1}
               step={0.01}
-              type="number"
               value={layer.photoTransform.offsetY}
-              onChange={(event) =>
-                updatePhotoTransform({ offsetY: Number(event.currentTarget.value) })
-              }
+              onChange={(offsetY) => updatePhotoTransform({ offsetY })}
             />
           </label>
         </div>
@@ -100,46 +96,42 @@ export function PhotoControls({
         <div className="inspector-grid">
           <label>
             <span>Crop X</span>
-            <input
+            <NumericInput
               max={1 - layer.crop.width}
               min={0}
               step={0.01}
-              type="number"
               value={layer.crop.x}
-              onChange={(event) => updateCrop({ x: Number(event.currentTarget.value) })}
+              onChange={(x) => updateCrop({ x })}
             />
           </label>
           <label>
             <span>Crop Y</span>
-            <input
+            <NumericInput
               max={1 - layer.crop.height}
               min={0}
               step={0.01}
-              type="number"
               value={layer.crop.y}
-              onChange={(event) => updateCrop({ y: Number(event.currentTarget.value) })}
+              onChange={(y) => updateCrop({ y })}
             />
           </label>
           <label>
             <span>Crop W</span>
-            <input
+            <NumericInput
               max={1 - layer.crop.x}
               min={0.05}
               step={0.01}
-              type="number"
               value={layer.crop.width}
-              onChange={(event) => updateCrop({ width: Number(event.currentTarget.value) })}
+              onChange={(width) => updateCrop({ width })}
             />
           </label>
           <label>
             <span>Crop H</span>
-            <input
+            <NumericInput
               max={1 - layer.crop.y}
               min={0.05}
               step={0.01}
-              type="number"
               value={layer.crop.height}
-              onChange={(event) => updateCrop({ height: Number(event.currentTarget.value) })}
+              onChange={(height) => updateCrop({ height })}
             />
           </label>
         </div>
@@ -166,12 +158,11 @@ export function PhotoControls({
           </label>
           <label>
             <span>Border</span>
-            <input
+            <NumericInput
               max={160}
               min={0}
-              type="number"
               value={layer.border.width}
-              onChange={(event) => updateBorder({ width: Number(event.currentTarget.value) })}
+              onChange={(width) => updateBorder({ width })}
             />
           </label>
           <label>
@@ -231,42 +222,38 @@ export function PhotoControls({
         <div className="inspector-grid">
           <label>
             <span>Offset X</span>
-            <input
+            <NumericInput
               max={400}
               min={-400}
-              type="number"
               value={layer.shadow.offsetX}
-              onChange={(event) => updateShadow({ offsetX: Number(event.currentTarget.value) })}
+              onChange={(offsetX) => updateShadow({ offsetX })}
             />
           </label>
           <label>
             <span>Offset Y</span>
-            <input
+            <NumericInput
               max={400}
               min={-400}
-              type="number"
               value={layer.shadow.offsetY}
-              onChange={(event) => updateShadow({ offsetY: Number(event.currentTarget.value) })}
+              onChange={(offsetY) => updateShadow({ offsetY })}
             />
           </label>
           <label>
             <span>Blur</span>
-            <input
+            <NumericInput
               max={400}
               min={0}
-              type="number"
               value={layer.shadow.blur}
-              onChange={(event) => updateShadow({ blur: Number(event.currentTarget.value) })}
+              onChange={(blur) => updateShadow({ blur })}
             />
           </label>
           <label>
             <span>Spread</span>
-            <input
+            <NumericInput
               max={160}
               min={-120}
-              type="number"
               value={layer.shadow.spread}
-              onChange={(event) => updateShadow({ spread: Number(event.currentTarget.value) })}
+              onChange={(spread) => updateShadow({ spread })}
             />
           </label>
         </div>
