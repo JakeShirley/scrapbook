@@ -41,7 +41,6 @@ export function BookSettingsModal({
   return (
     <AppModal
       title="Book settings"
-      eyebrow={book.title}
       size="compact"
       closeDisabled={closeDisabled}
       onClose={onClose}

@@ -1275,7 +1275,6 @@ export function PageCanvas({
           >
             <header className="selected-layer-edit-header">
               <div className="selected-layer-edit-title">
-                <span>Layer</span>
                 <h3>{selectedLayerLabel}</h3>
               </div>
               <button

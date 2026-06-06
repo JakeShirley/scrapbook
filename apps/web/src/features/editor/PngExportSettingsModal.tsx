@@ -15,12 +15,10 @@ export type PngExportSettings = {
 
 export function PngExportSettingsModal({
   closeDisabled = false,
-  eyebrow,
   onClose,
   onSubmit,
 }: {
   closeDisabled?: boolean;
-  eyebrow?: string;
   onClose: () => void;
   onSubmit: (settings: PngExportSettings) => void;
 }) {
@@ -45,7 +43,6 @@ export function PngExportSettingsModal({
   return (
     <AppModal
       title="PNG export settings"
-      {...(eyebrow === undefined ? {} : { eyebrow })}
       size="compact"
       closeDisabled={closeDisabled}
       onClose={onClose}
