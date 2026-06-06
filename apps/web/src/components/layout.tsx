@@ -71,14 +71,12 @@ export function Panel({
 
 export function AppModal({
   title,
-  eyebrow,
   children,
   closeDisabled = false,
   size = "wide",
   onClose,
 }: {
   title: string;
-  eyebrow?: string;
   children: ReactNode;
   closeDisabled?: boolean;
   size?: "compact" | "wide";
@@ -123,7 +121,6 @@ export function AppModal({
       >
         <header className="app-modal-header">
           <div className="app-modal-title">
-            {eyebrow ? <span>{eyebrow}</span> : null}
             <h3 id={titleId}>{title}</h3>
           </div>
           <button

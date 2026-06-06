@@ -1263,7 +1263,6 @@ export function BookEditorView() {
       />
       {pngExportTarget ? (
         <PngExportSettingsModal
-          eyebrow={book.title}
           closeDisabled={isWorking}
           onClose={() => setPngExportTarget(null)}
           onSubmit={submitPngExport}
@@ -1273,7 +1272,6 @@ export function BookEditorView() {
         <PhotoPickerModal
           actionLabel="Use as pattern"
           assets={assets}
-          eyebrow={activePage?.title ?? book.title}
           title="Choose pattern photo"
           onAddPhoto={setWashiTapePhotoPattern}
           onClose={() => setPhotoPickerMode(null)}
@@ -1282,7 +1280,6 @@ export function BookEditorView() {
       {isLibraryPickerOpen ? (
         <BookLibraryPickerModal
           bookId={book.id}
-          bookTitle={book.title}
           referencedAssetIds={new Set(assets.map((asset) => asset.id))}
           onAdded={(referencedAssets) => setAssets(referencedAssets)}
           onClose={() => setIsLibraryPickerOpen(false)}
@@ -1290,7 +1287,6 @@ export function BookEditorView() {
       ) : null}
       {isStickerPickerOpen ? (
         <StickerPickerModal
-          eyebrow={activePage?.title ?? book.title}
           onAddSticker={addSticker}
           onClose={() => setIsStickerPickerOpen(false)}
         />
@@ -1313,7 +1309,6 @@ export function BookEditorView() {
       {isDeleteBookConfirmationOpen ? (
         <AppModal
           title="Delete book?"
-          eyebrow={book.title}
           size="compact"
           closeDisabled={isWorking}
           onClose={() => setIsDeleteBookConfirmationOpen(false)}

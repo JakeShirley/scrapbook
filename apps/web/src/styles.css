@@ -2519,13 +2519,6 @@ textarea:focus-visible {
   min-width: 0;
 }
 
-.app-modal-title span {
-  color: var(--sb-neutral-foreground-3);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
 .app-modal-title h3 {
   overflow: hidden;
   margin: 0;
@@ -3689,13 +3682,6 @@ body {
   display: grid;
   gap: 2px;
   min-width: 0;
-}
-
-.selected-layer-edit-title span {
-  color: var(--sb-neutral-foreground-3);
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
 .selected-layer-edit-title h3 {

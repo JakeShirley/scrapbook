@@ -9,14 +9,12 @@ import type { Asset } from "../../types";
 export function PhotoPickerModal({
   actionLabel = "Add",
   assets,
-  eyebrow,
   onAddPhoto,
   onClose,
   title = "Add photo",
 }: {
   actionLabel?: string;
   assets: Asset[];
-  eyebrow?: string;
   onAddPhoto: (asset: Asset) => void;
   onClose: () => void;
   title?: string;
@@ -42,7 +40,7 @@ export function PhotoPickerModal({
   };
 
   return (
-    <AppModal title={title} {...(eyebrow === undefined ? {} : { eyebrow })} onClose={onClose}>
+    <AppModal title={title} onClose={onClose}>
       <div className="photo-picker-modal">
         <div className="photo-picker-toolbar">
           <Field label="Search photos">

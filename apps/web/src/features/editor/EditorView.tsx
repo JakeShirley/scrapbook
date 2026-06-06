@@ -326,7 +326,6 @@ export function EditorView() {
       </WorkspaceHeader>
       {isPngExportSettingsOpen ? (
         <PngExportSettingsModal
-          eyebrow={page.title}
           onClose={() => setIsPngExportSettingsOpen(false)}
           onSubmit={submitPngExport}
         />
@@ -335,7 +334,6 @@ export function EditorView() {
         <PhotoPickerModal
           actionLabel={photoPickerMode.kind === "washiTapePattern" ? "Use as pattern" : "Add"}
           assets={assets}
-          eyebrow={page.title}
           title={photoPickerMode.kind === "washiTapePattern" ? "Choose pattern photo" : "Add photo"}
           onAddPhoto={
             photoPickerMode.kind === "washiTapePattern" ? setWashiTapePhotoPattern : addPhoto
@@ -345,7 +343,6 @@ export function EditorView() {
       ) : null}
       {isStickerPickerOpen ? (
         <StickerPickerModal
-          eyebrow={page.title}
           onAddSticker={addSticker}
           onClose={() => setIsStickerPickerOpen(false)}
         />

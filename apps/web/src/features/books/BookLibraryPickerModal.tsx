@@ -10,13 +10,11 @@ import type { Asset } from "../../types";
 
 export function BookLibraryPickerModal({
   bookId,
-  bookTitle,
   referencedAssetIds,
   onAdded,
   onClose,
 }: {
   bookId: string;
-  bookTitle: string;
   referencedAssetIds: ReadonlySet<string>;
   onAdded: (referencedAssets: Asset[]) => void;
   onClose: () => void;
@@ -117,7 +115,7 @@ export function BookLibraryPickerModal({
   const totalLibraryCount = libraryAssets?.length ?? 0;
 
   return (
-    <AppModal title={title} eyebrow={bookTitle} closeDisabled={isSubmitting} onClose={onClose}>
+    <AppModal title={title} closeDisabled={isSubmitting} onClose={onClose}>
       <div className="photo-picker-modal book-library-picker-modal">
         <div className="photo-picker-toolbar">
           <Field label="Search photos">

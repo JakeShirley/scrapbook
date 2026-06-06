@@ -18,11 +18,9 @@ const stickerPreviewSrc = (stickerLibrary: StickerLibraryModule, sticker: Sticke
   )}`;
 
 export function StickerPickerModal({
-  eyebrow,
   onAddSticker,
   onClose,
 }: {
-  eyebrow?: string;
   onAddSticker: (sticker: StickerDefinition) => void;
   onClose: () => void;
 }) {
@@ -59,7 +57,7 @@ export function StickerPickerModal({
   };
 
   return (
-    <AppModal title="Add sticker" {...(eyebrow === undefined ? {} : { eyebrow })} onClose={onClose}>
+    <AppModal title="Add sticker" onClose={onClose}>
       <div className="photo-picker-modal">
         <div className="photo-picker-toolbar">
           <Field label="Search stickers">
