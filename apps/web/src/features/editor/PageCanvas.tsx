@@ -8,6 +8,7 @@ import {
   DismissRegular,
   EditRegular,
   ImageBorderRegular,
+  TextTRegular,
 } from "@fluentui/react-icons";
 import {
   type PageDocument,
@@ -203,6 +204,7 @@ export function PageCanvas({
   const canvasRef = useRef<HTMLFieldSetElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const renderSurfaceRef = useRef<HTMLDivElement>(null);
+  const inlineTextEditorRef = useRef<HTMLTextAreaElement | null>(null);
   const textTransformPreviewRef = useRef<{
     group: SVGGElement;
     localGroup: SVGGElement;
@@ -221,6 +223,7 @@ export function PageCanvas({
     LayerTransformUpdate[] | null
   >(null);
   const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
+  const [editingTextLayerId, setEditingTextLayerId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
   );
@@ -240,8 +243,13 @@ export function PageCanvas({
     [interactiveLayers],
   );
   const renderedDocument = useMemo(
-    () => ({ ...document, layers: interactiveLayers.map(({ layer }) => layer) }),
-    [document, interactiveLayers],
+    () => ({
+      ...document,
+      layers: interactiveLayers
+        .map(({ layer }) => layer)
+        .filter((layer) => layer.id !== editingTextLayerId),
+    }),
+    [document, editingTextLayerId, interactiveLayers],
   );
   const displayedInteractiveLayers = useMemo<InteractiveCanvasLayer[]>(() => {
     if (activeGroupTransformUpdates && activeGroupTransform) {
@@ -331,7 +339,7 @@ export function PageCanvas({
       : "below";
   const selectedLayerMenuHalfWidth = selectedLayer
     ? selectedLayer.kind === "text"
-      ? 208
+      ? 248
       : selectedLayer.kind === "photo"
         ? 164
         : 68
@@ -415,6 +423,27 @@ export function PageCanvas({
   useEffect(() => {
     if (activeTransform) setActiveSelectionPanel(null);
   }, [activeTransform]);
+
+  useEffect(() => {
+    if (editingTextLayerId && editingTextLayerId !== primarySelectedLayerId) {
+      setEditingTextLayerId(null);
+    }
+  }, [editingTextLayerId, primarySelectedLayerId]);
+
+  useEffect(() => {
+    if (editingTextLayerId && (activeTransform || activeGroupTransform)) {
+      setEditingTextLayerId(null);
+    }
+  }, [activeGroupTransform, activeTransform, editingTextLayerId]);
+
+  useEffect(() => {
+    if (!editingTextLayerId) return;
+    const textarea = inlineTextEditorRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    const valueLength = textarea.value.length;
+    textarea.setSelectionRange(valueLength, valueLength);
+  }, [editingTextLayerId]);
 
   useLayoutEffect(() => {
     if (
@@ -711,10 +740,12 @@ export function PageCanvas({
   };
   const toggleSelectionPanel = (panel: SelectionPanel) => {
     closeContextMenu();
+    setEditingTextLayerId(null);
     setActiveSelectionPanel((currentPanel) => (currentPanel === panel ? null : panel));
   };
   const openSelectionPanel = (panel: SelectionPanel) => {
     closeContextMenu();
+    setEditingTextLayerId(null);
     setActiveSelectionPanel(panel);
   };
   const openLayerEditor = (event: ReactMouseEvent, layer: PageLayer) => {
@@ -724,6 +755,15 @@ export function PageCanvas({
     closeContextMenu();
     onSelectLayer(layer.id);
     setActiveSelectionPanel("edit");
+  };
+  const beginInlineTextEdit = (layer: PageLayer) => {
+    if (layer.kind !== "text" || layer.locked) return false;
+    setActiveTransform(null);
+    closeContextMenu();
+    setActiveSelectionPanel(null);
+    onSelectLayer(layer.id);
+    setEditingTextLayerId(layer.id);
+    return true;
   };
   const updateSelectedPhotoBorder = (update: Partial<PhotoLayer["border"]>) => {
     if (!selectedLayer || selectedLayer.kind !== "photo") return;
@@ -866,6 +906,12 @@ export function PageCanvas({
               }}
               onDoubleClick={(event) => {
                 if (interactiveLayer.kind === "preview") return;
+                if (layer.kind === "text" && !layer.locked) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  beginInlineTextEdit(layer);
+                  return;
+                }
                 openLayerEditor(event, layer);
               }}
               onPointerDown={(event) => {
@@ -893,7 +939,7 @@ export function PageCanvas({
             />
             <div className="canvas-selection-frame" style={selectionFrameStyle}>
               <span className="canvas-layer-content" />
-              {isSelected && !layer.locked ? (
+              {isSelected && !layer.locked && editingTextLayerId !== layer.id ? (
                 <>
                   <button
                     type="button"
@@ -916,6 +962,39 @@ export function PageCanvas({
                     />
                   ))}
                 </>
+              ) : null}
+              {editingTextLayerId === layer.id && layer.kind === "text" ? (
+                <textarea
+                  ref={inlineTextEditorRef}
+                  aria-label="Edit text"
+                  className="canvas-inline-text-editor"
+                  spellCheck
+                  value={layer.text}
+                  style={{
+                    color: layer.color,
+                    fontFamily: `"${layer.fontFamily}", sans-serif`,
+                    fontSize: `calc(${layer.fontSize / document.canvas.width} * 100cqi)`,
+                    textAlign: layer.align,
+                  }}
+                  onBlur={(event) => {
+                    const next = event.relatedTarget as Node | null;
+                    if (next && canvasRef.current?.contains(next)) return;
+                    setEditingTextLayerId(null);
+                  }}
+                  onChange={(event) =>
+                    changeLayer(layer.id, {
+                      text: event.currentTarget.value,
+                    } as Partial<PageLayer>)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setEditingTextLayerId(null);
+                    }
+                  }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                />
               ) : null}
             </div>
           </div>
@@ -1009,6 +1088,25 @@ export function PageCanvas({
               >
                 <ArrowAutofitWidthRegular />
                 <span>Width</span>
+              </button>
+            ) : null}
+            {selectedLayer.kind === "text" ? (
+              <button
+                type="button"
+                aria-label="Type text"
+                aria-pressed={editingTextLayerId === selectedLayer.id}
+                title="Type"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (editingTextLayerId === selectedLayer.id) {
+                    setEditingTextLayerId(null);
+                  } else {
+                    beginInlineTextEdit(selectedLayer);
+                  }
+                }}
+              >
+                <TextTRegular />
+                <span>Type</span>
               </button>
             ) : null}
             {selectedLayer.kind === "text" ? (
