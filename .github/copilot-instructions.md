@@ -8,3 +8,8 @@ In the final response, state what local browser validation was performed. If bro
 
 ## Validate Changes Locally
 Before submitting a pull request, ensure that all changes have been validated locally with the appropriate NPM scripts.
+
+## Commit Messages
+When writing commit messages, use conventional commit formatting.
+
+If you are working on a GitHub issue, make sure the first line includes "(fixes #<issue number>)" to automatically link the commit to the issue.
