@@ -20,12 +20,14 @@ import {
 } from "@scrapbook/editor-core";
 import type {
   CSSProperties,
+  DragEvent as ReactDragEvent,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { Asset } from "../../types";
+import { assetDragMimeType } from "./AssetRail";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
 import { FontFamilySelect } from "./FontFamilySelect";
 import { LayerInspector } from "./LayerInspector";
@@ -176,6 +178,7 @@ export function PageCanvas({
   selectedLayerIds,
   onDeleteLayer,
   onChangeLayer,
+  onDropAsset,
   onReorderLayer,
   onSelectPreviewLayer,
   onSelectLayer,
@@ -191,6 +194,7 @@ export function PageCanvas({
   selectedLayerIds: string[];
   onDeleteLayer: (layerId: string) => void;
   onChangeLayer?: (layerId: string, update: Partial<PageLayer>) => void;
+  onDropAsset?: (assetId: string, canvasPoint: CanvasPoint) => void;
   onReorderLayer: (layerId: string, toIndex: number) => void;
   onSelectPreviewLayer?: (pageId: string, layerId: string) => void;
   onSelectLayer: (layerId: string | null, options?: SelectLayerOptions) => void;
@@ -808,10 +812,52 @@ export function PageCanvas({
     onSelectLayer(null);
   };
 
+  const [isAssetDragOver, setIsAssetDragOver] = useState(false);
+  const dragOverDepthRef = useRef(0);
+  const hasAssetDragPayload = (event: ReactDragEvent<HTMLFieldSetElement>): boolean =>
+    Array.from(event.dataTransfer.types).includes(assetDragMimeType);
+  const getDropCanvasPoint = (event: ReactDragEvent<HTMLFieldSetElement>): CanvasPoint | null => {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) return null;
+    const bounds = canvasElement.getBoundingClientRect();
+    return {
+      x: ((event.clientX - bounds.left) / bounds.width) * document.canvas.width,
+      y: ((event.clientY - bounds.top) / bounds.height) * document.canvas.height,
+    };
+  };
+  const handleAssetDragEnter = (event: ReactDragEvent<HTMLFieldSetElement>) => {
+    if (!onDropAsset || !hasAssetDragPayload(event)) return;
+    dragOverDepthRef.current += 1;
+    setIsAssetDragOver(true);
+  };
+  const handleAssetDragOver = (event: ReactDragEvent<HTMLFieldSetElement>) => {
+    if (!onDropAsset || !hasAssetDragPayload(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+  const handleAssetDragLeave = (event: ReactDragEvent<HTMLFieldSetElement>) => {
+    if (!onDropAsset || !hasAssetDragPayload(event)) return;
+    dragOverDepthRef.current = Math.max(0, dragOverDepthRef.current - 1);
+    if (dragOverDepthRef.current === 0) setIsAssetDragOver(false);
+  };
+  const handleAssetDrop = (event: ReactDragEvent<HTMLFieldSetElement>) => {
+    if (!onDropAsset) return;
+    const assetId =
+      event.dataTransfer.getData(assetDragMimeType) || event.dataTransfer.getData("text/plain");
+    if (!assetId) return;
+    event.preventDefault();
+    dragOverDepthRef.current = 0;
+    setIsAssetDragOver(false);
+    const point = getDropCanvasPoint(event);
+    if (!point) return;
+    onDropAsset(assetId, point);
+  };
+
   return (
     <fieldset
       ref={canvasRef}
       className="editor-canvas"
+      data-asset-drop-target={isAssetDragOver || undefined}
       style={{
         aspectRatio: `${document.canvas.width} / ${document.canvas.height}`,
         background: document.canvas.backgroundColor,
@@ -821,6 +867,10 @@ export function PageCanvas({
       onPointerDown={clearSelection}
       onPointerMove={transformLayer}
       onPointerUp={stopTransform}
+      onDragEnter={handleAssetDragEnter}
+      onDragOver={handleAssetDragOver}
+      onDragLeave={handleAssetDragLeave}
+      onDrop={handleAssetDrop}
       onContextMenu={(event) => {
         event.preventDefault();
         closeContextMenu();

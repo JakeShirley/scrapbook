@@ -1,6 +1,7 @@
 import type { PageLayer } from "@scrapbook/editor-core";
 
 import type { Asset, PageDetail } from "../../types";
+import type { CanvasPoint } from "../editor/editorTypes";
 import { type CanvasPreviewLayer, PageCanvas, type SelectLayerOptions } from "../editor/PageCanvas";
 import type { LayerTransformUpdate } from "../editor/transforms";
 import type { EditHistoryMode } from "./bookEditorHistory";
@@ -17,6 +18,7 @@ type BookCanvasDeckProps = {
   getSpreadPreviewLayers: (pageId: string) => CanvasPreviewLayer[];
   onDeleteLayer: (pageId: string, layerId: string) => void;
   onChooseWashiTapePhoto?: ((pageId: string, layerId: string) => void) | undefined;
+  onDropAsset?: (pageId: string, assetId: string, canvasPoint: CanvasPoint) => void;
   onReorderLayer: (pageId: string, layerId: string, toIndex: number) => void;
   onSelectLayer: (pageId: string, layerId: string | null, options?: SelectLayerOptions) => void;
   onTransformEnd: (pageId: string, layerId: string, update: Partial<PageLayer> | null) => void;
@@ -41,6 +43,7 @@ export function BookCanvasDeck({
   getSpreadPreviewLayers,
   onDeleteLayer,
   onChooseWashiTapePhoto,
+  onDropAsset,
   onReorderLayer,
   onSelectLayer,
   onTransformEnd,
@@ -73,6 +76,9 @@ export function BookCanvasDeck({
               onChangeLayer={(layerId, update) => onUpdateLayerTransform(pageId, layerId, update)}
               onChooseWashiTapePhoto={(layerId) => onChooseWashiTapePhoto?.(pageId, layerId)}
               onDeleteLayer={(layerId) => onDeleteLayer(pageId, layerId)}
+              {...(onDropAsset
+                ? { onDropAsset: (assetId, point) => onDropAsset(pageId, assetId, point) }
+                : {})}
               onReorderLayer={(layerId, toIndex) => onReorderLayer(pageId, layerId, toIndex)}
               onSelectPreviewLayer={onSelectLayer}
               onSelectLayer={(layerId, options) => onSelectLayer(pageId, layerId, options)}

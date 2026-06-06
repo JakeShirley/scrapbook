@@ -29,11 +29,12 @@ type AssetRailModalProps = AssetRailCommonProps & {
 type AssetRailReferencedProps = AssetRailCommonProps & {
   mode: "referenced";
   referencedAssets: Asset[];
-  onAddPhoto: (asset: Asset) => void;
   onOpenLibraryPicker: () => void;
 };
 
 export type AssetRailProps = AssetRailModalProps | AssetRailReferencedProps;
+
+export const assetDragMimeType = "application/x-scrapbook-asset-id";
 
 export function AssetRail(props: AssetRailProps) {
   const {
@@ -95,20 +96,36 @@ export function AssetRail(props: AssetRailProps) {
               </p>
             </li>
           ) : (
-            props.referencedAssets.map((asset) => (
-              <li key={asset.id} className="asset-rail-photo-item">
-                <button
-                  type="button"
-                  className="asset-rail-photo"
-                  aria-label={`Add ${asset.originalFilename} to page`}
-                  title={asset.originalFilename}
-                  disabled={isPhotoPickerDisabled}
-                  onClick={() => props.onAddPhoto(asset)}
-                >
-                  <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
-                </button>
-              </li>
-            ))
+            props.referencedAssets.map((asset) => {
+              const isDisabled = isPhotoPickerDisabled;
+              return (
+                <li key={asset.id} className="asset-rail-photo-item">
+                  <button
+                    type="button"
+                    className="asset-rail-photo"
+                    title={`Drag ${asset.originalFilename} onto the page`}
+                    aria-label={`Drag ${asset.originalFilename} onto the page`}
+                    disabled={isDisabled}
+                    draggable={!isDisabled}
+                    onDragStart={(event) => {
+                      if (isDisabled) {
+                        event.preventDefault();
+                        return;
+                      }
+                      event.dataTransfer.effectAllowed = "copy";
+                      event.dataTransfer.setData(assetDragMimeType, asset.id);
+                      event.dataTransfer.setData("text/plain", asset.id);
+                    }}
+                  >
+                    <img
+                      src={asset.thumbnailUrl ?? asset.originalContentUrl}
+                      alt=""
+                      draggable={false}
+                    />
+                  </button>
+                </li>
+              );
+            })
           )}
         </ul>
       ) : null}

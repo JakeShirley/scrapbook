@@ -747,18 +747,24 @@ export function BookEditorView() {
     setSelectedLayerIds([layer.id]);
   };
 
-  const addPhoto = (asset: Asset) => {
-    if (!activePage) {
-      return;
-    }
+  const addPhotoFromDrop = (pageId: string, asset: Asset, point: { x: number; y: number }) => {
+    const page = pageDetails.get(pageId);
+    if (!page) return;
 
+    const width = Math.min(page.document.canvas.width * 0.5, 1000);
+    const height = Math.min(page.document.canvas.height * 0.34, 760);
     const layer = createPhotoLayer({
       assetId: asset.id,
-      width: Math.min(activePage.document.canvas.width * 0.5, 1000),
-      height: Math.min(activePage.document.canvas.height * 0.34, 760),
+      width,
+      height,
+      x: Math.round(Math.max(0, Math.min(page.document.canvas.width - width, point.x - width / 2))),
+      y: Math.round(
+        Math.max(0, Math.min(page.document.canvas.height - height, point.y - height / 2)),
+      ),
     });
 
-    editPageDocument(activePage.id, addLayer(activePage.document, layer));
+    editPageDocument(pageId, addLayer(page.document, layer));
+    setActivePageId(pageId);
     setSelectedLayerIds([layer.id]);
   };
 
@@ -1284,13 +1290,11 @@ export function BookEditorView() {
       ) : null}
       {photoPickerMode ? (
         <PhotoPickerModal
-          actionLabel={photoPickerMode.kind === "washiTapePattern" ? "Use as pattern" : "Add"}
+          actionLabel="Use as pattern"
           assets={assets}
           eyebrow={activePage?.title ?? book.title}
-          title={photoPickerMode.kind === "washiTapePattern" ? "Choose pattern photo" : "Add photo"}
-          onAddPhoto={
-            photoPickerMode.kind === "washiTapePattern" ? setWashiTapePhotoPattern : addPhoto
-          }
+          title="Choose pattern photo"
+          onAddPhoto={setWashiTapePhotoPattern}
           onClose={() => setPhotoPickerMode(null)}
         />
       ) : null}
@@ -1380,7 +1384,6 @@ export function BookEditorView() {
           isPhotoPickerDisabled={!activePage}
           isStickerPickerDisabled={!activePage}
           onAddEmbellishment={addEmbellishment}
-          onAddPhoto={addPhoto}
           onAddText={addText}
           onOpenLibraryPicker={() => setIsLibraryPickerOpen(true)}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
@@ -1413,6 +1416,11 @@ export function BookEditorView() {
                   setPhotoPickerMode({ kind: "washiTapePattern", pageId, layerId })
                 }
                 onDeleteLayer={deletePageLayer}
+                onDropAsset={(pageId, assetId, point) => {
+                  const asset = assetById.get(assetId);
+                  if (!asset) return;
+                  addPhotoFromDrop(pageId, asset, point);
+                }}
                 onReorderLayer={reorderPageLayer}
                 onSelectLayer={selectLayer}
                 onTransformEnd={finishLayerTransform}

@@ -1536,6 +1536,14 @@ textarea:focus-visible {
   container-type: inline-size;
 }
 
+.editor-canvas[data-asset-drop-target="true"] {
+  outline: 2px dashed #24766e;
+  outline-offset: -4px;
+  box-shadow:
+    0 0 0 4px rgb(36 118 110 / 18%),
+    0 18px 34px rgb(46 37 28 / 12%);
+}
+
 .editor-render-surface {
   position: absolute;
   inset: 0;
@@ -2267,7 +2275,11 @@ textarea:focus-visible {
   border-radius: 6px;
   padding: 0;
   background: #fbfbf8;
-  cursor: pointer;
+  cursor: grab;
+}
+
+.asset-rail-photo:active {
+  cursor: grabbing;
 }
 
 .asset-rail-photo:hover:not(:disabled) {
@@ -2285,6 +2297,7 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  pointer-events: none;
 }
 
 .element-rail-item {
