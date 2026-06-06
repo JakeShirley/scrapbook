@@ -50,17 +50,7 @@ export function AssetRail(props: AssetRailProps) {
         <span>{photoCount}</span>
       </div>
       <div className="asset-rail-actions">
-        {isReferencedMode ? (
-          <Button
-            appearance="primary"
-            type="button"
-            className="primary-button full-width-button"
-            icon={<ImageAddRegular />}
-            onClick={props.onOpenLibraryPicker}
-          >
-            Get more photos
-          </Button>
-        ) : (
+        {isReferencedMode ? null : (
           <Button
             appearance="primary"
             type="button"
@@ -98,13 +88,24 @@ export function AssetRail(props: AssetRailProps) {
         >
           Add sticker
         </Button>
+        {isReferencedMode ? (
+          <Button
+            appearance="primary"
+            type="button"
+            className="primary-button full-width-button"
+            icon={<ImageAddRegular />}
+            onClick={props.onOpenLibraryPicker}
+          >
+            Add more photos
+          </Button>
+        ) : null}
       </div>
       {isReferencedMode ? (
         <ul className="asset-rail-photos" aria-label="Photos referenced by this book">
           {props.referencedAssets.length === 0 ? (
             <li className="asset-rail-photos-empty-item">
               <p className="asset-rail-photos-empty">
-                No photos yet. Click <em>Get more photos</em> to add some from your library.
+                No photos yet. Click <em>Add more photos</em> to add some from your library.
               </p>
             </li>
           ) : (
