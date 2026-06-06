@@ -36,6 +36,7 @@ import { StickerPickerModal } from "../editor/StickerPickerModal";
 import { BookCanvasDeck } from "./BookCanvasDeck";
 import { BookEditorHeader } from "./BookEditorHeader";
 import { BookFilmstrip } from "./BookFilmstrip";
+import { BookLibraryPickerModal } from "./BookLibraryPickerModal";
 import { BookModeBar } from "./BookModeBar";
 import { BookSettingsModal } from "./BookSettingsModal";
 import { fetchBookWithPages } from "./bookEditorData";
@@ -67,9 +68,7 @@ import {
   syncLayerAcrossSpread,
 } from "./spreadLayers";
 
-type PhotoPickerMode =
-  | { kind: "photo" }
-  | { kind: "washiTapePattern"; layerId: string; pageId: string };
+type PhotoPickerMode = { kind: "washiTapePattern"; layerId: string; pageId: string };
 
 export function BookEditorView() {
   const { bookId } = useParams();
@@ -90,6 +89,7 @@ export function BookEditorView() {
   const [isBookSettingsOpen, setIsBookSettingsOpen] = useState(false);
   const [isDeleteBookConfirmationOpen, setIsDeleteBookConfirmationOpen] = useState(false);
   const [photoPickerMode, setPhotoPickerMode] = useState<PhotoPickerMode | null>(null);
+  const [isLibraryPickerOpen, setIsLibraryPickerOpen] = useState(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
   const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
@@ -136,7 +136,7 @@ export function BookEditorView() {
       setIsLoading(true);
       const [loadedBook, assetResponse] = await Promise.all([
         fetchBookWithPages(bookId),
-        apiClient.listAssets(),
+        apiClient.listBookAssets(bookId),
       ]);
 
       if (!isMounted) {
@@ -338,6 +338,7 @@ export function BookEditorView() {
         event.key.toLowerCase() !== "z" ||
         isBookSettingsOpen ||
         photoPickerMode !== null ||
+        isLibraryPickerOpen ||
         isStickerPickerOpen ||
         pngExportTarget
       ) {
@@ -360,6 +361,7 @@ export function BookEditorView() {
   }, [
     isBookSettingsOpen,
     photoPickerMode,
+    isLibraryPickerOpen,
     isStickerPickerOpen,
     pngExportTarget,
     redoBookEdit,
@@ -376,6 +378,7 @@ export function BookEditorView() {
         (event.key !== "Delete" && event.key !== "Backspace") ||
         isBookSettingsOpen ||
         photoPickerMode !== null ||
+        isLibraryPickerOpen ||
         isStickerPickerOpen ||
         pngExportTarget ||
         editingPageId
@@ -414,6 +417,7 @@ export function BookEditorView() {
     activePageId,
     editingPageId,
     isBookSettingsOpen,
+    isLibraryPickerOpen,
     isStickerPickerOpen,
     photoPickerMode,
     pngExportTarget,
@@ -1290,6 +1294,15 @@ export function BookEditorView() {
           onClose={() => setPhotoPickerMode(null)}
         />
       ) : null}
+      {isLibraryPickerOpen ? (
+        <BookLibraryPickerModal
+          bookId={book.id}
+          bookTitle={book.title}
+          referencedAssetIds={new Set(assets.map((asset) => asset.id))}
+          onAdded={(referencedAssets) => setAssets(referencedAssets)}
+          onClose={() => setIsLibraryPickerOpen(false)}
+        />
+      ) : null}
       {isStickerPickerOpen ? (
         <StickerPickerModal
           eyebrow={activePage?.title ?? book.title}
@@ -1362,12 +1375,14 @@ export function BookEditorView() {
       </div>
       <div className="book-editor-shell">
         <AssetRail
-          assetCount={assets.length}
+          mode="referenced"
+          referencedAssets={assets}
           isPhotoPickerDisabled={!activePage}
           isStickerPickerDisabled={!activePage}
           onAddEmbellishment={addEmbellishment}
+          onAddPhoto={addPhoto}
           onAddText={addText}
-          onOpenPhotoPicker={() => setPhotoPickerMode({ kind: "photo" })}
+          onOpenLibraryPicker={() => setIsLibraryPickerOpen(true)}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
           onOpenWashiTapePicker={addWashiTape}
         />

@@ -158,6 +158,23 @@ CREATE UNIQUE INDEX pages_document_storage_key_unique ON pages (document_storage
 ALTER TABLE books ADD COLUMN cover_spread_enabled INTEGER NOT NULL DEFAULT 1 CHECK (cover_spread_enabled IN (0, 1));
 `,
   },
+  {
+    id: "0006_add_book_assets",
+    sql: `
+CREATE TABLE book_assets (
+  id TEXT PRIMARY KEY NOT NULL CHECK (id GLOB 'book_asset_*'),
+  account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+  book_id TEXT NOT NULL REFERENCES books (id) ON DELETE CASCADE,
+  asset_id TEXT NOT NULL REFERENCES assets (id) ON DELETE CASCADE,
+  sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (book_id, asset_id)
+);
+CREATE INDEX book_assets_account_id_idx ON book_assets (account_id);
+CREATE INDEX book_assets_book_id_idx ON book_assets (book_id);
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

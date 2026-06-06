@@ -16,6 +16,9 @@ import {
   type BookPageResponse,
   type BookResponse,
   type BookSummaryResponse,
+  bookAssetListRoute,
+  bookAssetRemoveRoute,
+  bookAssetsAddRoute,
   bookCreateRoute,
   bookDeleteRoute,
   bookDetailRoute,
@@ -1369,6 +1372,156 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     return context.json(toBookResponse(book, options.repositories), 200);
+  });
+
+  app.openapi(bookAssetListRoute, async (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const repositories = options.repositories;
+    const { bookId } = context.req.valid("param");
+    const book = repositories.books.findByIdForAccount(authSession.account.id, bookId);
+
+    if (!book) {
+      return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);
+    }
+
+    const referencedAssets = repositories.books.listAssetsForBook(authSession.account.id, bookId);
+
+    const assets = await Promise.all(
+      referencedAssets.map(async (asset) =>
+        toAssetResponse(
+          asset,
+          await listAssetVariantsForResponse({
+            accountId: authSession.account.id,
+            asset,
+            repositories,
+            storage: options.storage,
+          }),
+        ),
+      ),
+    );
+
+    return context.json(assetListResponseSchema.parse({ assets }), 200);
+  });
+
+  app.openapi(bookAssetsAddRoute, async (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const repositories = options.repositories;
+    const { bookId } = context.req.valid("param");
+    const input = context.req.valid("json");
+
+    try {
+      repositories.books.addAssetsToBook({
+        accountId: authSession.account.id,
+        bookId,
+        assetIds: input.assetIds,
+      });
+    } catch (error) {
+      if (error instanceof OwnershipError) {
+        const isBookOwnership = error.message.startsWith("Book does not belong");
+
+        return context.json(
+          createErrorResponse(
+            context,
+            isBookOwnership ? "book_not_found" : "book_asset_not_found",
+            isBookOwnership ? "Book not found" : "Book assets must belong to the account",
+          ),
+          isBookOwnership ? 404 : 400,
+        );
+      }
+
+      throw error;
+    }
+
+    const referencedAssets = repositories.books.listAssetsForBook(authSession.account.id, bookId);
+
+    const assets = await Promise.all(
+      referencedAssets.map(async (asset) =>
+        toAssetResponse(
+          asset,
+          await listAssetVariantsForResponse({
+            accountId: authSession.account.id,
+            asset,
+            repositories,
+            storage: options.storage,
+          }),
+        ),
+      ),
+    );
+
+    return context.json(assetListResponseSchema.parse({ assets }), 200);
+  });
+
+  app.openapi(bookAssetRemoveRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "books_unavailable", "Books are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { bookId, assetId } = context.req.valid("param");
+
+    try {
+      const removed = options.repositories.books.removeAssetFromBook({
+        accountId: authSession.account.id,
+        bookId,
+        assetId,
+      });
+
+      if (!removed) {
+        return context.json(
+          createErrorResponse(context, "book_asset_not_found", "Book asset not found"),
+          404,
+        );
+      }
+    } catch (error) {
+      if (error instanceof OwnershipError) {
+        return context.json(createErrorResponse(context, "book_not_found", "Book not found"), 404);
+      }
+
+      throw error;
+    }
+
+    return context.body(null, 204);
   });
 
   app.openapi(exportCreateRoute, async (context) => {

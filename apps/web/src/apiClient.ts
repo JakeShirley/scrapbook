@@ -5,6 +5,7 @@ import {
   assetListResponseSchema,
   assetResponseSchema,
   authSessionResponseSchema,
+  type BookAssetsAddRequest,
   type BookCreateRequest,
   type BookListResponse,
   type BookPatchRequest,
@@ -136,6 +137,26 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
       body: JSON.stringify(input),
       method: "PUT",
     }),
+
+  listBookAssets: (bookId: string): Promise<AssetListResponse> =>
+    requestJson(baseUrl, assetListResponseSchema, `/api/v1/books/${bookId}/assets`),
+
+  addBookAssets: (bookId: string, input: BookAssetsAddRequest): Promise<AssetListResponse> =>
+    requestJson(baseUrl, assetListResponseSchema, `/api/v1/books/${bookId}/assets`, {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  removeBookAsset: async (bookId: string, assetId: string): Promise<void> => {
+    const response = await fetch(buildUrl(baseUrl, `/api/v1/books/${bookId}/assets/${assetId}`), {
+      credentials: "include",
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+  },
 
   deleteBook: async (bookId: string): Promise<void> => {
     const response = await fetch(buildUrl(baseUrl, `/api/v1/books/${bookId}`), {

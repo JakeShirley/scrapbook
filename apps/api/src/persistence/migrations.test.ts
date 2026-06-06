@@ -14,6 +14,7 @@ describe("SQLite migrations", () => {
         "0003_add_book_page_size",
         "0004_add_page_document_storage_key",
         "0005_add_book_cover_spread_enabled",
+        "0006_add_book_assets",
       ]);
       expect(runMigrations(connection.sqlite)).toEqual([]);
       expect(getAppliedMigrations(connection.sqlite)).toEqual([
@@ -22,6 +23,7 @@ describe("SQLite migrations", () => {
         "0003_add_book_page_size",
         "0004_add_page_document_storage_key",
         "0005_add_book_cover_spread_enabled",
+        "0006_add_book_assets",
       ]);
 
       const tableNames = connection.sqlite
@@ -34,6 +36,7 @@ describe("SQLite migrations", () => {
         "asset_variants",
         "assets",
         "auth_identities",
+        "book_assets",
         "book_pages",
         "books",
         "exports",
