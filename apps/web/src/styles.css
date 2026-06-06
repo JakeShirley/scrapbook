@@ -4210,6 +4210,12 @@ body {
   padding: 0;
 }
 
+.app-shell[data-editor-layout="book"] .workspace {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 .workspace-editor {
   display: grid;
   min-height: 0;
@@ -4280,14 +4286,12 @@ body {
 
 .book-editor-page .editor-asset-rail {
   display: grid;
-  grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
 
 .book-editor-page .asset-rail-photos {
-  /* Show ~4 rows of 2-column thumbnails before scrolling. */
-  max-height: calc((var(--asset-rail-photo-size, 92px) + 6px) * 4 + 12px);
   min-height: 0;
   overflow-y: auto;
 }
