@@ -1,6 +1,7 @@
 import { type PageLayer, renderPageDocumentSvg } from "@scrapbook/editor-core";
 import { useId, useMemo, useRef } from "react";
 
+import { NumericInput } from "../../components/NumericInput";
 import { FontFamilySelect } from "./FontFamilySelect";
 import { TextAlignmentControl } from "./TextAlignmentControl";
 
@@ -142,14 +143,11 @@ export function TextControls({
           </label>
           <label>
             <span>Font size</span>
-            <input
+            <NumericInput
               max={240}
               min={6}
-              type="number"
               value={layer.fontSize}
-              onChange={(event) =>
-                onChange({ fontSize: Number(event.currentTarget.value) } as Partial<PageLayer>)
-              }
+              onChange={(fontSize) => onChange({ fontSize } as Partial<PageLayer>)}
             />
           </label>
           <label>
@@ -206,14 +204,11 @@ export function TextControls({
                 </label>
                 <label>
                   <span>Width</span>
-                  <input
+                  <NumericInput
                     max={80}
                     min={0}
-                    type="number"
                     value={layer.stroke.width}
-                    onChange={(event) =>
-                      updateEffect("stroke", { width: Number(event.currentTarget.value) })
-                    }
+                    onChange={(width) => updateEffect("stroke", { width })}
                   />
                 </label>
               </div>
@@ -255,38 +250,29 @@ export function TextControls({
                 </label>
                 <label>
                   <span>X</span>
-                  <input
+                  <NumericInput
                     max={240}
                     min={-240}
-                    type="number"
                     value={layer.shadow.offsetX}
-                    onChange={(event) =>
-                      updateEffect("shadow", { offsetX: Number(event.currentTarget.value) })
-                    }
+                    onChange={(offsetX) => updateEffect("shadow", { offsetX })}
                   />
                 </label>
                 <label>
                   <span>Y</span>
-                  <input
+                  <NumericInput
                     max={240}
                     min={-240}
-                    type="number"
                     value={layer.shadow.offsetY}
-                    onChange={(event) =>
-                      updateEffect("shadow", { offsetY: Number(event.currentTarget.value) })
-                    }
+                    onChange={(offsetY) => updateEffect("shadow", { offsetY })}
                   />
                 </label>
                 <label>
                   <span>Blur</span>
-                  <input
+                  <NumericInput
                     max={160}
                     min={0}
-                    type="number"
                     value={layer.shadow.blur}
-                    onChange={(event) =>
-                      updateEffect("shadow", { blur: Number(event.currentTarget.value) })
-                    }
+                    onChange={(blur) => updateEffect("shadow", { blur })}
                   />
                 </label>
               </div>
@@ -326,14 +312,11 @@ export function TextControls({
                 </label>
                 <label>
                   <span>Blur</span>
-                  <input
+                  <NumericInput
                     max={160}
                     min={0}
-                    type="number"
                     value={layer.glow.blur}
-                    onChange={(event) =>
-                      updateEffect("glow", { blur: Number(event.currentTarget.value) })
-                    }
+                    onChange={(blur) => updateEffect("glow", { blur })}
                   />
                 </label>
               </div>
@@ -375,26 +358,20 @@ export function TextControls({
                 </label>
                 <label>
                   <span>Padding</span>
-                  <input
+                  <NumericInput
                     max={120}
                     min={0}
-                    type="number"
                     value={layer.background.padding}
-                    onChange={(event) =>
-                      updateEffect("background", { padding: Number(event.currentTarget.value) })
-                    }
+                    onChange={(padding) => updateEffect("background", { padding })}
                   />
                 </label>
                 <label>
                   <span>Radius</span>
-                  <input
+                  <NumericInput
                     max={160}
                     min={0}
-                    type="number"
                     value={layer.background.radius}
-                    onChange={(event) =>
-                      updateEffect("background", { radius: Number(event.currentTarget.value) })
-                    }
+                    onChange={(radius) => updateEffect("background", { radius })}
                   />
                 </label>
               </div>
