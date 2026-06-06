@@ -2187,32 +2187,6 @@ textarea:focus-visible {
   border-radius: 6px;
 }
 
-.element-preview[data-element="paper-label"] {
-  border: 2px solid var(--element-accent);
-  border-radius: 8px;
-  box-shadow: inset 0 0 0 5px rgb(255 255 255 / 48%);
-}
-
-.element-preview[data-element="washi-tape"] {
-  background:
-    repeating-linear-gradient(-45deg, rgb(255 255 255 / 34%) 0 8px, transparent 8px 16px),
-    var(--element-color);
-  border-radius: 4px;
-}
-
-.element-preview[data-element="photo-corner"] {
-  background:
-    linear-gradient(135deg, var(--element-color) 0 42%, transparent 42%),
-    linear-gradient(315deg, var(--element-accent) 0 42%, transparent 42%);
-}
-
-.element-preview[data-element="pattern-paper"] {
-  background:
-    radial-gradient(circle at 8px 8px, var(--element-accent) 0 3px, transparent 4px) 0 0 / 22px 22px,
-    var(--element-color);
-  border: 1px solid rgb(32 36 38 / 15%);
-}
-
 .text-element-preview {
   display: grid;
   place-items: center;

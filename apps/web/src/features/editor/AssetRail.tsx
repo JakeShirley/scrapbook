@@ -6,15 +6,12 @@ import {
   TextTRegular,
 } from "@fluentui/react-icons";
 import { stickerLibrarySummaries } from "@scrapbook/editor-core";
-import type { CSSProperties } from "react";
 
 import type { Asset } from "../../types";
-import { type EmbellishmentPreset, embellishmentPresets } from "./embellishments";
 
 type AssetRailCommonProps = {
   isPhotoPickerDisabled?: boolean;
   isStickerPickerDisabled?: boolean;
-  onAddEmbellishment: (preset: EmbellishmentPreset) => void;
   onAddText: () => void;
   onOpenStickerPicker: () => void;
   onOpenWashiTapePicker: () => void;
@@ -40,7 +37,6 @@ export function AssetRail(props: AssetRailProps) {
   const {
     isPhotoPickerDisabled = false,
     isStickerPickerDisabled = false,
-    onAddEmbellishment,
     onAddText,
     onOpenStickerPicker,
     onOpenWashiTapePicker,
@@ -146,7 +142,7 @@ export function AssetRail(props: AssetRailProps) {
       </div>
       <div className="panel-heading compact-heading nested-heading">
         <h3>Elements</h3>
-        <span>{embellishmentPresets.length + 1}</span>
+        <span>1</span>
       </div>
       <div className="asset-rail-list">
         <button type="button" className="element-rail-item" onClick={onAddText}>
@@ -155,26 +151,6 @@ export function AssetRail(props: AssetRailProps) {
           </span>
           <span>Text</span>
         </button>
-        {embellishmentPresets.map((preset) => (
-          <button
-            type="button"
-            key={preset.element}
-            className="element-rail-item"
-            onClick={() => onAddEmbellishment(preset)}
-          >
-            <span
-              className="element-preview"
-              data-element={preset.element}
-              style={
-                {
-                  "--element-accent": preset.accentColor,
-                  "--element-color": preset.color,
-                } as CSSProperties
-              }
-            />
-            <span>{preset.displayName}</span>
-          </button>
-        ))}
       </div>
     </aside>
   );

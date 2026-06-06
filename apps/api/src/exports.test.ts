@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 import {
-  createEmbellishmentLayer,
   createPageDocument,
   createPhotoLayer,
   createTextLayer,
@@ -224,7 +223,7 @@ const renderDocumentPng = async (document: PageDocument): Promise<DecodedPng> =>
 };
 
 describe("PNG page exports", () => {
-  it("renders canvas, photo, text, and embellishment primitives", async () => {
+  it("renders canvas, photo, text, and washi tape primitives", async () => {
     const image = await renderDocumentPng(
       createPageDocument({
         canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
@@ -251,18 +250,6 @@ describe("PNG page exports", () => {
             width: 140,
             x: 24,
             y: 132,
-          }),
-          createEmbellishmentLayer({
-            accentColor: "#d56d46",
-            color: "#fffdf7",
-            element: "paper-label",
-            height: 64,
-            id: "embellishment_primitive",
-            label: "OK",
-            rotation: 0,
-            width: 104,
-            x: 178,
-            y: 42,
           }),
           createWashiTapeLayer({
             assetId: testAssetId,
@@ -294,7 +281,6 @@ describe("PNG page exports", () => {
     expectColorNear(pixelAt(image, 72, 64), photoRed);
     expectColorNear(pixelAt(image, 150, 234), photoRed, 70);
     expectColorNear(pixelAt(image, 150, 288), { blue: 180, green: 185, red: 145 }, 35);
-    expectColorNear(pixelAt(image, 180, 74), { blue: 70, green: 109, red: 213 }, 18);
     expect(
       countPixels(
         image,
@@ -405,95 +391,6 @@ describe("PNG page exports", () => {
         expectColorNear(pixelAt(image, outsideX, outsideY), scrapbookBackground);
       }
     }
-  });
-
-  it("renders every embellishment element style", async () => {
-    const paperLabel = await renderDocumentPng(
-      createPageDocument({
-        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
-        layers: [
-          createEmbellishmentLayer({
-            accentColor: "#d56d46",
-            color: "#fffdf7",
-            element: "paper-label",
-            height: 90,
-            label: "",
-            rotation: 0,
-            width: 160,
-            x: 80,
-            y: 116,
-          }),
-        ],
-      }),
-    );
-    const washiTape = await renderDocumentPng(
-      createPageDocument({
-        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
-        layers: [
-          createEmbellishmentLayer({
-            color: "#79a9a4",
-            element: "washi-tape",
-            height: 90,
-            label: "",
-            rotation: 0,
-            width: 160,
-            x: 80,
-            y: 116,
-          }),
-        ],
-      }),
-    );
-    const photoCorner = await renderDocumentPng(
-      createPageDocument({
-        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
-        layers: [
-          createEmbellishmentLayer({
-            accentColor: "#202426",
-            color: "#fffdf7",
-            element: "photo-corner",
-            height: 160,
-            label: "",
-            rotation: 0,
-            width: 160,
-            x: 80,
-            y: 80,
-          }),
-        ],
-      }),
-    );
-    const patternPaper = await renderDocumentPng(
-      createPageDocument({
-        canvas: { backgroundColor: "#f7f1e4", height: 320, width: 320 },
-        layers: [
-          createEmbellishmentLayer({
-            accentColor: "#d6a537",
-            color: "#f2d7c9",
-            element: "pattern-paper",
-            height: 90,
-            label: "",
-            rotation: 0,
-            width: 160,
-            x: 80,
-            y: 116,
-          }),
-        ],
-      }),
-    );
-
-    expectColorNear(pixelAt(paperLabel, 82, 160), { blue: 70, green: 109, red: 213 }, 18);
-    expectColorNear(pixelAt(paperLabel, 160, 160), { blue: 247, green: 253, red: 255 });
-    expect(
-      countPixels(
-        washiTape,
-        { height: 90, width: 160, x: 80, y: 116 },
-        (pixel) => pixel.red > 155 && pixel.green > 180 && pixel.blue > 175,
-      ),
-    ).toBeGreaterThan(300);
-    expectColorNear(pixelAt(photoCorner, 92, 92), { blue: 247, green: 253, red: 255 });
-    expectColorNear(pixelAt(photoCorner, 228, 228), { blue: 38, green: 36, red: 32 });
-    expectColorNear(pixelAt(photoCorner, 160, 160), scrapbookBackground);
-    expectColorNear(pixelAt(patternPaper, 88, 124), { blue: 55, green: 165, red: 214 });
-    expectColorNear(pixelAt(patternPaper, 104, 124), { blue: 201, green: 215, red: 242 });
   });
 
   it("renders page exports as PDF documents", async () => {

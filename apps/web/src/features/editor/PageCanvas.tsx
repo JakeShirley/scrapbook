@@ -124,9 +124,7 @@ const formatLayerKind = (kind: PageLayer["kind"]): string =>
       ? "Text"
       : kind === "sticker"
         ? "Sticker"
-        : kind === "washiTape"
-          ? "Washi tape"
-          : "Embellishment";
+        : "Washi tape";
 
 const nativeBrowserImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 

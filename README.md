@@ -9,7 +9,7 @@ The production build is packaged as a single Docker image. The container runs th
 - Account registration and login with browser sessions.
 - Local photo library with uploads and generated variants.
 - Book workflows with ordered pages and facing spread editing.
-- Page editor tools for photos, text, stickers, embellishments, page settings, and layout adjustments.
+- Page editor tools for photos, text, stickers, washi tape, page settings, and layout adjustments.
 - Image grid workspace for arranging uploaded photos.
 - Page and book export support.
 - Local-first persistence using SQLite plus managed files for uploads, page documents, previews, variants, and exports.
