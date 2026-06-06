@@ -5,7 +5,6 @@ import {
   ImageAddRegular,
   TextTRegular,
 } from "@fluentui/react-icons";
-import { stickerLibrarySummaries } from "@scrapbook/editor-core";
 
 import type { Asset } from "../../types";
 
@@ -90,6 +89,15 @@ export function AssetRail(props: AssetRailProps) {
         >
           Add text
         </Button>
+        <Button
+          type="button"
+          className="secondary-button full-width-button"
+          disabled={isStickerPickerDisabled}
+          icon={<EmojiSparkleRegular />}
+          onClick={onOpenStickerPicker}
+        >
+          Add sticker
+        </Button>
       </div>
       {isReferencedMode ? (
         <ul className="asset-rail-photos" aria-label="Photos referenced by this book">
@@ -133,21 +141,6 @@ export function AssetRail(props: AssetRailProps) {
           )}
         </ul>
       ) : null}
-      <div className="panel-heading compact-heading nested-heading">
-        <h3>Stickers</h3>
-        <span>{stickerLibrarySummaries.length} packs</span>
-      </div>
-      <div className="asset-rail-actions">
-        <Button
-          type="button"
-          className="secondary-button full-width-button"
-          disabled={isStickerPickerDisabled}
-          icon={<EmojiSparkleRegular />}
-          onClick={onOpenStickerPicker}
-        >
-          Add sticker
-        </Button>
-      </div>
     </aside>
   );
 }

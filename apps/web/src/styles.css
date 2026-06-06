@@ -2240,10 +2240,6 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
-.nested-heading {
-  border-top: 1px solid #edf0ed;
-}
-
 .layer-list {
   display: grid;
   gap: 8px;
@@ -3429,7 +3425,6 @@ body {
 .book-modebar,
 .editor-toolbar,
 .inspector-form,
-.nested-heading,
 .book-filmstrip {
   border-color: var(--sb-neutral-stroke-3);
 }
