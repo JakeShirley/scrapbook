@@ -13,6 +13,7 @@ import {
   editorFontDefinitions,
   editorFontFaceCss,
   getPhotoFrameLayout,
+  getTextLayerRenderedBounds,
   loveYaLikeASisterFontFamily,
   pageDocumentSchema,
   renderPageDocumentSvg,
@@ -140,6 +141,13 @@ describe("page document helpers", () => {
     expect(text.shadow).toMatchObject({ enabled: false, color: "#202426", opacity: 0.3 });
     expect(text.glow).toMatchObject({ enabled: false, color: "#ffffff", opacity: 0.7 });
     expect(text.background).toMatchObject({ enabled: false, color: "#fffdf7", opacity: 0.9 });
+    expect(text.bubble).toMatchObject({
+      enabled: false,
+      color: "#ffd6e0",
+      opacity: 0.85,
+      padding: 6,
+      spacing: 0,
+    });
   });
 
   it("resizes a page document and scales layer geometry", () => {
@@ -155,6 +163,7 @@ describe("page document helpers", () => {
       shadow: { enabled: true, color: "#202426", opacity: 0.35, offsetX: 6, offsetY: 8, blur: 10 },
       glow: { enabled: true, color: "#79a9a4", opacity: 0.8, blur: 12 },
       background: { enabled: true, color: "#fff2b8", opacity: 0.7, padding: 14, radius: 16 },
+      bubble: { enabled: true, color: "#ffd6e0", opacity: 0.7, padding: 10, spacing: 5 },
     });
     const photo = createPhotoLayer({
       assetId: "asset_1",
@@ -182,6 +191,7 @@ describe("page document helpers", () => {
       shadow: expect.objectContaining({ offsetX: 12, offsetY: 16, blur: 20 }),
       glow: expect.objectContaining({ blur: 24 }),
       background: expect.objectContaining({ padding: 28, radius: 32 }),
+      bubble: expect.objectContaining({ padding: 20, spacing: 10 }),
     });
     expect(resized.layers[1]).toMatchObject({
       id: "photo_1",
@@ -553,6 +563,86 @@ describe("page document helpers", () => {
     expect(svg).toContain('<feGaussianBlur in="SourceAlpha" stdDeviation="14"');
     expect(svg).toContain('flood-color="#202426" flood-opacity="0.35"');
     expect(svg).toContain('flood-color="#79a9a4" flood-opacity="0.8"');
+  });
+
+  it("renders bubble letters as one circle per non-whitespace character", () => {
+    const bundled = createTextLayer({
+      fontFamily: loveYaLikeASisterFontFamily,
+      id: "text_bubble_bundled",
+      text: "Hi there",
+      fontSize: 72,
+      bubble: { enabled: true, color: "#ffd6e0", opacity: 0.8, padding: 8, spacing: 0 },
+    });
+    const bundledSvg = renderPageDocumentSvg(createPageDocument({ layers: [bundled] }));
+
+    const circleMatches = bundledSvg.match(/<circle data-text-bubble="true"[^>]*r="([^"]+)"/g);
+    expect(circleMatches).toHaveLength(7);
+    const radii = new Set(circleMatches?.map((match) => match.match(/r="([^"]+)"/)?.[1]));
+    expect(radii.size).toBe(1);
+    expect(bundledSvg).toContain('fill="#ffd6e0"');
+    expect(bundledSvg).toContain('opacity="0.8"');
+    expect(bundledSvg).not.toContain('data-text-bubble="true" cx="NaN"');
+    expect(bundledSvg).not.toContain("<ellipse data-text-bubble");
+
+    const fallback = createTextLayer({
+      fontFamily: "Custom Display",
+      id: "text_bubble_fallback",
+      text: "Hi",
+      fontSize: 60,
+      bubble: { enabled: true, color: "#abcdef", opacity: 0.6, padding: 4, spacing: 0 },
+    });
+    const fallbackSvg = renderPageDocumentSvg(createPageDocument({ layers: [fallback] }));
+
+    expect(fallbackSvg.match(/<circle data-text-bubble="true"/g)).toHaveLength(2);
+    expect(fallbackSvg).toContain('fill="#abcdef"');
+    expect(fallbackSvg).toContain('text-anchor="middle"');
+  });
+
+  it("omits bubble letters when the effect is disabled", () => {
+    const text = createTextLayer({
+      fontFamily: loveYaLikeASisterFontFamily,
+      id: "text_no_bubble",
+      text: "Hi",
+      bubble: { enabled: false, color: "#ffd6e0", opacity: 0.8, padding: 8, spacing: 0 },
+    });
+    const svg = renderPageDocumentSvg(createPageDocument({ layers: [text] }));
+
+    expect(svg).not.toContain('data-text-bubble="true"');
+  });
+
+  it("reports rendered bounds that encompass the bubble layout", () => {
+    const naturalText = createTextLayer({
+      id: "text_no_bubble_bounds",
+      text: "Hi",
+      x: 50,
+      y: 60,
+      width: 200,
+      height: 100,
+    });
+    expect(getTextLayerRenderedBounds(naturalText)).toEqual({
+      x: 50,
+      y: 60,
+      width: 200,
+      height: 100,
+    });
+
+    const bubbleText = createTextLayer({
+      fontFamily: loveYaLikeASisterFontFamily,
+      id: "text_bubble_bounds",
+      text: "Hi",
+      fontSize: 100,
+      x: 50,
+      y: 60,
+      width: 80,
+      height: 80,
+      bubble: { enabled: true, color: "#ffd6e0", opacity: 0.9, padding: 20, spacing: 10 },
+    });
+    const bounds = getTextLayerRenderedBounds(bubbleText);
+
+    expect(bounds.width).toBeGreaterThan(bubbleText.width);
+    expect(bounds.height).toBeGreaterThan(bubbleText.height);
+    expect(bounds.x).toBeLessThanOrEqual(bubbleText.x);
+    expect(bounds.y).toBeLessThanOrEqual(bubbleText.y);
   });
 
   it("keeps bundled text path geometry stable when moving layers", () => {

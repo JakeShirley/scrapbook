@@ -123,6 +123,14 @@ const defaultTextBackground = {
   radius: 10,
 };
 
+const defaultTextBubble = {
+  enabled: false,
+  color: "#ffd6e0",
+  opacity: 0.85,
+  padding: 6,
+  spacing: 0,
+};
+
 const defaultWashiTapeTile = {
   scale: 1,
   scaleX: 1,
@@ -312,6 +320,15 @@ export const textLayerSchema = pageLayerBaseSchema.extend({
       radius: z.number().finite().min(0).max(160),
     })
     .default(defaultTextBackground),
+  bubble: z
+    .object({
+      enabled: z.boolean(),
+      color: colorSchema,
+      opacity: opacitySchema,
+      padding: z.number().finite().min(0).max(120),
+      spacing: z.number().finite().min(0).max(120).default(0),
+    })
+    .default(defaultTextBubble),
 });
 
 export const stickerLayerSchema = pageLayerBaseSchema.extend({
@@ -449,6 +466,7 @@ export type CreateTextLayerInput = Partial<
     | "shadow"
     | "stroke"
     | "background"
+    | "bubble"
     | "width"
     | "x"
     | "y"
@@ -1000,6 +1018,148 @@ const renderTextBackgroundSvg = (layer: TextLayer): string => {
   return `<rect data-text-background="true" x="${-padding}" y="${-padding}" width="${layer.width + padding * 2}" height="${layer.height + padding * 2}" rx="${layer.background.radius}" fill="${escapeXml(layer.background.color)}" opacity="${layer.background.opacity}" />`;
 };
 
+const formatBubbleCoord = (value: number): string => {
+  if (!Number.isFinite(value)) return "0";
+  const rounded = Math.round(value * 100) / 100;
+  return String(Object.is(rounded, -0) ? 0 : rounded);
+};
+
+type BubbleLayoutMetrics = {
+  radius: number;
+  cellWidth: number;
+  spaceWidth: number;
+};
+
+const bubbleLayoutMetrics = (layer: TextLayer): BubbleLayoutMetrics => {
+  const padding = Math.max(0, layer.bubble.padding);
+  const spacing = Math.max(0, layer.bubble.spacing);
+  const radius = layer.fontSize * 0.55 + padding;
+  return {
+    radius,
+    cellWidth: radius * 2 + spacing,
+    spaceWidth: layer.fontSize * 0.35 + spacing,
+  };
+};
+
+const isBubbleEnabled = (layer: TextLayer): boolean =>
+  layer.bubble.enabled && layer.bubble.opacity > 0;
+
+const measureBubbleAdvance = (text: string, metrics: BubbleLayoutMetrics): number => {
+  let width = 0;
+  for (const character of text) {
+    width += character.trim().length === 0 ? metrics.spaceWidth : metrics.cellWidth;
+  }
+  return width;
+};
+
+type CharacterCell = {
+  character: string;
+  bold: boolean;
+  italic: boolean;
+};
+
+const flattenLineToCells = (line: RichTextRun[]): CharacterCell[] => {
+  const cells: CharacterCell[] = [];
+  for (const run of line) {
+    for (const character of run.text) {
+      cells.push({ character, bold: run.bold, italic: run.italic });
+    }
+  }
+  return cells;
+};
+
+const renderBubbleLetterTextLayerSvg = (
+  layer: TextLayer,
+  bundledFont: Font | null,
+  lines: RichTextRun[][],
+  lineHeight: number,
+  background: string,
+  contentAttributes: string,
+): string => {
+  const metrics = bubbleLayoutMetrics(layer);
+  const fontSize = layer.fontSize;
+  const strokeAttributes = textStrokeSvgAttributes(layer);
+  const fauxBoldStrokeWidth = fontSize * 0.06;
+  const italicSkewDegrees = 12;
+  const bubbleFill = escapeXml(layer.bubble.color);
+  const bubbleOpacity = layer.bubble.opacity;
+
+  const bubbleFragments: string[] = [];
+  const textFragments: string[] = [];
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    if (!line || line.length === 0) continue;
+    const cells = flattenLineToCells(line);
+    if (cells.length === 0) continue;
+
+    const lineWidth = cells.reduce(
+      (total, cell) =>
+        total + (cell.character.trim().length === 0 ? metrics.spaceWidth : metrics.cellWidth),
+      0,
+    );
+    const lineStartX =
+      layer.align === "center"
+        ? layer.width / 2 - lineWidth / 2
+        : layer.align === "right"
+          ? layer.width - lineWidth
+          : 0;
+    const baselineY = fontSize + lineIndex * lineHeight;
+    const bubbleCy = baselineY - fontSize * 0.35;
+
+    let cursorX = lineStartX;
+    for (const { character, bold, italic } of cells) {
+      if (character.trim().length === 0) {
+        cursorX += metrics.spaceWidth;
+        continue;
+      }
+      const cellCenterX = cursorX + metrics.cellWidth / 2;
+
+      bubbleFragments.push(
+        `<circle data-text-bubble="true" cx="${formatBubbleCoord(cellCenterX)}" cy="${formatBubbleCoord(bubbleCy)}" r="${formatBubbleCoord(metrics.radius)}" fill="${bubbleFill}" stroke="none" opacity="${bubbleOpacity}" />`,
+      );
+
+      if (bundledFont) {
+        const advance = bundledFont.getAdvanceWidth(character, fontSize);
+        const glyphX = cellCenterX - advance / 2;
+        const glyphPaths = bundledFont
+          .getPaths(character, 0, 0, fontSize)
+          .map(pathData)
+          .filter((pathString) => pathString.length > 0)
+          .map((pathString) => `<path d="${pathString}" />`)
+          .join("");
+        if (glyphPaths.length === 0) {
+          cursorX += metrics.cellWidth;
+          continue;
+        }
+        const transformParts = [`translate(${formatBubbleCoord(glyphX)} ${formatBubbleCoord(baselineY)})`];
+        if (italic) transformParts.push(`skewX(-${italicSkewDegrees})`);
+        const groupAttributes = bold
+          ? ` stroke="${escapeXml(layer.color)}" stroke-width="${fauxBoldStrokeWidth}" stroke-linejoin="round" paint-order="stroke fill"`
+          : "";
+        textFragments.push(
+          `<g transform="${transformParts.join(" ")}"${groupAttributes}>${glyphPaths}</g>`,
+        );
+      } else {
+        const styleParts: string[] = [];
+        if (bold) styleParts.push('font-weight="bold"');
+        if (italic) styleParts.push('font-style="italic"');
+        const styleAttr = styleParts.length > 0 ? ` ${styleParts.join(" ")}` : "";
+        textFragments.push(
+          `<text x="${formatBubbleCoord(cellCenterX)}" y="${formatBubbleCoord(baselineY)}" fill="${escapeXml(layer.color)}" font-family="${escapeXml(layer.fontFamily)}" font-size="${fontSize}" text-anchor="middle"${strokeAttributes}${styleAttr}>${escapeXml(character)}</text>`,
+        );
+      }
+      cursorX += metrics.cellWidth;
+    }
+  }
+
+  const contentGroupAttributes = bundledFont
+    ? ` fill="${escapeXml(layer.color)}"${strokeAttributes}${contentAttributes}`
+    : contentAttributes;
+
+  return `<g data-layer-id="${escapeXml(layer.id)}" data-font-family="${escapeXml(layer.fontFamily)}" opacity="${layer.opacity}" transform="${layerTransform(layer)}"><g data-layer-local-transform="true" transform="translate(${layer.x} ${layer.y})">${background}<g${contentGroupAttributes}>${bubbleFragments.join("")}${textFragments.join("")}</g></g></g>`;
+};
+
 const renderTextEffectFilterSvg = (layer: TextLayer, filterId: string): string => {
   const filterParts: string[] = [];
   const mergeNodes: string[] = [];
@@ -1305,11 +1465,16 @@ const computeTextLayerLines = (
   const canvasMeasure = bundledFont
     ? null
     : getCanvasTextMeasurer(layer.fontFamily, layer.fontSize);
-  const measure: CanvasTextMeasurer = bundledFont
-    ? (line: string) => bundledFont.getAdvanceWidth(line, layer.fontSize)
-    : canvasMeasure
-      ? canvasMeasure
-      : (line: string) => fallbackFontAdvance(line, layer.fontSize);
+  const measure: CanvasTextMeasurer = isBubbleEnabled(layer)
+    ? (() => {
+        const metrics = bubbleLayoutMetrics(layer);
+        return (line: string) => measureBubbleAdvance(line, metrics);
+      })()
+    : bundledFont
+      ? (line: string) => bundledFont.getAdvanceWidth(line, layer.fontSize)
+      : canvasMeasure
+        ? canvasMeasure
+        : (line: string) => fallbackFontAdvance(line, layer.fontSize);
   const paragraphs = parseRichText(layer.text);
   const { lines, truncated } = wrapRichTextLinesToBox(paragraphs, layer.width, maxLines, measure);
   const displayLines = truncated
@@ -1333,11 +1498,36 @@ const renderTextLayerSvg = (
     : createSvgId("text", "clip", index);
   const filterDef = renderTextEffectFilterSvg(layer, filterId);
   const filterAttribute = filterDef ? ` filter="url(#${filterId})"` : "";
-  const clipDef = `<clipPath id="${clipId}"><rect x="0" y="0" width="${layer.width}" height="${layer.height}" /></clipPath>`;
+  const clipBounds = isBubbleEnabled(layer)
+    ? (() => {
+        const bounds = getTextLayerRenderedBounds(layer);
+        return {
+          x: bounds.x - layer.x,
+          y: bounds.y - layer.y,
+          width: bounds.width,
+          height: bounds.height,
+        };
+      })()
+    : { x: 0, y: 0, width: layer.width, height: layer.height };
+  const clipDef = `<clipPath id="${clipId}"><rect x="${clipBounds.x}" y="${clipBounds.y}" width="${clipBounds.width}" height="${clipBounds.height}" /></clipPath>`;
   const contentAttributes = `${filterAttribute} clip-path="url(#${clipId})"`;
   const background = renderTextBackgroundSvg(layer);
   const defs = `${clipDef}${filterDef}`;
   const { lines, lineHeight } = computeTextLayerLines(layer, bundledFont);
+
+  if (isBubbleEnabled(layer)) {
+    return {
+      body: renderBubbleLetterTextLayerSvg(
+        layer,
+        bundledFont,
+        lines,
+        lineHeight,
+        background,
+        contentAttributes,
+      ),
+      defs,
+    };
+  }
 
   if (bundledFont) {
     return {
@@ -1857,6 +2047,7 @@ export const createTextLayer = (input: CreateTextLayerInput): TextLayer =>
     shadow: input.shadow ?? defaultTextShadow,
     glow: input.glow ?? defaultTextGlow,
     background: input.background ?? defaultTextBackground,
+    bubble: input.bubble ?? defaultTextBubble,
   });
 
 export const createStickerLayer = (input: CreateStickerLayerInput = {}): StickerLayer =>
@@ -2003,6 +2194,62 @@ export const updateCanvas = (
   });
 };
 
+export const getTextLayerRenderedBounds = (
+  layer: TextLayer,
+): { x: number; y: number; width: number; height: number } => {
+  if (!isBubbleEnabled(layer)) {
+    return { x: layer.x, y: layer.y, width: layer.width, height: layer.height };
+  }
+
+  const bundledFont = getBundledEditorFont(layer.fontFamily);
+  const { lines, lineHeight } = computeTextLayerLines(layer, bundledFont);
+  const metrics = bubbleLayoutMetrics(layer);
+
+  const renderedLines: { width: number; startX: number }[] = [];
+  for (const line of lines) {
+    if (!line || line.length === 0) continue;
+    let width = 0;
+    for (const run of line) {
+      for (const character of run.text) {
+        width += character.trim().length === 0 ? metrics.spaceWidth : metrics.cellWidth;
+      }
+    }
+    if (width === 0) continue;
+    const startX =
+      layer.align === "center"
+        ? layer.width / 2 - width / 2
+        : layer.align === "right"
+          ? layer.width - width
+          : 0;
+    renderedLines.push({ width, startX });
+  }
+
+  if (renderedLines.length === 0) {
+    return { x: layer.x, y: layer.y, width: layer.width, height: layer.height };
+  }
+
+  let leftLocal = Number.POSITIVE_INFINITY;
+  let rightLocal = Number.NEGATIVE_INFINITY;
+  for (const { width, startX } of renderedLines) {
+    if (startX < leftLocal) leftLocal = startX;
+    if (startX + width > rightLocal) rightLocal = startX + width;
+  }
+  const topLocal = layer.fontSize * 0.1 - Math.max(0, layer.bubble.padding);
+  const bottomLocal = renderedLines.length * lineHeight + Math.max(0, layer.bubble.padding);
+
+  const left = Math.min(0, leftLocal);
+  const right = Math.max(layer.width, rightLocal);
+  const top = Math.min(0, topLocal);
+  const bottom = Math.max(layer.height, bottomLocal);
+
+  return {
+    x: layer.x + left,
+    y: layer.y + top,
+    width: right - left,
+    height: bottom - top,
+  };
+};
+
 export const resizePageDocument = (
   document: PageDocument,
   canvas: Pick<PageDocument["canvas"], "height" | "width">,
@@ -2037,6 +2284,11 @@ export const resizePageDocument = (
                 ...layer.background,
                 padding: layer.background.padding * textScale,
                 radius: layer.background.radius * textScale,
+              },
+              bubble: {
+                ...layer.bubble,
+                padding: layer.bubble.padding * textScale,
+                spacing: layer.bubble.spacing * textScale,
               },
             }
           : {}),

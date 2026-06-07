@@ -33,6 +33,13 @@ type TextLayerFixtureOptions = {
     padding: number;
     radius: number;
   };
+  bubble?: {
+    color: string;
+    enabled: boolean;
+    opacity: number;
+    padding: number;
+    spacing: number;
+  };
   color?: string;
   fontFamily?: string;
   glow?: { blur: number; color: string; enabled: boolean; opacity: number };
@@ -312,6 +319,12 @@ const pageFixtures = [
         fontFamily: "Love Ya Like A Sister",
         glow: { blur: 54, color: "#f8d56b", enabled: true, opacity: 0.92 },
         rotation: 5,
+      }),
+      textLayer("text_effects_bubble", "BUBBLE", 1020, 1410, 940, 220, 96, {
+        align: "center",
+        bubble: { color: "#ffd6e0", enabled: true, opacity: 0.92, padding: 8, spacing: 12 },
+        color: "#2f3940",
+        fontFamily: "Bodoni Ultra Bold",
       }),
       textLayer(
         "text_effects_caption",
@@ -996,6 +1009,7 @@ function textLayer(
     ...baseLayer(id, x, y, width, height, options.rotation ?? 0),
     ...(options.opacity === undefined ? {} : { opacity: options.opacity }),
     ...(options.background ? { background: options.background } : {}),
+    ...(options.bubble ? { bubble: options.bubble } : {}),
     ...(options.glow ? { glow: options.glow } : {}),
     ...(options.shadow ? { shadow: options.shadow } : {}),
     ...(options.stroke ? { stroke: options.stroke } : {}),

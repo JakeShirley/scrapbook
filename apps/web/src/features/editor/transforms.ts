@@ -1,4 +1,4 @@
-import type { PageLayer, PhotoLayer, TextLayer } from "@scrapbook/editor-core";
+import { getTextLayerRenderedBounds, type PageLayer, type PhotoLayer, type TextLayer } from "@scrapbook/editor-core";
 
 import type { CanvasPoint, ResizeHandle } from "./editorTypes";
 
@@ -95,6 +95,10 @@ export const resizeLayerFromHandle = (
 };
 
 export const getLayerSelectionFrame = (layer: PageLayer): SelectionFrame => {
+  if (layer.kind === "text") {
+    const bounds = getTextLayerRenderedBounds(layer);
+    return { ...bounds, rotation: 0 };
+  }
   if (layer.kind !== "photo") {
     return { height: layer.height, rotation: 0, width: layer.width, x: layer.x, y: layer.y };
   }
