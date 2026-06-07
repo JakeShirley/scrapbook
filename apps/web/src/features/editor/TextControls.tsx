@@ -56,24 +56,28 @@ export function TextControls({
   };
 
   const previewSvg = useMemo(() => {
+    const previewText = layer.text.trim().length > 0 ? layer.text : "Text preview";
+    const padding = 24;
+    const minCanvasSize = 320;
+    const canvasWidth = Math.max(minCanvasSize, Math.ceil(layer.width + padding * 2));
+    const canvasHeight = Math.max(minCanvasSize, Math.ceil(layer.height + padding * 2));
+    const previewX = Math.round((canvasWidth - layer.width) / 2);
+    const previewY = Math.round((canvasHeight - layer.height) / 2);
     const previewLayer: TextLayer = {
       ...layer,
       id: `${layer.id}-preview`,
-      text: layer.text.trim().length > 0 ? layer.text : "Text preview",
-      x: 64,
-      y: 106,
-      width: 512,
-      height: 128,
+      text: previewText,
+      x: previewX,
+      y: previewY,
       rotation: 0,
-      fontSize: Math.max(28, Math.min(88, layer.fontSize)),
     };
 
     return renderPageDocumentSvg(
       {
         version: 1,
         canvas: {
-          width: 640,
-          height: 320,
+          width: canvasWidth,
+          height: canvasHeight,
           backgroundColor: "#fffdf7",
         },
         layers: [previewLayer],
