@@ -33,6 +33,7 @@ export function BookLibraryPickerModal({
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("taken");
+  const [hideUsed, setHideUsed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,18 +64,22 @@ export function BookLibraryPickerModal({
     if (!libraryAssets) {
       return [];
     }
-    const filtered = normalizedQuery
-      ? libraryAssets.filter((asset) =>
-          [asset.originalFilename, formatDimensions(asset), formatBytes(asset.byteSize)]
-            .join(" ")
-            .toLocaleLowerCase()
-            .includes(normalizedQuery),
-        )
-      : libraryAssets;
+    let filtered = libraryAssets;
+    if (hideUsed) {
+      filtered = filtered.filter((asset) => !referencedAssetIds.has(asset.id));
+    }
+    if (normalizedQuery) {
+      filtered = filtered.filter((asset) =>
+        [asset.originalFilename, formatDimensions(asset), formatBytes(asset.byteSize)]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(normalizedQuery),
+      );
+    }
     return [...filtered].sort((a, b) =>
       sortKeyFor(b, sortMode).localeCompare(sortKeyFor(a, sortMode)),
     );
-  }, [libraryAssets, normalizedQuery, sortMode]);
+  }, [libraryAssets, normalizedQuery, sortMode, hideUsed, referencedAssetIds]);
 
   const selectableSelectedCount = useMemo(() => {
     let count = 0;
@@ -154,10 +159,24 @@ export function BookLibraryPickerModal({
               ))}
             </select>
           </label>
+          <label className="checkbox-label photo-picker-hide-used">
+            <input
+              type="checkbox"
+              checked={hideUsed}
+              disabled={libraryAssets === null}
+              onChange={(event) => setHideUsed(event.currentTarget.checked)}
+            />
+            <span>Hide photos already in this book</span>
+          </label>
           <span className="photo-picker-count">
-            {libraryAssets === null
-              ? "Loading..."
-              : `${visibleAssets.length} of ${totalLibraryCount}`}
+            <span aria-hidden="true" className="photo-picker-count-reserve">
+              {`${totalLibraryCount} of ${totalLibraryCount}`}
+            </span>
+            <span className="photo-picker-count-value">
+              {libraryAssets === null
+                ? "Loading..."
+                : `${visibleAssets.length} of ${totalLibraryCount}`}
+            </span>
           </span>
         </div>
         {loadError ? (
