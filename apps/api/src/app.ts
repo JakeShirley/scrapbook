@@ -3,8 +3,20 @@ import { createRequire } from "node:module";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   type AccountResponse,
+  albumAssetListRoute,
+  albumAssetRemoveRoute,
+  albumAssetsAddRoute,
+  albumCreateRoute,
+  albumDeleteRoute,
+  albumDetailRoute,
+  albumListResponseSchema,
+  albumListRoute,
+  albumPatchRoute,
+  albumResponseSchema,
+  type AlbumResponse,
   type AssetResponse,
   type AuthSessionResponse,
+  assetAlbumsListRoute,
   assetDetailRoute,
   assetListResponseSchema,
   assetListRoute,
@@ -91,6 +103,7 @@ import {
   type Repositories,
   type RepositoryClock,
 } from "./persistence/repositories.js";
+import type { AlbumWithCountRecord } from "./persistence/repositories.js";
 import type {
   AccountRecord,
   AssetRecord,
@@ -347,6 +360,15 @@ const toBookPageResponse = (bookPage: BookPageRecord, page: PageRecord): BookPag
   createdAt: bookPage.createdAt,
   updatedAt: bookPage.updatedAt,
 });
+
+const toAlbumResponse = (album: AlbumWithCountRecord): AlbumResponse =>
+  albumResponseSchema.parse({
+    id: album.id,
+    title: album.title,
+    photoCount: album.photoCount,
+    createdAt: album.createdAt,
+    updatedAt: album.updatedAt,
+  });
 
 const toBookSummaryResponse = (
   book: BookRecord,
@@ -1535,6 +1557,335 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     return context.body(null, 204);
+  });
+
+  app.openapi(albumListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const records = options.repositories.albums.listForAccount(authSession.account.id);
+
+    return context.json(
+      albumListResponseSchema.parse({ albums: records.map(toAlbumResponse) }),
+      200,
+    );
+  });
+
+  app.openapi(albumCreateRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const input = context.req.valid("json");
+    const album = options.repositories.albums.create({
+      accountId: authSession.account.id,
+      title: input.title,
+    });
+
+    return context.json(toAlbumResponse({ ...album, photoCount: 0 }), 201);
+  });
+
+  app.openapi(albumDetailRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { albumId } = context.req.valid("param");
+    const records = options.repositories.albums.listForAccount(authSession.account.id);
+    const match = records.find((record) => record.id === albumId);
+
+    if (!match) {
+      return context.json(createErrorResponse(context, "album_not_found", "Album not found"), 404);
+    }
+
+    return context.json(toAlbumResponse(match), 200);
+  });
+
+  app.openapi(albumPatchRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { albumId } = context.req.valid("param");
+    const input = context.req.valid("json");
+    const updated = options.repositories.albums.update({
+      accountId: authSession.account.id,
+      albumId,
+      title: input.title,
+    });
+
+    if (!updated) {
+      return context.json(createErrorResponse(context, "album_not_found", "Album not found"), 404);
+    }
+
+    const records = options.repositories.albums.listForAccount(authSession.account.id);
+    const match = records.find((record) => record.id === albumId);
+
+    return context.json(toAlbumResponse(match ?? { ...updated, photoCount: 0 }), 200);
+  });
+
+  app.openapi(albumDeleteRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { albumId } = context.req.valid("param");
+    const removed = options.repositories.albums.delete({
+      accountId: authSession.account.id,
+      albumId,
+    });
+
+    if (!removed) {
+      return context.json(createErrorResponse(context, "album_not_found", "Album not found"), 404);
+    }
+
+    return context.body(null, 204);
+  });
+
+  app.openapi(albumAssetListRoute, async (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const repositories = options.repositories;
+    const { albumId } = context.req.valid("param");
+    const album = repositories.albums.findByIdForAccount(authSession.account.id, albumId);
+
+    if (!album) {
+      return context.json(createErrorResponse(context, "album_not_found", "Album not found"), 404);
+    }
+
+    const records = repositories.albums.listAssetsForAlbum(authSession.account.id, albumId);
+
+    const assets = await Promise.all(
+      records.map(async (asset) =>
+        toAssetResponse(
+          asset,
+          await listAssetVariantsForResponse({
+            accountId: authSession.account.id,
+            asset,
+            repositories,
+            storage: options.storage,
+          }),
+        ),
+      ),
+    );
+
+    return context.json(assetListResponseSchema.parse({ assets }), 200);
+  });
+
+  app.openapi(albumAssetsAddRoute, async (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const repositories = options.repositories;
+    const { albumId } = context.req.valid("param");
+    const input = context.req.valid("json");
+
+    try {
+      repositories.albums.addAssetsToAlbum({
+        accountId: authSession.account.id,
+        albumId,
+        assetIds: input.assetIds,
+      });
+    } catch (error) {
+      if (error instanceof OwnershipError) {
+        const isAlbumOwnership = error.message.startsWith("Album does not belong");
+
+        return context.json(
+          createErrorResponse(
+            context,
+            isAlbumOwnership ? "album_not_found" : "album_asset_not_found",
+            isAlbumOwnership ? "Album not found" : "Album assets must belong to the account",
+          ),
+          isAlbumOwnership ? 404 : 400,
+        );
+      }
+
+      throw error;
+    }
+
+    const records = repositories.albums.listAssetsForAlbum(authSession.account.id, albumId);
+
+    const assets = await Promise.all(
+      records.map(async (asset) =>
+        toAssetResponse(
+          asset,
+          await listAssetVariantsForResponse({
+            accountId: authSession.account.id,
+            asset,
+            repositories,
+            storage: options.storage,
+          }),
+        ),
+      ),
+    );
+
+    return context.json(assetListResponseSchema.parse({ assets }), 200);
+  });
+
+  app.openapi(albumAssetRemoveRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { albumId, assetId } = context.req.valid("param");
+
+    try {
+      const removed = options.repositories.albums.removeAssetFromAlbum({
+        accountId: authSession.account.id,
+        albumId,
+        assetId,
+      });
+
+      if (!removed) {
+        return context.json(
+          createErrorResponse(context, "album_asset_not_found", "Album asset not found"),
+          404,
+        );
+      }
+    } catch (error) {
+      if (error instanceof OwnershipError) {
+        return context.json(
+          createErrorResponse(context, "album_not_found", "Album not found"),
+          404,
+        );
+      }
+
+      throw error;
+    }
+
+    return context.body(null, 204);
+  });
+
+  app.openapi(assetAlbumsListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "albums_unavailable", "Albums are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { assetId } = context.req.valid("param");
+    const asset = options.repositories.assets.findByIdForAccount(authSession.account.id, assetId);
+
+    if (!asset) {
+      return context.json(createErrorResponse(context, "asset_not_found", "Asset not found"), 404);
+    }
+
+    const records = options.repositories.albums.listAlbumsForAsset(authSession.account.id, assetId);
+
+    return context.json(
+      albumListResponseSchema.parse({ albums: records.map(toAlbumResponse) }),
+      200,
+    );
   });
 
   app.openapi(exportCreateRoute, async (context) => {

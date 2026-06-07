@@ -1,13 +1,23 @@
 import { Button } from "@fluentui/react-components";
-import { ArrowUploadRegular } from "@fluentui/react-icons";
+import {
+  AddRegular,
+  ArrowUploadRegular,
+  DeleteRegular,
+  DismissRegular,
+  EditRegular,
+} from "@fluentui/react-icons";
 import type { ChangeEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { apiClient } from "../../apiClient";
 import { Panel, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import { formatBytes, formatDimensions } from "../../lib/format";
-import type { Asset } from "../../types";
+import type { Album, Asset } from "../../types";
+import { AlbumAssetPickerModal } from "./AlbumAssetPickerModal";
+import { AlbumChipBar } from "./AlbumChipBar";
+import { AlbumDeleteModal } from "./AlbumDeleteModal";
+import { AlbumNameModal } from "./AlbumNameModal";
 import { PhotoInfoModal } from "./PhotoInfoModal";
 
 type SortMode = "taken" | "uploaded";
@@ -20,19 +30,44 @@ const sortModeLabels: Record<SortMode, string> = {
 const sortKeyFor = (asset: Asset, mode: SortMode): string =>
   mode === "taken" ? (asset.dateTaken ?? asset.createdAt) : asset.createdAt;
 
+type AlbumDialog =
+  | { kind: "create" }
+  | { kind: "rename"; album: Album }
+  | { kind: "delete"; album: Album }
+  | { kind: "addPhotos"; album: Album };
+
 export function LibraryView() {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
+  const [albumAssets, setAlbumAssets] = useState<Asset[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAlbumLoading, setIsAlbumLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("taken");
   const [inspectedAssetId, setInspectedAssetId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<AlbumDialog | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedAlbum = useMemo(
+    () => (selectedAlbumId ? (albums.find((album) => album.id === selectedAlbumId) ?? null) : null),
+    [albums, selectedAlbumId],
+  );
+
+  const visibleAssets = useMemo(() => {
+    if (selectedAlbumId === null) {
+      return assets;
+    }
+    return albumAssets ?? [];
+  }, [selectedAlbumId, assets, albumAssets]);
 
   const sortedAssets = useMemo(
     () =>
-      [...assets].sort((a, b) => sortKeyFor(b, sortMode).localeCompare(sortKeyFor(a, sortMode))),
-    [assets, sortMode],
+      [...visibleAssets].sort((a, b) =>
+        sortKeyFor(b, sortMode).localeCompare(sortKeyFor(a, sortMode)),
+      ),
+    [visibleAssets, sortMode],
   );
 
   const inspectedAsset = useMemo(
@@ -41,14 +76,33 @@ export function LibraryView() {
     [assets, inspectedAssetId],
   );
 
+  const refreshAlbums = useCallback(async () => {
+    const response = await apiClient.listAlbums();
+    setAlbums(response.albums);
+    return response.albums;
+  }, []);
+
+  const loadAlbumAssets = useCallback(async (albumId: string) => {
+    setIsAlbumLoading(true);
+    try {
+      const response = await apiClient.listAlbumAssets(albumId);
+      setAlbumAssets(response.assets);
+    } catch (loadError) {
+      setError(getErrorMessage(loadError));
+      setAlbumAssets([]);
+    } finally {
+      setIsAlbumLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
-    apiClient
-      .listAssets()
-      .then((response) => {
+    Promise.all([apiClient.listAssets(), apiClient.listAlbums()])
+      .then(([assetResponse, albumResponse]) => {
         if (isMounted) {
-          setAssets(response.assets);
+          setAssets(assetResponse.assets);
+          setAlbums(albumResponse.albums);
           setError(null);
         }
       })
@@ -67,6 +121,14 @@ export function LibraryView() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (selectedAlbumId === null) {
+      setAlbumAssets(null);
+      return;
+    }
+    loadAlbumAssets(selectedAlbumId);
+  }, [selectedAlbumId, loadAlbumAssets]);
 
   const uploadAssets = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.currentTarget.files ?? []);
@@ -104,11 +166,44 @@ export function LibraryView() {
         ...uploadedAssetsNewestFirst,
         ...currentAssets.filter((asset) => !uploadedAssetIds.has(asset.id)),
       ]);
+
+      if (selectedAlbumId !== null) {
+        try {
+          const response = await apiClient.addAlbumAssets(selectedAlbumId, {
+            assetIds: uploadedAssets.map((asset) => asset.id),
+          });
+          setAlbumAssets(response.assets);
+          await refreshAlbums();
+        } catch (addError: unknown) {
+          failures.push(getErrorMessage(addError));
+        }
+      }
     }
 
     setError(failures.length > 0 ? failures.join(" ") : null);
     setUploadProgress(null);
   };
+
+  const removeAssetFromAlbum = async (album: Album, asset: Asset) => {
+    setError(null);
+    try {
+      await apiClient.removeAlbumAsset(album.id, asset.id);
+      setAlbumAssets((current) =>
+        current ? current.filter((member) => member.id !== asset.id) : current,
+      );
+      await refreshAlbums();
+    } catch (removeError) {
+      setError(getErrorMessage(removeError));
+    }
+  };
+
+  const memberAssetIds = useMemo(
+    () => new Set((albumAssets ?? []).map((asset) => asset.id)),
+    [albumAssets],
+  );
+
+  const panelTitle = selectedAlbum ? selectedAlbum.title : "All photos";
+  const panelCount = selectedAlbum ? String(selectedAlbum.photoCount) : String(assets.length);
 
   return (
     <>
@@ -128,12 +223,12 @@ export function LibraryView() {
           icon={<ArrowUploadRegular />}
           onClick={() => fileInputRef.current?.click()}
         >
-          Upload
+          {selectedAlbum ? `Upload to ${selectedAlbum.title}` : "Upload"}
         </Button>
       </WorkspaceHeader>
 
       <div className="workspace-grid library-grid">
-        <Panel title="Assets" count={String(assets.length)}>
+        <Panel title={panelTitle} count={panelCount}>
           {error ? (
             <p className="panel-alert" role="alert">
               {error}
@@ -145,9 +240,65 @@ export function LibraryView() {
               <progress value={uploadProgress ?? undefined} max={1} />
             </div>
           ) : null}
+          <AlbumChipBar
+            albums={albums}
+            selectedAlbumId={selectedAlbumId}
+            onSelectAlbum={setSelectedAlbumId}
+            trailing={
+              <Button
+                type="button"
+                className="secondary-button"
+                icon={<AddRegular />}
+                onClick={() => setDialog({ kind: "create" })}
+              >
+                New album
+              </Button>
+            }
+          />
+          {selectedAlbum ? (
+            <div className="library-album-toolbar">
+              <Button
+                type="button"
+                className="secondary-button"
+                icon={<AddRegular />}
+                onClick={() => setDialog({ kind: "addPhotos", album: selectedAlbum })}
+              >
+                Add photos
+              </Button>
+              <Button
+                type="button"
+                className="secondary-button"
+                icon={<EditRegular />}
+                onClick={() => setDialog({ kind: "rename", album: selectedAlbum })}
+              >
+                Rename
+              </Button>
+              <Button
+                type="button"
+                className="secondary-button"
+                icon={<DeleteRegular />}
+                onClick={() => setDialog({ kind: "delete", album: selectedAlbum })}
+              >
+                Delete album
+              </Button>
+            </div>
+          ) : null}
           {isLoading ? <p className="empty-state">Loading assets</p> : null}
-          {!isLoading && assets.length === 0 ? <p className="empty-state">No assets yet</p> : null}
-          {assets.length > 0 ? (
+          {!isLoading && selectedAlbumId === null && assets.length === 0 ? (
+            <p className="empty-state">No assets yet</p>
+          ) : null}
+          {!isLoading && selectedAlbumId !== null && isAlbumLoading ? (
+            <p className="empty-state">Loading album</p>
+          ) : null}
+          {!isLoading &&
+          selectedAlbumId !== null &&
+          !isAlbumLoading &&
+          (albumAssets?.length ?? 0) === 0 ? (
+            <p className="empty-state">
+              This album is empty. Use <strong>Add photos</strong> to fill it from your library.
+            </p>
+          ) : null}
+          {!isLoading && visibleAssets.length > 0 ? (
             <>
               <div className="library-sort-toolbar">
                 <label htmlFor="library-sort">
@@ -167,21 +318,33 @@ export function LibraryView() {
               </div>
               <div className="asset-grid">
                 {sortedAssets.map((asset) => (
-                  <button
-                    className="asset-tile"
-                    type="button"
-                    key={asset.id}
-                    aria-label={`View info for ${asset.originalFilename}`}
-                    onClick={() => setInspectedAssetId(asset.id)}
-                  >
-                    <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
-                    <span className="asset-tile-copy">
-                      <span>{asset.originalFilename}</span>
-                      <span>
-                        {formatDimensions(asset)} / {formatBytes(asset.byteSize)}
+                  <div className="asset-tile-wrap" key={asset.id}>
+                    <button
+                      className="asset-tile"
+                      type="button"
+                      aria-label={`View info for ${asset.originalFilename}`}
+                      onClick={() => setInspectedAssetId(asset.id)}
+                    >
+                      <img src={asset.thumbnailUrl ?? asset.originalContentUrl} alt="" />
+                      <span className="asset-tile-copy">
+                        <span>{asset.originalFilename}</span>
+                        <span>
+                          {formatDimensions(asset)} / {formatBytes(asset.byteSize)}
+                        </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                    {selectedAlbum ? (
+                      <button
+                        type="button"
+                        className="asset-tile-remove"
+                        aria-label={`Remove ${asset.originalFilename} from ${selectedAlbum.title}`}
+                        title="Remove from album"
+                        onClick={() => removeAssetFromAlbum(selectedAlbum, asset)}
+                      >
+                        <DismissRegular />
+                      </button>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             </>
@@ -189,7 +352,67 @@ export function LibraryView() {
         </Panel>
       </div>
       {inspectedAsset ? (
-        <PhotoInfoModal asset={inspectedAsset} onClose={() => setInspectedAssetId(null)} />
+        <PhotoInfoModal
+          asset={inspectedAsset}
+          albums={albums}
+          onAlbumMembershipChanged={() => {
+            refreshAlbums();
+            if (selectedAlbumId !== null) {
+              loadAlbumAssets(selectedAlbumId);
+            }
+          }}
+          onClose={() => setInspectedAssetId(null)}
+        />
+      ) : null}
+      {dialog?.kind === "create" ? (
+        <AlbumNameModal
+          title="New album"
+          initialName=""
+          submitLabel="Create album"
+          onClose={() => setDialog(null)}
+          onSubmit={async (name) => {
+            const created = await apiClient.createAlbum({ title: name });
+            await refreshAlbums();
+            setSelectedAlbumId(created.id);
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "rename" ? (
+        <AlbumNameModal
+          title="Rename album"
+          initialName={dialog.album.title}
+          submitLabel="Save"
+          onClose={() => setDialog(null)}
+          onSubmit={async (name) => {
+            await apiClient.updateAlbum(dialog.album.id, { title: name });
+            await refreshAlbums();
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "delete" ? (
+        <AlbumDeleteModal
+          albumTitle={dialog.album.title}
+          onClose={() => setDialog(null)}
+          onConfirm={async () => {
+            await apiClient.deleteAlbum(dialog.album.id);
+            setSelectedAlbumId(null);
+            setAlbumAssets(null);
+            await refreshAlbums();
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "addPhotos" ? (
+        <AlbumAssetPickerModal
+          albumId={dialog.album.id}
+          albumTitle={dialog.album.title}
+          libraryAssets={assets}
+          memberAssetIds={memberAssetIds}
+          onAdded={async (memberAssets) => {
+            setAlbumAssets(memberAssets);
+            await refreshAlbums();
+          }}
+          onClose={() => setDialog(null)}
+        />
       ) : null}
     </>
   );

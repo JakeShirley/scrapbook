@@ -1,4 +1,4 @@
-export type EntityKind = "account" | "asset" | "book" | "export" | "page" | "session";
+export type EntityKind = "account" | "album" | "asset" | "book" | "export" | "page" | "session";
 
 export type OpaqueId<Kind extends EntityKind> = `${Kind}_${string}`;
 

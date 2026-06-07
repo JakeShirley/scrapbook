@@ -1,4 +1,11 @@
 import {
+  type AlbumAssetsAddRequest,
+  type AlbumCreateRequest,
+  type AlbumListResponse,
+  type AlbumPatchRequest,
+  type AlbumResponse,
+  albumListResponseSchema,
+  albumResponseSchema,
   type AssetListResponse,
   type AssetResponse,
   type AuthSessionResponse,
@@ -110,6 +117,55 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
 
   listAssets: (): Promise<AssetListResponse> =>
     requestJson(baseUrl, assetListResponseSchema, "/api/v1/assets"),
+
+  listAlbums: (): Promise<AlbumListResponse> =>
+    requestJson(baseUrl, albumListResponseSchema, "/api/v1/albums"),
+
+  createAlbum: (input: AlbumCreateRequest): Promise<AlbumResponse> =>
+    requestJson(baseUrl, albumResponseSchema, "/api/v1/albums", {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  updateAlbum: (albumId: string, input: AlbumPatchRequest): Promise<AlbumResponse> =>
+    requestJson(baseUrl, albumResponseSchema, `/api/v1/albums/${albumId}`, {
+      body: JSON.stringify(input),
+      method: "PATCH",
+    }),
+
+  deleteAlbum: async (albumId: string): Promise<void> => {
+    const response = await fetch(buildUrl(baseUrl, `/api/v1/albums/${albumId}`), {
+      credentials: "include",
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+  },
+
+  listAlbumAssets: (albumId: string): Promise<AssetListResponse> =>
+    requestJson(baseUrl, assetListResponseSchema, `/api/v1/albums/${albumId}/assets`),
+
+  listAssetAlbums: (assetId: string): Promise<AlbumListResponse> =>
+    requestJson(baseUrl, albumListResponseSchema, `/api/v1/assets/${assetId}/albums`),
+
+  addAlbumAssets: (albumId: string, input: AlbumAssetsAddRequest): Promise<AssetListResponse> =>
+    requestJson(baseUrl, assetListResponseSchema, `/api/v1/albums/${albumId}/assets`, {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  removeAlbumAsset: async (albumId: string, assetId: string): Promise<void> => {
+    const response = await fetch(buildUrl(baseUrl, `/api/v1/albums/${albumId}/assets/${assetId}`), {
+      credentials: "include",
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+  },
 
   listPages: (): Promise<PageListResponse> =>
     requestJson(baseUrl, pageListResponseSchema, "/api/v1/pages"),

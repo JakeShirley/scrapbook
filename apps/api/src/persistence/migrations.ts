@@ -198,6 +198,32 @@ ALTER TABLE assets ADD COLUMN gps_longitude REAL;
 ALTER TABLE assets ADD COLUMN gps_altitude_meters REAL;
 `,
   },
+  {
+    id: "0009_add_albums",
+    sql: `
+CREATE TABLE albums (
+  id TEXT PRIMARY KEY NOT NULL CHECK (id GLOB 'album_*'),
+  account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX albums_account_id_idx ON albums (account_id);
+
+CREATE TABLE album_assets (
+  id TEXT PRIMARY KEY NOT NULL CHECK (id GLOB 'album_asset_*'),
+  account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+  album_id TEXT NOT NULL REFERENCES albums (id) ON DELETE CASCADE,
+  asset_id TEXT NOT NULL REFERENCES assets (id) ON DELETE CASCADE,
+  sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (album_id, asset_id)
+);
+CREATE INDEX album_assets_account_id_idx ON album_assets (account_id);
+CREATE INDEX album_assets_album_id_idx ON album_assets (album_id);
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

@@ -109,6 +109,36 @@ const assetFixtures = [
   createAsset("asset_ocean", "ocean-print.jpg", 3000, 2000, 2_456_221),
 ];
 
+const albumFixtures = [
+  {
+    createdAt: now,
+    id: "album_japan_2024",
+    photoCount: 2,
+    title: "Japan 2024",
+    updatedAt: now,
+  },
+  {
+    createdAt: now,
+    id: "album_summer",
+    photoCount: 3,
+    title: "Summer trip",
+    updatedAt: now,
+  },
+  {
+    createdAt: now,
+    id: "album_misc",
+    photoCount: 1,
+    title: "Misc 2026",
+    updatedAt: now,
+  },
+];
+
+const albumAssetMap: Record<string, ReturnType<typeof createAsset>[]> = {
+  album_japan_2024: [assetFixtures[2], assetFixtures[3]],
+  album_summer: assetFixtures.slice(0, 3),
+  album_misc: [assetFixtures[1]],
+};
+
 const pageFixtures = [
   createPage("page_cover", "Cover", {
     backgroundColor: "#fff6e6",
@@ -528,6 +558,21 @@ const scenarios: ScreenshotScenario[] = [
     },
   },
   {
+    name: "library-album",
+    path: "/library",
+    prepare: async (page) => {
+      const albumTab = page.getByRole("tab", { name: "Japan 2024" });
+      if (!(await isVisible(albumTab))) {
+        return;
+      }
+      await albumTab.click();
+      await expect(page.getByText("train-ticket.webp")).toBeVisible();
+    },
+    waitFor: async (page) => {
+      await expect(page.getByRole("heading", { name: "Library" })).toBeVisible();
+    },
+  },
+  {
     name: "image-grid",
     path: "/image-grid",
     prepare: async (page) => {
@@ -716,6 +761,29 @@ async function installMockApi(page: Page, authenticated: boolean) {
 
     if (pathName === "/api/v1/assets") {
       await route.fulfill({ json: { assets: assetFixtures } });
+      return;
+    }
+
+    if (pathName === "/api/v1/albums") {
+      await route.fulfill({ json: { albums: albumFixtures } });
+      return;
+    }
+
+    if (pathName.startsWith("/api/v1/albums/") && pathName.endsWith("/assets")) {
+      const albumId = pathName.split("/").at(-2);
+      const assets = albumId ? (albumAssetMap[albumId] ?? []) : [];
+      await route.fulfill({ json: { assets } });
+      return;
+    }
+
+    if (pathName.startsWith("/api/v1/assets/") && pathName.endsWith("/albums")) {
+      const assetId = pathName.split("/").at(-2);
+      const memberAlbums = assetId
+        ? albumFixtures.filter((album) =>
+            (albumAssetMap[album.id] ?? []).some((asset) => asset.id === assetId),
+          )
+        : [];
+      await route.fulfill({ json: { albums: memberAlbums } });
       return;
     }
 
