@@ -6,7 +6,7 @@ import { FontFamilySelect } from "./FontFamilySelect";
 import { TextAlignmentControl } from "./TextAlignmentControl";
 
 type TextLayer = Extract<PageLayer, { kind: "text" }>;
-type TextEffectKey = "background" | "glow" | "shadow" | "stroke";
+type TextEffectKey = "background" | "bubble" | "glow" | "shadow" | "stroke";
 
 const wrapSelectionWithMarker = (
   source: string,
@@ -378,6 +378,65 @@ export function TextControls({
                     min={0}
                     value={layer.background.radius}
                     onChange={(radius) => updateEffect("background", { radius })}
+                  />
+                </label>
+              </div>
+            </section>
+            <section className="text-effect-card" aria-label="Bubble letters">
+              <label className="checkbox-label compact-checkbox">
+                <input
+                  type="checkbox"
+                  checked={layer.bubble.enabled}
+                  onChange={(event) =>
+                    updateEffect("bubble", { enabled: event.currentTarget.checked })
+                  }
+                />
+                <span>Bubble letters</span>
+              </label>
+              <div className="text-effect-controls-grid">
+                <label>
+                  <span>Color</span>
+                  <input
+                    type="color"
+                    value={layer.bubble.color}
+                    onChange={(event) =>
+                      updateEffect("bubble", { color: event.currentTarget.value })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Opacity</span>
+                  <input
+                    max={1}
+                    min={0}
+                    step={0.05}
+                    type="range"
+                    value={layer.bubble.opacity}
+                    onChange={(event) =>
+                      updateEffect("bubble", { opacity: Number(event.currentTarget.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Size</span>
+                  <NumericInput
+                    max={120}
+                    min={0}
+                    value={layer.bubble.padding}
+                    onChange={(padding) => updateEffect("bubble", { padding })}
+                  />
+                </label>
+                <label>
+                  <span>Spacing</span>
+                  <input
+                    max={120}
+                    min={0}
+                    step={1}
+                    type="range"
+                    value={layer.bubble.spacing}
+                    onChange={(event) =>
+                      updateEffect("bubble", { spacing: Number(event.currentTarget.value) })
+                    }
                   />
                 </label>
               </div>
