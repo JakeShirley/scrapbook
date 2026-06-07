@@ -9,6 +9,7 @@ docs/screenshots/*.png
 *.tsbuildinfo
 
 packages/editor-core/src/generated/googleFonts.ts
+apps/web/src/generated/changelog.ts
 
 .env*
 !.env.example

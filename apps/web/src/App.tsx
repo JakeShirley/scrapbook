@@ -26,9 +26,11 @@ import { LoadingScreen } from "./components/layout";
 import { AuthPage } from "./features/auth/AuthPage";
 import { BookEditorView } from "./features/books/BookEditorView";
 import { BooksView } from "./features/books/BooksView";
+import { ChangelogModal } from "./features/changelog/ChangelogModal";
 import { ImageGridView } from "./features/image-grid/ImageGridView";
 import { LibraryView } from "./features/library/LibraryView";
 import { SettingsView } from "./features/settings/SettingsView";
+import { appVersion } from "./generated/changelog";
 import { getErrorMessage } from "./lib/errors";
 import type { AuthMode, AuthSession, SessionState } from "./types";
 
@@ -156,6 +158,7 @@ function ProtectedShell({
 }) {
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialSidebarCollapsed);
+  const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const editorLayout = /^\/books\/[^/]+\/?$/.test(location.pathname) ? "book" : undefined;
@@ -234,6 +237,15 @@ function ProtectedShell({
           >
             <span className="sidebar-label">{isSidebarCollapsed ? "Expand" : "Collapse"}</span>
           </Button>
+          <button
+            type="button"
+            className="sidebar-version"
+            aria-label={`View changelog (current version v${appVersion})`}
+            title={`View changelog (v${appVersion})`}
+            onClick={() => setIsChangelogOpen(true)}
+          >
+            <span className="sidebar-label">v{appVersion}</span>
+          </button>
           {logoutError ? (
             <p className="sidebar-alert" role="alert">
               {logoutError}
@@ -241,6 +253,7 @@ function ProtectedShell({
           ) : null}
         </div>
       </aside>
+      {isChangelogOpen ? <ChangelogModal onClose={() => setIsChangelogOpen(false)} /> : null}
 
       <section className="workspace" aria-label="Scrapbook workspace">
         <Routes>

@@ -266,6 +266,97 @@ textarea:focus-visible {
   font-size: 0.82rem;
 }
 
+.sidebar-version {
+  appearance: none;
+  align-self: center;
+  margin: 4px 0 -2px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  color: #8c9794;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.sidebar-version:hover,
+.sidebar-version:focus-visible {
+  color: #f8faf8;
+  background: rgba(217, 236, 231, 0.08);
+  outline: none;
+}
+
+.sidebar[data-collapsed="true"] .sidebar-version {
+  display: none;
+}
+
+.changelog-content {
+  padding: 18px 22px 22px;
+  color: var(--sb-neutral-foreground);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.changelog-content h1,
+.changelog-content h2,
+.changelog-content h3 {
+  margin: 0 0 8px;
+  color: var(--sb-neutral-foreground);
+}
+
+.changelog-content h1 {
+  font-size: 1.4rem;
+}
+
+.changelog-content h1:not(:first-child),
+.changelog-content h2:not(:first-child),
+.changelog-content h3:not(:first-child) {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sb-neutral-stroke-3);
+}
+
+.changelog-content h2 {
+  font-size: 1.15rem;
+}
+
+.changelog-content h3 {
+  font-size: 0.98rem;
+  color: #4a5957;
+}
+
+.changelog-content ul {
+  margin: 8px 0 12px;
+  padding-left: 22px;
+}
+
+.changelog-content li {
+  margin-bottom: 4px;
+}
+
+.changelog-content a {
+  color: #2d6b66;
+  text-decoration: none;
+}
+
+.changelog-content a:hover,
+.changelog-content a:focus-visible {
+  text-decoration: underline;
+}
+
+.changelog-content code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--sb-neutral-background-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
 .workspace {
   min-width: 0;
   padding: 24px;
