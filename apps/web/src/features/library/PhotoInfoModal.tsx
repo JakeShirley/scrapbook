@@ -1,6 +1,11 @@
+import { Spinner } from "@fluentui/react-components";
+import { useEffect, useState } from "react";
+
+import { apiClient } from "../../apiClient";
 import { AppModal } from "../../components/layout";
+import { getErrorMessage } from "../../lib/errors";
 import { formatBytes, formatDimensions } from "../../lib/format";
-import type { Asset } from "../../types";
+import type { Album, Asset } from "../../types";
 
 const formatTimestamp = (value: string | null): string => {
   if (!value) {
@@ -127,7 +132,79 @@ const mapsLinkFor = (asset: Asset): string | null => {
   return `https://www.openstreetmap.org/?mlat=${asset.gpsLatitude}&mlon=${asset.gpsLongitude}#map=15/${asset.gpsLatitude}/${asset.gpsLongitude}`;
 };
 
-export function PhotoInfoModal({ asset, onClose }: { asset: Asset; onClose: () => void }) {
+export function PhotoInfoModal({
+  asset,
+  albums,
+  onAlbumMembershipChanged,
+  onClose,
+}: {
+  asset: Asset;
+  albums: Album[];
+  onAlbumMembershipChanged?: () => void;
+  onClose: () => void;
+}) {
+  const [memberAlbumIds, setMemberAlbumIds] = useState<Set<string> | null>(null);
+  const [pendingAlbumIds, setPendingAlbumIds] = useState<Set<string>>(new Set());
+  const [albumError, setAlbumError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    setMemberAlbumIds(null);
+    setAlbumError(null);
+    apiClient
+      .listAssetAlbums(asset.id)
+      .then((response) => {
+        if (isMounted) {
+          setMemberAlbumIds(new Set(response.albums.map((album) => album.id)));
+        }
+      })
+      .catch((listError: unknown) => {
+        if (isMounted) {
+          setAlbumError(getErrorMessage(listError));
+          setMemberAlbumIds(new Set());
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [asset.id]);
+
+  const toggleAlbumMembership = async (album: Album) => {
+    const isCurrentMember = memberAlbumIds?.has(album.id) ?? false;
+    setPendingAlbumIds((current) => {
+      const next = new Set(current);
+      next.add(album.id);
+      return next;
+    });
+    setAlbumError(null);
+    try {
+      if (isCurrentMember) {
+        await apiClient.removeAlbumAsset(album.id, asset.id);
+        setMemberAlbumIds((current) => {
+          if (!current) return current;
+          const next = new Set(current);
+          next.delete(album.id);
+          return next;
+        });
+      } else {
+        await apiClient.addAlbumAssets(album.id, { assetIds: [asset.id] });
+        setMemberAlbumIds((current) => {
+          const next = new Set(current ?? []);
+          next.add(album.id);
+          return next;
+        });
+      }
+      onAlbumMembershipChanged?.();
+    } catch (error: unknown) {
+      setAlbumError(getErrorMessage(error));
+    } finally {
+      setPendingAlbumIds((current) => {
+        const next = new Set(current);
+        next.delete(album.id);
+        return next;
+      });
+    }
+  };
   const camera = formatCamera(asset);
   const settings = buildCameraSettingsSummary(asset);
   const focalLength = formatFocalLength(asset);
@@ -245,6 +322,50 @@ export function PhotoInfoModal({ asset, onClose }: { asset: Asset; onClose: () =
               </dl>
             </section>
           ) : null}
+          <section className="photo-info-section">
+            <h4>Albums</h4>
+            <div className="photo-info-albums">
+              {albumError ? (
+                <p className="panel-alert" role="alert">
+                  {albumError}
+                </p>
+              ) : null}
+              {memberAlbumIds === null && !albumError ? (
+                <div className="photo-info-albums-status">
+                  <Spinner size="tiny" /> <span>Loading albums</span>
+                </div>
+              ) : null}
+              {memberAlbumIds !== null && albums.length === 0 ? (
+                <p className="photo-info-albums-status">
+                  No albums yet. Create one from the Library to group photos.
+                </p>
+              ) : null}
+              {memberAlbumIds !== null && albums.length > 0 ? (
+                <ul className="photo-info-album-list">
+                  {albums.map((album) => {
+                    const isMember = memberAlbumIds.has(album.id);
+                    const isPending = pendingAlbumIds.has(album.id);
+                    return (
+                      <li key={album.id}>
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={isMember}
+                            disabled={isPending}
+                            onChange={() => toggleAlbumMembership(album)}
+                          />
+                          <span className="photo-info-album-title">{album.title}</span>
+                          <span className="photo-info-album-count" aria-hidden="true">
+                            {album.photoCount}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+          </section>
         </div>
       </div>
     </AppModal>

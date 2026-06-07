@@ -235,4 +235,131 @@ describe("repositories", () => {
       }
     }
   });
+
+  it("manages albums and their photo memberships", () => {
+    const { connection, repositories } = createTestRepositories();
+
+    try {
+      const account = repositories.accounts.create({
+        displayName: "Ada",
+        primaryEmail: "ada-albums@example.com",
+      });
+      const otherAccount = repositories.accounts.create({
+        displayName: "Bob",
+        primaryEmail: "bob-albums@example.com",
+      });
+      const photoOne = repositories.assets.createOriginal({
+        accountId: account.id,
+        originalStorageKey: "uploads/01.jpg",
+        originalFilename: "01.jpg",
+        mimeType: "image/jpeg",
+        byteSize: 11,
+        checksumSha256: "csum-01",
+      });
+      const photoTwo = repositories.assets.createOriginal({
+        accountId: account.id,
+        originalStorageKey: "uploads/02.jpg",
+        originalFilename: "02.jpg",
+        mimeType: "image/jpeg",
+        byteSize: 12,
+        checksumSha256: "csum-02",
+      });
+      const foreignPhoto = repositories.assets.createOriginal({
+        accountId: otherAccount.id,
+        originalStorageKey: "uploads/03.jpg",
+        originalFilename: "03.jpg",
+        mimeType: "image/jpeg",
+        byteSize: 13,
+        checksumSha256: "csum-03",
+      });
+
+      const album = repositories.albums.create({ accountId: account.id, title: "Japan 2024" });
+
+      expect(album.id).toMatch(/^album_/);
+      expect(repositories.albums.listForAccount(account.id)).toEqual([
+        expect.objectContaining({ id: album.id, photoCount: 0, title: "Japan 2024" }),
+      ]);
+
+      repositories.albums.addAssetsToAlbum({
+        accountId: account.id,
+        albumId: album.id,
+        assetIds: [photoOne.id, photoTwo.id, photoOne.id],
+      });
+
+      expect(
+        repositories.albums.listAssetsForAlbum(account.id, album.id).map((asset) => asset.id),
+      ).toEqual([photoTwo.id, photoOne.id]);
+      expect(repositories.albums.listForAccount(account.id)[0]?.photoCount).toBe(2);
+
+      // Adding an asset that already belongs to the album is a no-op.
+      repositories.albums.addAssetsToAlbum({
+        accountId: account.id,
+        albumId: album.id,
+        assetIds: [photoOne.id],
+      });
+      expect(repositories.albums.listAssetsForAlbum(account.id, album.id)).toHaveLength(2);
+
+      expect(() =>
+        repositories.albums.addAssetsToAlbum({
+          accountId: account.id,
+          albumId: album.id,
+          assetIds: [foreignPhoto.id],
+        }),
+      ).toThrow(OwnershipError);
+
+      expect(
+        repositories.albums.removeAssetFromAlbum({
+          accountId: account.id,
+          albumId: album.id,
+          assetId: photoOne.id,
+        }),
+      ).toBe(true);
+      expect(repositories.albums.listAssetsForAlbum(account.id, album.id)).toHaveLength(1);
+
+      // A photo can belong to multiple albums at once.
+      const secondAlbum = repositories.albums.create({
+        accountId: account.id,
+        title: "Trip highlights",
+      });
+      repositories.albums.addAssetsToAlbum({
+        accountId: account.id,
+        albumId: secondAlbum.id,
+        assetIds: [photoTwo.id],
+      });
+
+      const photoTwoAlbums = repositories.albums.listAlbumsForAsset(account.id, photoTwo.id);
+      expect(photoTwoAlbums.map((entry) => entry.id).sort()).toEqual(
+        [album.id, secondAlbum.id].sort(),
+      );
+      expect(photoTwoAlbums.every((entry) => entry.photoCount >= 1)).toBe(true);
+
+      // listAlbumsForAsset is scoped to the account.
+      expect(repositories.albums.listAlbumsForAsset(otherAccount.id, photoTwo.id)).toEqual([]);
+
+      expect(
+        repositories.albums.update({
+          accountId: account.id,
+          albumId: album.id,
+          title: "Japan, fall 2024",
+        })?.title,
+      ).toBe("Japan, fall 2024");
+
+      // Other accounts cannot touch this album.
+      expect(repositories.albums.findByIdForAccount(otherAccount.id, album.id)).toBeNull();
+      expect(() =>
+        repositories.albums.removeAssetFromAlbum({
+          accountId: otherAccount.id,
+          albumId: album.id,
+          assetId: photoTwo.id,
+        }),
+      ).toThrow(OwnershipError);
+
+      expect(repositories.albums.delete({ accountId: account.id, albumId: album.id })).toBe(true);
+      expect(repositories.albums.listForAccount(account.id).map((entry) => entry.id)).toEqual([
+        secondAlbum.id,
+      ]);
+    } finally {
+      connection.close();
+    }
+  });
 });

@@ -17,6 +17,7 @@ describe("SQLite migrations", () => {
         "0006_add_book_assets",
         "0007_add_assets_date_taken",
         "0008_add_assets_exif_details",
+        "0009_add_albums",
       ]);
       expect(runMigrations(connection.sqlite)).toEqual([]);
       expect(getAppliedMigrations(connection.sqlite)).toEqual([
@@ -28,6 +29,7 @@ describe("SQLite migrations", () => {
         "0006_add_book_assets",
         "0007_add_assets_date_taken",
         "0008_add_assets_exif_details",
+        "0009_add_albums",
       ]);
 
       const tableNames = connection.sqlite
@@ -37,6 +39,8 @@ describe("SQLite migrations", () => {
 
       expect(tableNames).toEqual([
         "accounts",
+        "album_assets",
+        "albums",
         "asset_variants",
         "assets",
         "auth_identities",

@@ -1,18 +1,22 @@
 import { createTimestamp, type ISODateTime } from "@scrapbook/domain";
 import { createPageDocument } from "@scrapbook/editor-core";
-import { and, asc, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import type { AppDatabase } from "./database.js";
 import { createEntityId, createInternalId } from "./ids.js";
 import { createMemoryPageDocumentStore, type PageDocumentStore } from "./page-documents.js";
 import {
   type AccountRecord,
+  type AlbumAssetRecord,
+  type AlbumRecord,
   type AssetRecord,
   type AssetVariantKind,
   type AssetVariantRecord,
   type AuthIdentityProvider,
   type AuthIdentityRecord,
   accounts,
+  albumAssets,
+  albums,
   assets,
   assetVariants,
   authIdentities,
@@ -848,6 +852,222 @@ export class BookRepository {
   }
 }
 
+export type AlbumWithCountRecord = AlbumRecord & { photoCount: number };
+
+export class AlbumRepository {
+  constructor(
+    private readonly db: AppDatabase,
+    private readonly clock: RepositoryClock = defaultClock,
+  ) {}
+
+  create(input: { accountId: string; title: string; id?: string }): AlbumRecord {
+    const timestamp = now(this.clock);
+    const record: AlbumRecord = {
+      id: input.id ?? createEntityId("album"),
+      accountId: input.accountId,
+      title: input.title,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    this.db.insert(albums).values(record).run();
+
+    return record;
+  }
+
+  update(input: { accountId: string; albumId: string; title: string }): AlbumRecord | null {
+    const existing = this.findByIdForAccount(input.accountId, input.albumId);
+
+    if (!existing) {
+      return null;
+    }
+
+    const timestamp = now(this.clock);
+
+    this.db
+      .update(albums)
+      .set({ title: input.title, updatedAt: timestamp })
+      .where(and(eq(albums.accountId, input.accountId), eq(albums.id, input.albumId)))
+      .run();
+
+    return { ...existing, title: input.title, updatedAt: timestamp };
+  }
+
+  delete(input: { accountId: string; albumId: string }): boolean {
+    const result = this.db
+      .delete(albums)
+      .where(and(eq(albums.accountId, input.accountId), eq(albums.id, input.albumId)))
+      .run();
+
+    return result.changes > 0;
+  }
+
+  findByIdForAccount(accountId: string, albumId: string): AlbumRecord | null {
+    return (
+      this.db
+        .select()
+        .from(albums)
+        .where(and(eq(albums.accountId, accountId), eq(albums.id, albumId)))
+        .get() ?? null
+    );
+  }
+
+  listForAccount(accountId: string): AlbumWithCountRecord[] {
+    const rows = this.db
+      .select({
+        album: albums,
+        photoCount: sql<number>`COUNT(${albumAssets.id})`.as("photo_count"),
+      })
+      .from(albums)
+      .leftJoin(albumAssets, eq(albumAssets.albumId, albums.id))
+      .where(eq(albums.accountId, accountId))
+      .groupBy(albums.id)
+      .orderBy(asc(albums.title))
+      .all();
+
+    return rows.map((row) => ({ ...row.album, photoCount: Number(row.photoCount) }));
+  }
+
+  listAssetsForAlbum(accountId: string, albumId: string): AssetRecord[] {
+    return this.db
+      .select({ asset: assets })
+      .from(albumAssets)
+      .innerJoin(assets, and(eq(albumAssets.assetId, assets.id), eq(assets.accountId, accountId)))
+      .where(and(eq(albumAssets.accountId, accountId), eq(albumAssets.albumId, albumId)))
+      .orderBy(desc(albumAssets.sortOrder))
+      .all()
+      .map(({ asset }) => asset);
+  }
+
+  listAlbumIdsForAsset(accountId: string, assetId: string): string[] {
+    return this.db
+      .select({ albumId: albumAssets.albumId })
+      .from(albumAssets)
+      .where(and(eq(albumAssets.accountId, accountId), eq(albumAssets.assetId, assetId)))
+      .all()
+      .map((row) => row.albumId);
+  }
+
+  listAlbumsForAsset(accountId: string, assetId: string): AlbumWithCountRecord[] {
+    const memberIds = new Set(this.listAlbumIdsForAsset(accountId, assetId));
+
+    if (memberIds.size === 0) {
+      return [];
+    }
+
+    return this.listForAccount(accountId).filter((album) => memberIds.has(album.id));
+  }
+
+  addAssetsToAlbum(input: {
+    accountId: string;
+    albumId: string;
+    assetIds: string[];
+  }): AlbumAssetRecord[] {
+    const album = this.findByIdForAccount(input.accountId, input.albumId);
+
+    if (!album) {
+      throw new OwnershipError("Album does not belong to the account");
+    }
+
+    const uniqueAssetIds = Array.from(new Set(input.assetIds));
+
+    if (uniqueAssetIds.length === 0) {
+      return [];
+    }
+
+    for (const assetId of uniqueAssetIds) {
+      const asset =
+        this.db
+          .select({ id: assets.id })
+          .from(assets)
+          .where(and(eq(assets.accountId, input.accountId), eq(assets.id, assetId)))
+          .get() ?? null;
+
+      if (!asset) {
+        throw new OwnershipError("Album assets cannot cross account boundaries");
+      }
+    }
+
+    const existingAssetIds = new Set(
+      this.db
+        .select({ assetId: albumAssets.assetId })
+        .from(albumAssets)
+        .where(
+          and(eq(albumAssets.accountId, input.accountId), eq(albumAssets.albumId, input.albumId)),
+        )
+        .all()
+        .map((row) => row.assetId),
+    );
+
+    const newAssetIds = uniqueAssetIds.filter((assetId) => !existingAssetIds.has(assetId));
+
+    if (newAssetIds.length === 0) {
+      return [];
+    }
+
+    const maxSortRow = this.db
+      .select({ value: albumAssets.sortOrder })
+      .from(albumAssets)
+      .where(
+        and(eq(albumAssets.accountId, input.accountId), eq(albumAssets.albumId, input.albumId)),
+      )
+      .orderBy(desc(albumAssets.sortOrder))
+      .limit(1)
+      .get();
+    const nextSortOrderStart = (maxSortRow?.value ?? -1) + 1;
+
+    const timestamp = now(this.clock);
+    const records = newAssetIds.map<AlbumAssetRecord>((assetId, index) => ({
+      id: createInternalId("albumAsset"),
+      accountId: input.accountId,
+      albumId: input.albumId,
+      assetId,
+      sortOrder: nextSortOrderStart + index,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }));
+
+    this.db.insert(albumAssets).values(records).run();
+
+    this.db
+      .update(albums)
+      .set({ updatedAt: timestamp })
+      .where(and(eq(albums.accountId, input.accountId), eq(albums.id, input.albumId)))
+      .run();
+
+    return records;
+  }
+
+  removeAssetFromAlbum(input: { accountId: string; albumId: string; assetId: string }): boolean {
+    const album = this.findByIdForAccount(input.accountId, input.albumId);
+
+    if (!album) {
+      throw new OwnershipError("Album does not belong to the account");
+    }
+
+    const result = this.db
+      .delete(albumAssets)
+      .where(
+        and(
+          eq(albumAssets.accountId, input.accountId),
+          eq(albumAssets.albumId, input.albumId),
+          eq(albumAssets.assetId, input.assetId),
+        ),
+      )
+      .run();
+
+    if (result.changes > 0) {
+      this.db
+        .update(albums)
+        .set({ updatedAt: now(this.clock) })
+        .where(and(eq(albums.accountId, input.accountId), eq(albums.id, input.albumId)))
+        .run();
+    }
+
+    return result.changes > 0;
+  }
+}
+
 export class ExportJobRepository {
   constructor(
     private readonly db: AppDatabase,
@@ -951,6 +1171,7 @@ export const createRepositories = (
     authIdentities: new AuthIdentityRepository(db, clock),
     sessions: new SessionRepository(db, clock),
     assets: new AssetRepository(db, clock),
+    albums: new AlbumRepository(db, clock),
     pages: new PageRepository(db, clock, pageDocuments),
     books: new BookRepository(db, clock, pageDocuments),
     exports: new ExportJobRepository(db, clock),

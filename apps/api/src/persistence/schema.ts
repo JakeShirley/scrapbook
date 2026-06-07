@@ -198,6 +198,42 @@ export const bookPages = sqliteTable(
   ],
 );
 
+export const albums = sqliteTable(
+  "albums",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    ...timestampColumns(),
+  },
+  (table) => [index("albums_account_id_idx").on(table.accountId)],
+);
+
+export const albumAssets = sqliteTable(
+  "album_assets",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull(),
+    ...timestampColumns(),
+  },
+  (table) => [
+    index("album_assets_account_id_idx").on(table.accountId),
+    index("album_assets_album_id_idx").on(table.albumId),
+    uniqueIndex("album_assets_album_asset_unique").on(table.albumId, table.assetId),
+  ],
+);
+
 export const bookAssets = sqliteTable(
   "book_assets",
   {
@@ -253,4 +289,6 @@ export type PageRecord = typeof pages.$inferSelect;
 export type BookRecord = typeof books.$inferSelect;
 export type BookPageRecord = typeof bookPages.$inferSelect;
 export type BookAssetRecord = typeof bookAssets.$inferSelect;
+export type AlbumRecord = typeof albums.$inferSelect;
+export type AlbumAssetRecord = typeof albumAssets.$inferSelect;
 export type ExportJobRecord = typeof exportJobs.$inferSelect;

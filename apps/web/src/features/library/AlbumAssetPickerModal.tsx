@@ -1,13 +1,12 @@
 import { Button, Field, Input } from "@fluentui/react-components";
 import { AddRegular, CheckmarkCircleFilled, DismissRegular } from "@fluentui/react-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { apiClient } from "../../apiClient";
 import { AppModal } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import { formatBytes, formatDimensions } from "../../lib/format";
-import type { Album, Asset } from "../../types";
-import { AlbumChipBar } from "../library/AlbumChipBar";
+import type { Asset } from "../../types";
 
 type SortMode = "taken" | "uploaded";
 
@@ -19,93 +18,33 @@ const sortModeLabels: Record<SortMode, string> = {
 const sortKeyFor = (asset: Asset, mode: SortMode): string =>
   mode === "taken" ? (asset.dateTaken ?? asset.createdAt) : asset.createdAt;
 
-export function BookLibraryPickerModal({
-  bookId,
-  referencedAssetIds,
+export function AlbumAssetPickerModal({
+  albumId,
+  albumTitle,
+  libraryAssets,
+  memberAssetIds,
   onAdded,
   onClose,
 }: {
-  bookId: string;
-  referencedAssetIds: ReadonlySet<string>;
-  onAdded: (referencedAssets: Asset[]) => void;
+  albumId: string;
+  albumTitle: string;
+  libraryAssets: Asset[];
+  memberAssetIds: ReadonlySet<string>;
+  onAdded: (memberAssets: Asset[]) => void;
   onClose: () => void;
 }) {
-  const [libraryAssets, setLibraryAssets] = useState<Asset[] | null>(null);
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
-  const [albumAssetIds, setAlbumAssetIds] = useState<Set<string> | null>(null);
-  const [isAlbumLoading, setIsAlbumLoading] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("taken");
-  const [hideUsed, setHideUsed] = useState(false);
+  const [hideUsed, setHideUsed] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    Promise.all([apiClient.listAssets(), apiClient.listAlbums()])
-      .then(([assetResponse, albumResponse]) => {
-        if (isMounted) {
-          setLibraryAssets(assetResponse.assets);
-          setAlbums(albumResponse.albums);
-        }
-      })
-      .catch((listError: unknown) => {
-        if (isMounted) {
-          setLoadError(getErrorMessage(listError));
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (selectedAlbumId === null) {
-      setAlbumAssetIds(null);
-      return;
-    }
-    let isMounted = true;
-    setIsAlbumLoading(true);
-    apiClient
-      .listAlbumAssets(selectedAlbumId)
-      .then((response) => {
-        if (isMounted) {
-          setAlbumAssetIds(new Set(response.assets.map((asset) => asset.id)));
-        }
-      })
-      .catch((listError: unknown) => {
-        if (isMounted) {
-          setLoadError(getErrorMessage(listError));
-          setAlbumAssetIds(new Set());
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsAlbumLoading(false);
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedAlbumId]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleAssets = useMemo(() => {
-    if (!libraryAssets) {
-      return [];
-    }
     let filtered = libraryAssets;
-    if (selectedAlbumId !== null) {
-      const ids = albumAssetIds;
-      filtered = ids ? filtered.filter((asset) => ids.has(asset.id)) : [];
-    }
     if (hideUsed) {
-      filtered = filtered.filter((asset) => !referencedAssetIds.has(asset.id));
+      filtered = filtered.filter((asset) => !memberAssetIds.has(asset.id));
     }
     if (normalizedQuery) {
       filtered = filtered.filter((asset) =>
@@ -118,28 +57,20 @@ export function BookLibraryPickerModal({
     return [...filtered].sort((a, b) =>
       sortKeyFor(b, sortMode).localeCompare(sortKeyFor(a, sortMode)),
     );
-  }, [
-    libraryAssets,
-    normalizedQuery,
-    sortMode,
-    hideUsed,
-    referencedAssetIds,
-    selectedAlbumId,
-    albumAssetIds,
-  ]);
+  }, [libraryAssets, normalizedQuery, sortMode, hideUsed, memberAssetIds]);
 
   const selectableSelectedCount = useMemo(() => {
     let count = 0;
     for (const assetId of selectedAssetIds) {
-      if (!referencedAssetIds.has(assetId)) {
+      if (!memberAssetIds.has(assetId)) {
         count += 1;
       }
     }
     return count;
-  }, [selectedAssetIds, referencedAssetIds]);
+  }, [selectedAssetIds, memberAssetIds]);
 
   const toggleSelected = (asset: Asset) => {
-    if (referencedAssetIds.has(asset.id)) {
+    if (memberAssetIds.has(asset.id)) {
       return;
     }
     setSelectedAssetIds((current) => {
@@ -155,19 +86,16 @@ export function BookLibraryPickerModal({
 
   const submit = async () => {
     const assetIdsToAdd = Array.from(selectedAssetIds).filter(
-      (assetId) => !referencedAssetIds.has(assetId),
+      (assetId) => !memberAssetIds.has(assetId),
     );
-
     if (assetIdsToAdd.length === 0) {
       onClose();
       return;
     }
-
     setIsSubmitting(true);
     setError(null);
-
     try {
-      const response = await apiClient.addBookAssets(bookId, { assetIds: assetIdsToAdd });
+      const response = await apiClient.addAlbumAssets(albumId, { assetIds: assetIdsToAdd });
       onAdded(response.assets);
       onClose();
     } catch (addError: unknown) {
@@ -176,36 +104,24 @@ export function BookLibraryPickerModal({
     }
   };
 
-  const title = "Add photos to this book";
-  const totalLibraryCount = libraryAssets?.length ?? 0;
-  const filterPoolCount = selectedAlbumId === null ? totalLibraryCount : (albumAssetIds?.size ?? 0);
+  const totalLibraryCount = libraryAssets.length;
 
   return (
-    <AppModal title={title} closeDisabled={isSubmitting} onClose={onClose}>
+    <AppModal title={`Add photos to ${albumTitle}`} closeDisabled={isSubmitting} onClose={onClose}>
       <div className="photo-picker-modal book-library-picker-modal">
-        <AlbumChipBar
-          albums={albums}
-          selectedAlbumId={selectedAlbumId}
-          onSelectAlbum={(albumId) => {
-            setSelectedAlbumId(albumId);
-            setSelectedAssetIds(new Set());
-          }}
-        />
         <div className="photo-picker-toolbar">
           <Field label="Search photos">
             <Input
               type="search"
               value={query}
-              disabled={libraryAssets === null}
               onChange={(event) => setQuery(event.currentTarget.value)}
             />
           </Field>
-          <label className="photo-picker-sort" htmlFor="book-library-picker-sort">
+          <label className="photo-picker-sort" htmlFor="album-asset-picker-sort">
             <span>Sort by</span>
             <select
-              id="book-library-picker-sort"
+              id="album-asset-picker-sort"
               value={sortMode}
-              disabled={libraryAssets === null}
               onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}
             >
               {(Object.keys(sortModeLabels) as SortMode[]).map((mode) => (
@@ -219,54 +135,32 @@ export function BookLibraryPickerModal({
             <input
               type="checkbox"
               checked={hideUsed}
-              disabled={libraryAssets === null}
               onChange={(event) => setHideUsed(event.currentTarget.checked)}
             />
-            <span>Hide photos already in this book</span>
+            <span>Hide photos already in this album</span>
           </label>
           <span className="photo-picker-count">
             <span aria-hidden="true" className="photo-picker-count-reserve">
               {`${totalLibraryCount} of ${totalLibraryCount}`}
             </span>
             <span className="photo-picker-count-value">
-              {libraryAssets === null
-                ? "Loading..."
-                : `${visibleAssets.length} of ${filterPoolCount}`}
+              {`${visibleAssets.length} of ${totalLibraryCount}`}
             </span>
           </span>
         </div>
-        {loadError ? (
-          <p className="panel-alert" role="alert">
-            {loadError}
-          </p>
-        ) : null}
-        {libraryAssets === null && !loadError ? (
-          <p className="empty-state">Loading your photo library</p>
-        ) : null}
-        {libraryAssets !== null && libraryAssets.length === 0 ? (
+        {libraryAssets.length === 0 ? (
           <p className="empty-state">
             You haven&apos;t uploaded any photos yet. Upload one from the Library to add it here.
           </p>
         ) : null}
-        {libraryAssets !== null &&
-        libraryAssets.length > 0 &&
-        selectedAlbumId !== null &&
-        isAlbumLoading ? (
-          <p className="empty-state">Loading album</p>
-        ) : null}
-        {libraryAssets !== null &&
-        libraryAssets.length > 0 &&
-        !isAlbumLoading &&
-        visibleAssets.length === 0 ? (
-          <p className="empty-state">
-            {selectedAlbumId === null ? "No photos match" : "No photos in this album match"}
-          </p>
+        {libraryAssets.length > 0 && visibleAssets.length === 0 ? (
+          <p className="empty-state">No photos match</p>
         ) : null}
         {visibleAssets.length > 0 ? (
           <div className="photo-picker-grid">
             {visibleAssets.map((asset) => {
-              const isAlreadyReferenced = referencedAssetIds.has(asset.id);
-              const isSelected = selectedAssetIds.has(asset.id) || isAlreadyReferenced;
+              const isAlreadyMember = memberAssetIds.has(asset.id);
+              const isSelected = selectedAssetIds.has(asset.id) || isAlreadyMember;
 
               return (
                 <button
@@ -274,11 +168,11 @@ export function BookLibraryPickerModal({
                   key={asset.id}
                   className="photo-picker-item book-library-picker-item"
                   data-selected={isSelected || undefined}
-                  data-locked={isAlreadyReferenced || undefined}
+                  data-locked={isAlreadyMember || undefined}
                   aria-pressed={isSelected}
                   aria-label={
-                    isAlreadyReferenced
-                      ? `${asset.originalFilename} (already in this book)`
+                    isAlreadyMember
+                      ? `${asset.originalFilename} (already in album)`
                       : isSelected
                         ? `Deselect ${asset.originalFilename}`
                         : `Select ${asset.originalFilename}`
@@ -296,8 +190,8 @@ export function BookLibraryPickerModal({
                   <span className="photo-picker-item-copy">
                     <span>{asset.originalFilename}</span>
                     <span>
-                      {isAlreadyReferenced
-                        ? "Already in this book"
+                      {isAlreadyMember
+                        ? "Already in album"
                         : `${formatDimensions(asset)} / ${formatBytes(asset.byteSize)}`}
                     </span>
                   </span>
@@ -331,8 +225,8 @@ export function BookLibraryPickerModal({
               onClick={submit}
             >
               {selectableSelectedCount === 0
-                ? "Add to book"
-                : `Add ${selectableSelectedCount} to book`}
+                ? "Add to album"
+                : `Add ${selectableSelectedCount} to album`}
             </Button>
           </div>
         </div>
