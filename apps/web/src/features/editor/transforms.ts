@@ -99,51 +99,178 @@ export const resizeLayerFromHandle = (
   return { height, width, x: center.x - width / 2, y: center.y - height / 2 };
 };
 
+// Uniform (aspect-ratio preserving) scale from the opposite corner. Used for photo
+// corner handles so dragging a corner zooms the entire photo without distorting it.
+export const scaleLayerFromCornerHandle = (
+  layer: PageLayer,
+  handle: ResizeHandle,
+  pointer: CanvasPoint,
+  startPointer: CanvasPoint,
+): Pick<PageLayer, "height" | "width" | "x" | "y"> => {
+  const localDelta = rotatePoint(
+    { x: pointer.x - startPointer.x, y: pointer.y - startPointer.y },
+    -layer.rotation,
+  );
+  const pivotLocal: CanvasPoint = {
+    x: handle.includes("w") ? layer.width / 2 : -layer.width / 2,
+    y: handle.includes("n") ? layer.height / 2 : -layer.height / 2,
+  };
+  const startCornerLocal: CanvasPoint = { x: -pivotLocal.x, y: -pivotLocal.y };
+  const newCornerLocal: CanvasPoint = {
+    x: startCornerLocal.x + localDelta.x,
+    y: startCornerLocal.y + localDelta.y,
+  };
+  const diag: CanvasPoint = {
+    x: startCornerLocal.x - pivotLocal.x,
+    y: startCornerLocal.y - pivotLocal.y,
+  };
+  const diagLenSq = diag.x * diag.x + diag.y * diag.y || 1;
+  const newDiag: CanvasPoint = {
+    x: newCornerLocal.x - pivotLocal.x,
+    y: newCornerLocal.y - pivotLocal.y,
+  };
+  const projectedScale = (newDiag.x * diag.x + newDiag.y * diag.y) / diagLenSq;
+  const minScale = minimumLayerSize / Math.max(layer.width, layer.height, 1);
+  const scale = Math.max(projectedScale, minScale);
+
+  const width = layer.width * scale;
+  const height = layer.height * scale;
+  const layerCenter = getLayerCenter(layer);
+  const pivotShift = rotatePoint(pivotLocal, layer.rotation);
+  const pivotCanvas = { x: layerCenter.x + pivotShift.x, y: layerCenter.y + pivotShift.y };
+  const newPivotShift = rotatePoint(
+    { x: pivotLocal.x * scale, y: pivotLocal.y * scale },
+    layer.rotation,
+  );
+  const center = {
+    x: pivotCanvas.x - newPivotShift.x,
+    y: pivotCanvas.y - newPivotShift.y,
+  };
+
+  return { height, width, x: center.x - width / 2, y: center.y - height / 2 };
+};
+
+// Crop adjustment: moving a cardinal edge shrinks or grows the visible frame while
+// the underlying image stays anchored in canvas space, so the displayed image is
+// neither scaled nor repositioned -- only more or less of it is shown.
+export const cropPhotoLayerFromHandle = (
+  layer: PhotoLayer,
+  handle: ResizeHandle,
+  pointer: CanvasPoint,
+  startPointer: CanvasPoint,
+): Pick<PhotoLayer, "height" | "width" | "x" | "y" | "crop"> => {
+  const localDelta = rotatePoint(
+    { x: pointer.x - startPointer.x, y: pointer.y - startPointer.y },
+    -layer.rotation,
+  );
+  const safeCropWidth = Math.max(layer.crop.width, 0.05);
+  const safeCropHeight = Math.max(layer.crop.height, 0.05);
+  const imageWidth = layer.width / safeCropWidth;
+  const imageHeight = layer.height / safeCropHeight;
+  // Image extent in layer-center-local coordinates (rotation ignored; localDelta
+  // already accounts for layer.rotation). The displayed image spans this region;
+  // the visible frame is a sub-window of it.
+  const imageLeftLocal =
+    -layer.crop.x * imageWidth + layer.photoTransform.offsetX * imageWidth * 0.5 - layer.width / 2;
+  const imageRightLocal = imageLeftLocal + imageWidth;
+  const imageTopLocal =
+    -layer.crop.y * imageHeight +
+    layer.photoTransform.offsetY * imageHeight * 0.5 -
+    layer.height / 2;
+  const imageBottomLocal = imageTopLocal + imageHeight;
+
+  let left = -layer.width / 2;
+  let right = layer.width / 2;
+  let top = -layer.height / 2;
+  let bottom = layer.height / 2;
+
+  if (handle.includes("w")) left += localDelta.x;
+  if (handle.includes("e")) right += localDelta.x;
+  if (handle.includes("n")) top += localDelta.y;
+  if (handle.includes("s")) bottom += localDelta.y;
+
+  if (left < imageLeftLocal) left = imageLeftLocal;
+  if (right > imageRightLocal) right = imageRightLocal;
+  if (top < imageTopLocal) top = imageTopLocal;
+  if (bottom > imageBottomLocal) bottom = imageBottomLocal;
+
+  const minWidth = Math.max(minimumLayerSize, 0.05 * imageWidth);
+  const minHeight = Math.max(minimumLayerSize, 0.05 * imageHeight);
+  if (right - left < minWidth) {
+    if (handle.includes("w")) left = right - minWidth;
+    else right = left + minWidth;
+  }
+  if (bottom - top < minHeight) {
+    if (handle.includes("n")) top = bottom - minHeight;
+    else bottom = top + minHeight;
+  }
+
+  const width = right - left;
+  const height = bottom - top;
+  const nextCropX =
+    (left - imageLeftLocal + layer.photoTransform.offsetX * imageWidth * 0.5) / imageWidth;
+  const nextCropY =
+    (top - imageTopLocal + layer.photoTransform.offsetY * imageHeight * 0.5) / imageHeight;
+  const nextCropWidth = width / imageWidth;
+  const nextCropHeight = height / imageHeight;
+
+  const shift = rotatePoint({ x: (left + right) / 2, y: (top + bottom) / 2 }, layer.rotation);
+  const startCenter = getLayerCenter(layer);
+  const center = { x: startCenter.x + shift.x, y: startCenter.y + shift.y };
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+  return {
+    height,
+    width,
+    x: center.x - width / 2,
+    y: center.y - height / 2,
+    crop: {
+      ...layer.crop,
+      x: clamp(nextCropX, 0, 1 - 0.05),
+      y: clamp(nextCropY, 0, 1 - 0.05),
+      width: clamp(nextCropWidth, 0.05, 1),
+      height: clamp(nextCropHeight, 0.05, 1),
+    },
+  };
+};
+
+// Pan the underlying photo within its crop window. Returns the updated offset for
+// `photoTransform`, clamped so the image continues to cover the frame.
+export const panPhotoLayer = (
+  layer: PhotoLayer,
+  pointer: CanvasPoint,
+  startPointer: CanvasPoint,
+  startOffset: { offsetX: number; offsetY: number },
+): { offsetX: number; offsetY: number } => {
+  const localDelta = rotatePoint(
+    { x: pointer.x - startPointer.x, y: pointer.y - startPointer.y },
+    -(layer.rotation + layer.photoTransform.rotation),
+  );
+  const imageWidth = layer.width / Math.max(layer.crop.width, 0.05);
+  const imageHeight = layer.height / Math.max(layer.crop.height, 0.05);
+  const scale = Math.max(layer.photoTransform.scale, 0.1);
+  const flipX = layer.photoTransform.flipX ? -1 : 1;
+  const flipY = layer.photoTransform.flipY ? -1 : 1;
+  const nextOffsetX = startOffset.offsetX + (localDelta.x * 2 * flipX) / (imageWidth * scale);
+  const nextOffsetY = startOffset.offsetY + (localDelta.y * 2 * flipY) / (imageHeight * scale);
+  const minOffsetX = 2 * (layer.crop.x + layer.crop.width) - 1 - scale;
+  const maxOffsetX = 2 * layer.crop.x + scale - 1;
+  const minOffsetY = 2 * (layer.crop.y + layer.crop.height) - 1 - scale;
+  const maxOffsetY = 2 * layer.crop.y + scale - 1;
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+  return {
+    offsetX: clamp(nextOffsetX, Math.max(-1, minOffsetX), Math.min(1, maxOffsetX)),
+    offsetY: clamp(nextOffsetY, Math.max(-1, minOffsetY), Math.min(1, maxOffsetY)),
+  };
+};
+
 export const getLayerSelectionFrame = (layer: PageLayer): SelectionFrame => {
   if (layer.kind === "text") {
     const bounds = getTextLayerRenderedBounds(layer);
     return { ...bounds, rotation: 0 };
   }
-  if (layer.kind !== "photo") {
-    return { height: layer.height, rotation: 0, width: layer.width, x: layer.x, y: layer.y };
-  }
-
-  return getPhotoSelectionFrame(layer);
-};
-
-const getPhotoSelectionFrame = (layer: PhotoLayer): SelectionFrame => {
-  const imageWidth = layer.width / Math.max(layer.crop.width, 0.05);
-  const imageHeight = layer.height / Math.max(layer.crop.height, 0.05);
-  const imageX =
-    layer.x - layer.crop.x * imageWidth + layer.photoTransform.offsetX * imageWidth * 0.5;
-  const imageY =
-    layer.y - layer.crop.y * imageHeight + layer.photoTransform.offsetY * imageHeight * 0.5;
-  const layerCenter = getLayerCenter(layer);
-  const imageCenter = {
-    x: imageX + imageWidth / 2,
-    y: imageY + imageHeight / 2,
-  };
-  const relativeCenter = rotatePoint(
-    {
-      x: (imageCenter.x - layerCenter.x) * layer.photoTransform.scale,
-      y: (imageCenter.y - layerCenter.y) * layer.photoTransform.scale,
-    },
-    layer.photoTransform.rotation,
-  );
-  const width = imageWidth * layer.photoTransform.scale;
-  const height = imageHeight * layer.photoTransform.scale;
-  const center = {
-    x: layerCenter.x + relativeCenter.x,
-    y: layerCenter.y + relativeCenter.y,
-  };
-
-  return {
-    height,
-    rotation: layer.photoTransform.rotation,
-    width,
-    x: center.x - width / 2,
-    y: center.y - height / 2,
-  };
+  return { height: layer.height, rotation: 0, width: layer.width, x: layer.x, y: layer.y };
 };
 
 const getRotatedFrameCorners = (frame: SelectionFrame): CanvasPoint[] => {

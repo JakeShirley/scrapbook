@@ -226,8 +226,8 @@ export const photoLayerSchema = pageLayerBaseSchema.extend({
       rotation: rotationSchema,
       flipX: z.boolean(),
       flipY: z.boolean(),
-      offsetX: z.number().finite().min(-1).max(1).transform(roundToNearestTenth),
-      offsetY: z.number().finite().min(-1).max(1).transform(roundToNearestTenth),
+      offsetX: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
+      offsetY: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
     })
     .default(defaultPhotoTransform),
   crop: z

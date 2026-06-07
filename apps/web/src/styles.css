@@ -1929,6 +1929,28 @@ textarea:focus-visible {
   border-radius: 999px;
 }
 
+/* Differentiate by role: corner handles are small grip squares (scale),
+   edge handles are bars hugging the side they crop. */
+.transform-resize-handle[data-role="scale"] {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.transform-resize-handle[data-role="crop"][data-handle="n"],
+.transform-resize-handle[data-role="crop"][data-handle="s"] {
+  width: 28px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.transform-resize-handle[data-role="crop"][data-handle="e"],
+.transform-resize-handle[data-role="crop"][data-handle="w"] {
+  width: 6px;
+  height: 28px;
+  border-radius: 999px;
+}
+
 .transform-rotate-handle {
   display: grid;
   top: 50%;
@@ -2014,6 +2036,61 @@ textarea:focus-visible {
   left: 0;
   cursor: ew-resize;
   transform: translate(-50%, -50%);
+}
+
+/* Photo cardinal handles adjust the visible crop window rather than scale, so we
+   surface that with a different cursor. */
+.transform-resize-handle[data-kind="photo"][data-handle="n"],
+.transform-resize-handle[data-kind="photo"][data-handle="s"] {
+  cursor: row-resize;
+}
+
+.transform-resize-handle[data-kind="photo"][data-handle="e"],
+.transform-resize-handle[data-kind="photo"][data-handle="w"] {
+  cursor: col-resize;
+}
+
+.transform-pan-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #24766e;
+  padding: 0;
+  background: rgb(255 254 251 / 80%);
+  box-shadow: 0 1px 6px rgb(32 36 38 / 22%);
+  place-items: center;
+  color: #24766e;
+  border-radius: 999px;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+  backdrop-filter: blur(2px);
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.transform-pan-handle:hover,
+.transform-pan-handle:focus-visible {
+  background: rgb(255 254 251 / 95%);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.transform-pan-handle:active,
+.canvas-layer[data-transforming="true"] .transform-pan-handle {
+  cursor: grabbing;
+}
+
+.transform-pan-handle svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
 }
 
 .layer-context-menu {
@@ -4492,6 +4569,18 @@ body {
   color: var(--sb-brand);
   background: var(--sb-neutral-background);
   box-shadow: var(--sb-shadow-4);
+}
+
+.transform-pan-handle {
+  border-color: var(--sb-brand);
+  color: var(--sb-brand);
+  background: rgb(from var(--sb-neutral-background) r g b / 80%);
+  box-shadow: var(--sb-shadow-4);
+}
+
+.transform-pan-handle:hover,
+.transform-pan-handle:focus-visible {
+  background: var(--sb-neutral-background);
 }
 
 .transform-rotate-handle::before {
