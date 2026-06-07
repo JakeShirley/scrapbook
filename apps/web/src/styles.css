@@ -3249,6 +3249,11 @@ textarea:focus-visible {
   object-fit: contain;
 }
 
+.sticker-picker-sentinel {
+  grid-column: 1 / -1;
+  height: 1px;
+}
+
 @media (max-width: 720px) {
   .selected-layer-edit-overlay {
     padding: 12px;
