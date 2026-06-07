@@ -1132,7 +1132,9 @@ const renderBubbleLetterTextLayerSvg = (
           cursorX += metrics.cellWidth;
           continue;
         }
-        const transformParts = [`translate(${formatBubbleCoord(glyphX)} ${formatBubbleCoord(baselineY)})`];
+        const transformParts = [
+          `translate(${formatBubbleCoord(glyphX)} ${formatBubbleCoord(baselineY)})`,
+        ];
         if (italic) transformParts.push(`skewX(-${italicSkewDegrees})`);
         const groupAttributes = bold
           ? ` stroke="${escapeXml(layer.color)}" stroke-width="${fauxBoldStrokeWidth}" stroke-linejoin="round" paint-order="stroke fill"`

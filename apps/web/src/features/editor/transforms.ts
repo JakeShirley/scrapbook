@@ -1,4 +1,9 @@
-import { getTextLayerRenderedBounds, type PageLayer, type PhotoLayer, type TextLayer } from "@scrapbook/editor-core";
+import {
+  getTextLayerRenderedBounds,
+  type PageLayer,
+  type PhotoLayer,
+  type TextLayer,
+} from "@scrapbook/editor-core";
 
 import type { CanvasPoint, ResizeHandle } from "./editorTypes";
 
