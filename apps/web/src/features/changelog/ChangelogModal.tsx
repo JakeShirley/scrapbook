@@ -10,7 +10,7 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
   const renderedHtml = useMemo(() => marked.parse(changelogMarkdown) as string, []);
 
   return (
-    <AppModal title={'Changelog'} size="wide" onClose={onClose}>
+    <AppModal title={"Changelog"} size="wide" onClose={onClose}>
       <div
         className="changelog-content"
         /* biome-ignore lint/security/noDangerouslySetInnerHtml: Changelog markdown is generated at build time from our own git history. */

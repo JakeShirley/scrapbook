@@ -77,6 +77,9 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter @scrapbook/editor-core build
           pnpm --filter @scrapbook/api-contract build
+          if [ -f scripts/generate-changelog.mjs ]; then
+            pnpm run generate:changelog
+          fi
           popd
           SCRAPBOOK_SCREENSHOT_WORKSPACE_ROOT="$BEFORE_SOURCE_DIR" SCRAPBOOK_SCREENSHOT_DIR="$BEFORE_OUT_DIR" pnpm screenshots:capture
           cleanup
