@@ -7,6 +7,7 @@ import {
   DeleteRegular,
   DismissRegular,
   EditRegular,
+  HandLeftRegular,
   ImageBorderRegular,
   TextTRegular,
 } from "@fluentui/react-icons";
@@ -36,6 +37,7 @@ import {
   applyGroupMove,
   applyGroupRotate,
   applyGroupScale,
+  cropPhotoLayerFromHandle,
   type GroupBoundingBox,
   getAngle,
   getGroupScaleFromHandle,
@@ -46,8 +48,10 @@ import {
   type MultiSelectionResizeHandle,
   multiSelectionResizeHandles,
   normalizeRotation,
+  panPhotoLayer,
   resizeHandles,
   resizeLayerFromHandle,
+  scaleLayerFromCornerHandle,
 } from "./transforms";
 
 type SelectionPanel = "edit" | "frame";
@@ -102,6 +106,17 @@ const framePresetOptions: PhotoLayer["border"]["framePreset"][] = [
   "film",
   "paper",
 ];
+
+const photoHandleLabels: Record<ResizeHandle, string> = {
+  n: "Crop from top",
+  s: "Crop from bottom",
+  e: "Crop from right",
+  w: "Crop from left",
+  ne: "Scale from top right",
+  nw: "Scale from top left",
+  se: "Scale from bottom right",
+  sw: "Scale from bottom left",
+};
 
 const maskShapeOptions: PhotoLayer["mask"]["shape"][] = [
   "rectangle",
@@ -634,7 +649,39 @@ export function PageCanvas({
         y: transform.startLayer.y + pointer.y - transform.startPointer.y,
       };
     }
+    if (transform.mode === "pan" && transform.startLayer.kind === "photo") {
+      const nextOffset = panPhotoLayer(transform.startLayer, pointer, transform.startPointer, {
+        offsetX: transform.startLayer.photoTransform.offsetX,
+        offsetY: transform.startLayer.photoTransform.offsetY,
+      });
+      return {
+        photoTransform: {
+          ...transform.startLayer.photoTransform,
+          offsetX: nextOffset.offsetX,
+          offsetY: nextOffset.offsetY,
+        },
+      } as Partial<PageLayer>;
+    }
     if (transform.mode === "resize" && transform.handle) {
+      // Photos: cardinal handles adjust the crop frame (image stays put), corners
+      // uniformly scale the photo. Other layer kinds keep the original free resize.
+      if (transform.startLayer.kind === "photo") {
+        const isCornerHandle = transform.handle.length === 2;
+        if (isCornerHandle) {
+          return scaleLayerFromCornerHandle(
+            transform.startLayer,
+            transform.handle,
+            pointer,
+            transform.startPointer,
+          );
+        }
+        return cropPhotoLayerFromHandle(
+          transform.startLayer,
+          transform.handle,
+          pointer,
+          transform.startPointer,
+        ) as Partial<PageLayer>;
+      }
       return resizeLayerFromHandle(
         transform.startLayer,
         transform.handle,
@@ -1015,17 +1062,34 @@ export function PageCanvas({
                   >
                     <ArrowClockwiseRegular />
                   </button>
-                  {resizeHandles.map(({ handle, label }) => (
+                  {resizeHandles.map(({ handle, label }) => {
+                    const photoLabel = layer.kind === "photo" ? photoHandleLabels[handle] : null;
+                    const handleLabel = photoLabel ?? label;
+                    return (
+                      <button
+                        type="button"
+                        aria-label={handleLabel}
+                        className="transform-resize-handle"
+                        data-handle={handle}
+                        data-kind={layer.kind}
+                        data-role={handle.length === 2 ? "scale" : "crop"}
+                        key={handle}
+                        title={handleLabel}
+                        onPointerDown={(event) => startTransform(event, layer, "resize", handle)}
+                      />
+                    );
+                  })}
+                  {layer.kind === "photo" ? (
                     <button
                       type="button"
-                      aria-label={label}
-                      className="transform-resize-handle"
-                      data-handle={handle}
-                      key={handle}
-                      title={label}
-                      onPointerDown={(event) => startTransform(event, layer, "resize", handle)}
-                    />
-                  ))}
+                      aria-label="Click and drag to adjust photo"
+                      className="transform-pan-handle"
+                      title="Click and drag to adjust photo"
+                      onPointerDown={(event) => startTransform(event, layer, "pan")}
+                    >
+                      <HandLeftRegular />
+                    </button>
+                  ) : null}
                 </>
               ) : null}
               {editingTextLayerId === layer.id && layer.kind === "text" ? (

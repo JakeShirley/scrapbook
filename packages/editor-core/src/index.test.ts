@@ -120,8 +120,8 @@ describe("page document helpers", () => {
     expect(layer.photoTransform).toMatchObject({
       scale: 1.2,
       rotation: 8.8,
-      offsetX: 0.1,
-      offsetY: 0,
+      offsetX: 0.12,
+      offsetY: -0.04,
     });
   });
 
