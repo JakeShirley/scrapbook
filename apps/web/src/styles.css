@@ -2349,17 +2349,41 @@ textarea:focus-visible {
   gap: 8px;
 }
 
-.text-controls-grid {
-  display: grid;
-  gap: 8px;
-}
-
 .text-content-toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--sb-neutral-stroke-2);
+  border-radius: 6px;
+  background: var(--sb-neutral-background-2);
+}
+
+.text-content-toolbar-group {
+  display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
+}
+
+.text-content-toolbar-field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.text-content-toolbar-field-font {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.text-content-toolbar-field-size {
+  width: 76px;
+  flex: 0 0 auto;
+}
+
+.text-content-toolbar-field-color {
+  flex: 0 0 auto;
 }
 
 .text-content-toolbar-button {
@@ -2367,11 +2391,11 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   min-width: 28px;
-  height: 26px;
+  height: 28px;
   padding: 0 8px;
   border: 1px solid var(--sb-neutral-stroke-2);
   border-radius: 6px;
-  background: var(--sb-neutral-background-2);
+  background: var(--sb-neutral-background);
   color: var(--sb-neutral-foreground-1);
   font-size: 0.85rem;
   line-height: 1;
@@ -2387,8 +2411,8 @@ textarea:focus-visible {
   outline-offset: 1px;
 }
 
-.text-content-toolbar-hint {
-  margin-left: 4px;
+.text-content-hint {
+  margin: 0;
   color: var(--sb-neutral-foreground-3);
   font-size: 0.72rem;
 }
@@ -3933,7 +3957,7 @@ body {
 }
 
 .selected-layer-edit-body .inspector-form textarea {
-  min-height: 54px;
+  min-height: 120px;
   padding-block: 5px;
 }
 
@@ -4003,13 +4027,6 @@ body {
   gap: 5px;
 }
 
-.selected-layer-edit-body .text-controls-grid {
-  grid-template-columns: 240px 180px 88px;
-  align-items: start;
-  gap: 8px;
-  justify-content: start;
-}
-
 .selected-layer-edit-body .text-effects-grid {
   gap: 6px;
 }
@@ -4045,14 +4062,6 @@ body {
   .selected-layer-edit-body .text-preview-pane {
     min-height: 108px;
   }
-}
-
-.selected-layer-edit-body .text-content-field {
-  grid-row: span 2;
-}
-
-.selected-layer-edit-body .text-alignment-field {
-  grid-column: 2 / 4;
 }
 
 .selected-layer-edit-body .checkbox-label {
