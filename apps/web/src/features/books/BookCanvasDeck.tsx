@@ -19,6 +19,7 @@ type BookCanvasDeckProps = {
   onDeleteLayer: (pageId: string, layerId: string) => void;
   onChooseWashiTapePhoto?: ((pageId: string, layerId: string) => void) | undefined;
   onDropAsset?: (pageId: string, assetId: string, canvasPoint: CanvasPoint) => void;
+  onDropFiles?: (pageId: string, files: File[], canvasPoint: CanvasPoint) => void;
   onReorderLayer: (pageId: string, layerId: string, toIndex: number) => void;
   onSelectLayer: (pageId: string, layerId: string | null, options?: SelectLayerOptions) => void;
   onTransformEnd: (pageId: string, layerId: string, update: Partial<PageLayer> | null) => void;
@@ -44,6 +45,7 @@ export function BookCanvasDeck({
   onDeleteLayer,
   onChooseWashiTapePhoto,
   onDropAsset,
+  onDropFiles,
   onReorderLayer,
   onSelectLayer,
   onTransformEnd,
@@ -78,6 +80,9 @@ export function BookCanvasDeck({
               onDeleteLayer={(layerId) => onDeleteLayer(pageId, layerId)}
               {...(onDropAsset
                 ? { onDropAsset: (assetId, point) => onDropAsset(pageId, assetId, point) }
+                : {})}
+              {...(onDropFiles
+                ? { onDropFiles: (files, point) => onDropFiles(pageId, files, point) }
                 : {})}
               onReorderLayer={(layerId, toIndex) => onReorderLayer(pageId, layerId, toIndex)}
               onSelectPreviewLayer={onSelectLayer}

@@ -177,6 +177,7 @@ export function PageCanvas({
   onDeleteLayer,
   onChangeLayer,
   onDropAsset,
+  onDropFiles,
   onReorderLayer,
   onSelectPreviewLayer,
   onSelectLayer,
@@ -193,6 +194,7 @@ export function PageCanvas({
   onDeleteLayer: (layerId: string) => void;
   onChangeLayer?: (layerId: string, update: Partial<PageLayer>) => void;
   onDropAsset?: (assetId: string, canvasPoint: CanvasPoint) => void;
+  onDropFiles?: (files: File[], canvasPoint: CanvasPoint) => void;
   onReorderLayer: (layerId: string, toIndex: number) => void;
   onSelectPreviewLayer?: (pageId: string, layerId: string) => void;
   onSelectLayer: (layerId: string | null, options?: SelectLayerOptions) => void;
@@ -814,6 +816,11 @@ export function PageCanvas({
   const dragOverDepthRef = useRef(0);
   const hasAssetDragPayload = (event: ReactDragEvent<HTMLFieldSetElement>): boolean =>
     Array.from(event.dataTransfer.types).includes(assetDragMimeType);
+  const hasFileDragPayload = (event: ReactDragEvent<HTMLFieldSetElement>): boolean =>
+    Array.from(event.dataTransfer.types).includes("Files");
+  const isAcceptedDragPayload = (event: ReactDragEvent<HTMLFieldSetElement>): boolean =>
+    (Boolean(onDropAsset) && hasAssetDragPayload(event)) ||
+    (Boolean(onDropFiles) && hasFileDragPayload(event));
   const getDropCanvasPoint = (event: ReactDragEvent<HTMLFieldSetElement>): CanvasPoint | null => {
     const canvasElement = canvasRef.current;
     if (!canvasElement) return null;
@@ -824,30 +831,40 @@ export function PageCanvas({
     };
   };
   const handleAssetDragEnter = (event: ReactDragEvent<HTMLFieldSetElement>) => {
-    if (!onDropAsset || !hasAssetDragPayload(event)) return;
+    if (!isAcceptedDragPayload(event)) return;
     dragOverDepthRef.current += 1;
     setIsAssetDragOver(true);
   };
   const handleAssetDragOver = (event: ReactDragEvent<HTMLFieldSetElement>) => {
-    if (!onDropAsset || !hasAssetDragPayload(event)) return;
+    if (!isAcceptedDragPayload(event)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
   };
   const handleAssetDragLeave = (event: ReactDragEvent<HTMLFieldSetElement>) => {
-    if (!onDropAsset || !hasAssetDragPayload(event)) return;
+    if (!isAcceptedDragPayload(event)) return;
     dragOverDepthRef.current = Math.max(0, dragOverDepthRef.current - 1);
     if (dragOverDepthRef.current === 0) setIsAssetDragOver(false);
   };
   const handleAssetDrop = (event: ReactDragEvent<HTMLFieldSetElement>) => {
-    if (!onDropAsset) return;
-    const assetId =
-      event.dataTransfer.getData(assetDragMimeType) || event.dataTransfer.getData("text/plain");
-    if (!assetId) return;
+    if (!isAcceptedDragPayload(event)) return;
     event.preventDefault();
     dragOverDepthRef.current = 0;
     setIsAssetDragOver(false);
     const point = getDropCanvasPoint(event);
     if (!point) return;
+    if (onDropFiles && hasFileDragPayload(event)) {
+      const files = Array.from(event.dataTransfer.files).filter((file) =>
+        file.type.startsWith("image/"),
+      );
+      if (files.length > 0) {
+        onDropFiles(files, point);
+        return;
+      }
+    }
+    if (!onDropAsset) return;
+    const assetId =
+      event.dataTransfer.getData(assetDragMimeType) || event.dataTransfer.getData("text/plain");
+    if (!assetId) return;
     onDropAsset(assetId, point);
   };
 
