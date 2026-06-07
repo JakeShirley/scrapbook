@@ -1,13 +1,13 @@
 import { Field, Input } from "@fluentui/react-components";
 import { AddRegular } from "@fluentui/react-icons";
 import type { StickerDefinition } from "@scrapbook/editor-core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AppModal } from "../../components/layout";
 
 type StickerLibraryModule = typeof import("@scrapbook/editor-core/stickers");
 
-const resultLimit = 160;
+const pageSize = 120;
 
 const formatCategory = (sticker: StickerDefinition) =>
   `${sticker.libraryName} / ${sticker.category}`;
@@ -26,16 +26,24 @@ export function StickerPickerModal({
 }) {
   const [query, setQuery] = useState("");
   const [stickerLibrary, setStickerLibrary] = useState<StickerLibraryModule | null>(null);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const stickerResults = useMemo(
     () =>
-      stickerLibrary?.searchStickers({ limit: resultLimit, query: normalizedQuery }) ?? {
+      stickerLibrary?.searchStickers({ limit: visibleCount, query: normalizedQuery }) ?? {
         stickers: [],
         total: 0,
       },
-    [normalizedQuery, stickerLibrary],
+    [normalizedQuery, stickerLibrary, visibleCount],
   );
   const visibleStickers = stickerResults.stickers;
+  const hasMoreStickers = visibleStickers.length < stickerResults.total;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset page count whenever the search query changes
+  useEffect(() => {
+    setVisibleCount(pageSize);
+  }, [normalizedQuery]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -50,6 +58,29 @@ export function StickerPickerModal({
       isCancelled = true;
     };
   }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reattach the observer after each page loads so the sentinel keeps firing while it stays in view
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+
+    if (!sentinel || !hasMoreStickers) {
+      return;
+    }
+
+    const scrollRoot = sentinel.closest(".app-modal-body");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((current) => current + pageSize);
+        }
+      },
+      { root: scrollRoot ?? null, rootMargin: "400px 0px" },
+    );
+
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [hasMoreStickers, visibleStickers.length]);
 
   const addSticker = (sticker: StickerDefinition) => {
     onAddSticker(sticker);
@@ -85,7 +116,12 @@ export function StickerPickerModal({
                 aria-label={`Add ${sticker.name}`}
                 onClick={() => addSticker(sticker)}
               >
-                <img src={stickerPreviewSrc(stickerLibrary, sticker)} alt="" />
+                <img
+                  src={stickerPreviewSrc(stickerLibrary, sticker)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
                 <span className="photo-picker-item-copy">
                   <span>{sticker.name}</span>
                   <span>{formatCategory(sticker)}</span>
@@ -96,6 +132,9 @@ export function StickerPickerModal({
                 </span>
               </button>
             ))}
+            {hasMoreStickers ? (
+              <div ref={sentinelRef} className="sticker-picker-sentinel" aria-hidden="true" />
+            ) : null}
           </div>
         ) : null}
       </div>
