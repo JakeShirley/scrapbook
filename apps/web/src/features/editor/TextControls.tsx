@@ -90,55 +90,33 @@ export function TextControls({
     <>
       <fieldset className="inspector-section text-controls-section">
         <legend>Text</legend>
-        <div className="text-controls-grid">
-          <label className="text-content-field" htmlFor="text-layer-text">
-            <span>Text</span>
-            <div className="text-content-toolbar" role="toolbar" aria-label="Text formatting">
-              <button
-                type="button"
-                className="text-content-toolbar-button"
-                title="Bold (Ctrl/Cmd+B) — wraps selection in **double asterisks**"
-                aria-label="Bold"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => applyInlineMarker("**")}
-              >
-                <strong>B</strong>
-              </button>
-              <button
-                type="button"
-                className="text-content-toolbar-button"
-                title="Italic (Ctrl/Cmd+I) — wraps selection in *single asterisks*"
-                aria-label="Italic"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => applyInlineMarker("*")}
-              >
-                <em>I</em>
-              </button>
-              <span className="text-content-toolbar-hint">
-                Use **bold**, *italic*, or ***both***.
-              </span>
-            </div>
-            <textarea
-              id="text-layer-text"
-              ref={textareaRef}
-              value={layer.text}
-              onChange={(event) =>
-                onChange({ text: event.currentTarget.value } as Partial<PageLayer>)
-              }
-              onKeyDown={(event) => {
-                if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-                const key = event.key.toLowerCase();
-                if (key === "b") {
-                  event.preventDefault();
-                  applyInlineMarker("**");
-                } else if (key === "i") {
-                  event.preventDefault();
-                  applyInlineMarker("*");
-                }
-              }}
-            />
-          </label>
-          <label htmlFor="text-layer-font-family">
+        <div className="text-content-toolbar" role="toolbar" aria-label="Text formatting">
+          <div className="text-content-toolbar-group text-content-toolbar-style">
+            <button
+              type="button"
+              className="text-content-toolbar-button"
+              title="Bold (Ctrl/Cmd+B) — wraps selection in **double asterisks**"
+              aria-label="Bold"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => applyInlineMarker("**")}
+            >
+              <strong>B</strong>
+            </button>
+            <button
+              type="button"
+              className="text-content-toolbar-button"
+              title="Italic (Ctrl/Cmd+I) — wraps selection in *single asterisks*"
+              aria-label="Italic"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => applyInlineMarker("*")}
+            >
+              <em>I</em>
+            </button>
+          </div>
+          <label
+            className="text-content-toolbar-field text-content-toolbar-field-font"
+            htmlFor="text-layer-font-family"
+          >
             <span>Font</span>
             <FontFamilySelect
               id="text-layer-font-family"
@@ -146,7 +124,7 @@ export function TextControls({
               onChange={(fontFamily) => onChange({ fontFamily } as Partial<PageLayer>)}
             />
           </label>
-          <label>
+          <label className="text-content-toolbar-field text-content-toolbar-field-size">
             <span>Font size</span>
             <NumericInput
               max={240}
@@ -155,7 +133,7 @@ export function TextControls({
               onChange={(fontSize) => onChange({ fontSize } as Partial<PageLayer>)}
             />
           </label>
-          <label>
+          <label className="text-content-toolbar-field text-content-toolbar-field-color">
             <span>Color</span>
             <input
               type="color"
@@ -165,7 +143,7 @@ export function TextControls({
               }
             />
           </label>
-          <div className="text-alignment-field">
+          <div className="text-content-toolbar-field text-alignment-field">
             <span>Align</span>
             <TextAlignmentControl
               value={layer.align}
@@ -173,6 +151,29 @@ export function TextControls({
             />
           </div>
         </div>
+        <label className="text-content-field" htmlFor="text-layer-text">
+          <span className="visually-hidden">Text</span>
+          <textarea
+            id="text-layer-text"
+            ref={textareaRef}
+            value={layer.text}
+            onChange={(event) =>
+              onChange({ text: event.currentTarget.value } as Partial<PageLayer>)
+            }
+            onKeyDown={(event) => {
+              if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+              const key = event.key.toLowerCase();
+              if (key === "b") {
+                event.preventDefault();
+                applyInlineMarker("**");
+              } else if (key === "i") {
+                event.preventDefault();
+                applyInlineMarker("*");
+              }
+            }}
+          />
+        </label>
+        <p className="text-content-hint">Use **bold**, *italic*, or ***both***.</p>
       </fieldset>
       <fieldset className="inspector-section text-effects-section">
         <legend>Effects</legend>
