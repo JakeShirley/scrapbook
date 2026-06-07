@@ -7,7 +7,7 @@
     "build": "pnpm -w run generate:changelog && tsc -p tsconfig.json && vite build",
     "dev": "pnpm -w run generate:changelog && vite --host 127.0.0.1",
     "preview": "vite preview --host 127.0.0.1",
-    "screenshots": "pnpm --filter @scrapbook/editor-core build && pnpm --filter @scrapbook/api-contract build && pnpm screenshots:capture",
+    "screenshots": "pnpm -w run generate:changelog && pnpm --filter @scrapbook/editor-core build && pnpm --filter @scrapbook/api-contract build && pnpm screenshots:capture",
     "screenshots:capture": "playwright test --config playwright.screenshots.config.ts",
     "typecheck": "pnpm -w run generate:changelog && tsc -p tsconfig.json --noEmit"
   },

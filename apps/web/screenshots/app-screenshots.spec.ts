@@ -20,6 +20,7 @@ type ScreenshotScenario = {
   name: string;
   path: string;
   prepare?: (page: Page) => Promise<void>;
+  viewports?: readonly string[];
   waitFor: (page: Page) => Promise<void>;
 };
 
@@ -449,6 +450,7 @@ const scenarios: ScreenshotScenario[] = [
       await expect(page.locator('.book-page-frame[aria-label="Page 5"]')).toBeVisible();
       await expect(page.locator('.book-page-frame[aria-label="Page 6"]')).toBeVisible();
     },
+    viewports: ["desktop"],
     waitFor: waitForBookEditor,
   },
   {
@@ -461,6 +463,7 @@ const scenarios: ScreenshotScenario[] = [
       await expect(dialog.getByRole("group", { name: "Photo" })).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Frame" })).toBeVisible();
     },
+    viewports: ["desktop"],
     waitFor: waitForBookEditor,
   },
   {
@@ -472,6 +475,7 @@ const scenarios: ScreenshotScenario[] = [
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
     },
+    viewports: ["desktop"],
     waitFor: waitForBookEditor,
   },
   {
@@ -485,6 +489,7 @@ const scenarios: ScreenshotScenario[] = [
       await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
       await expect(dialog.getByRole("img", { name: "Washi tape preview" })).toBeVisible();
     },
+    viewports: ["desktop"],
     waitFor: waitForBookEditor,
   },
   {
@@ -497,6 +502,7 @@ const scenarios: ScreenshotScenario[] = [
       await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
       await expect(dialog.getByRole("textbox", { name: "Text" })).toBeVisible();
     },
+    viewports: ["desktop"],
     waitFor: waitForBookEditor,
   },
   {
@@ -510,6 +516,7 @@ const scenarios: ScreenshotScenario[] = [
       await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
       await expect(dialog.getByRole("img", { name: "Text preview" })).toBeVisible();
     },
+    viewports: ["desktop"],
     waitFor: waitForBookEditor,
   },
   {
@@ -636,6 +643,10 @@ test.beforeAll(async () => {
 
 for (const viewport of viewports) {
   for (const scenario of scenarios) {
+    if (scenario.viewports && !scenario.viewports.includes(viewport.name)) {
+      continue;
+    }
+
     test(`${scenario.name} ${viewport.name}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await installMockApi(page, scenario.authenticated ?? true);
@@ -695,6 +706,11 @@ async function installMockApi(page: Page, authenticated: boolean) {
 
     if (pathName === "/api/v1/books/book_summer") {
       await route.fulfill({ json: bookFixture });
+      return;
+    }
+
+    if (pathName === "/api/v1/books/book_summer/assets") {
+      await route.fulfill({ json: { assets: assetFixtures } });
       return;
     }
 
@@ -778,11 +794,24 @@ function createAsset(
 ) {
   return {
     byteSize,
+    cameraMake: null,
+    cameraModel: null,
     checksumSha256: `sha256-${id}`,
     createdAt: now,
+    dateTaken: null,
+    exposureTimeSeconds: null,
+    fNumber: null,
+    focalLength35mmMm: null,
+    focalLengthMm: null,
+    gpsAltitudeMeters: null,
+    gpsLatitude: null,
+    gpsLongitude: null,
     height,
     id,
+    isoSpeed: null,
+    lensModel: null,
     mimeType: "image/png",
+    orientation: null,
     originalContentUrl: `/api/screenshot-assets/${id}.svg`,
     originalFilename,
     thumbnailUrl: `/api/screenshot-assets/${id}.svg`,
