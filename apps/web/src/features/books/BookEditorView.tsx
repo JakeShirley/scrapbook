@@ -766,6 +766,42 @@ export function BookEditorView() {
     setSelectedLayerIds([layer.id]);
   };
 
+  const addPhotosFromFileDrop = async (
+    pageId: string,
+    files: File[],
+    point: { x: number; y: number },
+  ) => {
+    if (!book || files.length === 0) {
+      return;
+    }
+
+    setError(null);
+
+    const failures: string[] = [];
+    let dropOffset = 0;
+
+    for (const file of files) {
+      try {
+        const uploadedAsset = await apiClient.uploadAsset(file);
+        const bookAssetsResponse = await apiClient.addBookAssets(book.id, {
+          assetIds: [uploadedAsset.id],
+        });
+        setAssets(bookAssetsResponse.assets);
+        addPhotoFromDrop(pageId, uploadedAsset, {
+          x: point.x + dropOffset,
+          y: point.y + dropOffset,
+        });
+        dropOffset += 24;
+      } catch (uploadError: unknown) {
+        failures.push(`${file.name}: ${getErrorMessage(uploadError)}`);
+      }
+    }
+
+    if (failures.length > 0) {
+      setError(failures.join(" "));
+    }
+  };
+
   const addWashiTape = () => {
     if (!activePage) {
       return;
@@ -1395,6 +1431,9 @@ export function BookEditorView() {
                   const asset = assetById.get(assetId);
                   if (!asset) return;
                   addPhotoFromDrop(pageId, asset, point);
+                }}
+                onDropFiles={(pageId, files, point) => {
+                  void addPhotosFromFileDrop(pageId, files, point);
                 }}
                 onReorderLayer={reorderPageLayer}
                 onSelectLayer={selectLayer}
