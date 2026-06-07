@@ -66,6 +66,29 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Resolved release version $version from $tag."
 
+      - name: Set up Node.js
+        if: steps.release-version.outputs.published == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Enable Corepack
+        if: steps.release-version.outputs.published == 'true'
+        run: corepack enable pnpm
+
+      - name: Install dependencies
+        if: steps.release-version.outputs.published == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Pin release version into package manifests
+        if: steps.release-version.outputs.published == 'true'
+        run: node scripts/set-package-version.mjs "${{ steps.release-version.outputs.version }}"
+
+      - name: Generate full changelog
+        if: steps.release-version.outputs.published == 'true'
+        run: pnpm run generate:changelog
+
       - name: Set up Docker Buildx
         if: steps.release-version.outputs.published == 'true'
         uses: docker/setup-buildx-action@v4
