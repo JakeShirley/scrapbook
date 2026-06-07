@@ -444,6 +444,12 @@ textarea:focus-visible {
   grid-template-columns: minmax(360px, 1fr) minmax(220px, 300px);
 }
 
+.library-grid[data-file-drop-target="true"] {
+  outline: 2px dashed #24766e;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
 .split-grid,
 .settings-grid {
   grid-template-columns: minmax(240px, 340px) minmax(320px, 1fr);

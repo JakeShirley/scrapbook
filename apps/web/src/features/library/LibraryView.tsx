@@ -6,7 +6,7 @@ import {
   DismissRegular,
   EditRegular,
 } from "@fluentui/react-icons";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, DragEvent as ReactDragEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { apiClient } from "../../apiClient";
@@ -133,7 +133,10 @@ export function LibraryView() {
   const uploadAssets = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = "";
+    await uploadFiles(files);
+  };
 
+  const uploadFiles = async (files: File[]) => {
     if (files.length === 0) {
       return;
     }
@@ -184,6 +187,37 @@ export function LibraryView() {
     setUploadProgress(null);
   };
 
+  const [isFileDragOver, setIsFileDragOver] = useState(false);
+  const dragOverDepthRef = useRef(0);
+  const hasFilesPayload = (event: ReactDragEvent<HTMLDivElement>): boolean =>
+    Array.from(event.dataTransfer.types).includes("Files");
+  const handleDragEnter = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!hasFilesPayload(event)) return;
+    dragOverDepthRef.current += 1;
+    setIsFileDragOver(true);
+  };
+  const handleDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!hasFilesPayload(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+  const handleDragLeave = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!hasFilesPayload(event)) return;
+    dragOverDepthRef.current = Math.max(0, dragOverDepthRef.current - 1);
+    if (dragOverDepthRef.current === 0) setIsFileDragOver(false);
+  };
+  const handleDrop = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!hasFilesPayload(event)) return;
+    event.preventDefault();
+    dragOverDepthRef.current = 0;
+    setIsFileDragOver(false);
+    const files = Array.from(event.dataTransfer.files).filter((file) =>
+      file.type.startsWith("image/"),
+    );
+    if (files.length === 0) return;
+    void uploadFiles(files);
+  };
+
   const removeAssetFromAlbum = async (album: Album, asset: Asset) => {
     setError(null);
     try {
@@ -227,7 +261,15 @@ export function LibraryView() {
         </Button>
       </WorkspaceHeader>
 
-      <div className="workspace-grid library-grid">
+      <section
+        className="workspace-grid library-grid"
+        data-file-drop-target={isFileDragOver || undefined}
+        aria-label="Photo library"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         <Panel title={panelTitle} count={panelCount}>
           {error ? (
             <p className="panel-alert" role="alert">
@@ -350,7 +392,7 @@ export function LibraryView() {
             </>
           ) : null}
         </Panel>
-      </div>
+      </section>
       {inspectedAsset ? (
         <PhotoInfoModal
           asset={inspectedAsset}
