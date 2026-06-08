@@ -57,6 +57,13 @@ import {
 
 export type SelectionPanel = "edit" | "frame";
 
+export type ReorderLayerCommand = "bottom" | "down" | "top" | "up";
+
+export type SpreadReorderCapabilities = ReadonlyMap<
+  string,
+  { canMoveDown: boolean; canMoveUp: boolean }
+>;
+
 export type CanvasPreviewLayer = {
   layer: PageLayer;
   sourcePageId: string;
@@ -248,6 +255,7 @@ export function PageCanvas({
   document,
   previewLayers = [],
   selectedLayerIds,
+  spreadReorderCapabilities,
   onActiveSelectionPanelChange,
   onDeleteLayer,
   onChangeLayer,
@@ -266,12 +274,13 @@ export function PageCanvas({
   document: PageDocument;
   previewLayers?: CanvasPreviewLayer[];
   selectedLayerIds: string[];
+  spreadReorderCapabilities?: SpreadReorderCapabilities;
   onActiveSelectionPanelChange?: ((panel: SelectionPanel | null) => void) | undefined;
   onDeleteLayer: (layerId: string) => void;
   onChangeLayer?: (layerId: string, update: Partial<PageLayer>) => void;
   onDropAsset?: (assetId: string, canvasPoint: CanvasPoint) => void;
   onDropFiles?: (files: File[], canvasPoint: CanvasPoint) => void;
-  onReorderLayer: (layerId: string, toIndex: number) => void;
+  onReorderLayer: (layerId: string, command: ReorderLayerCommand) => void;
   onSelectPreviewLayer?: (pageId: string, layerId: string) => void;
   onSelectLayer: (layerId: string | null, options?: SelectLayerOptions) => void;
   onTransformEnd?: (layerId: string, update: Partial<PageLayer> | null) => void;
@@ -390,6 +399,15 @@ export function PageCanvas({
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)
     : -1;
   const contextLayer = contextLayerIndex >= 0 ? document.layers[contextLayerIndex] : null;
+  const contextLayerSpreadCapabilities = contextLayer
+    ? spreadReorderCapabilities?.get(contextLayer.id)
+    : undefined;
+  const canMoveContextUp = contextLayer
+    ? (contextLayerSpreadCapabilities?.canMoveUp ?? contextLayerIndex < document.layers.length - 1)
+    : false;
+  const canMoveContextDown = contextLayer
+    ? (contextLayerSpreadCapabilities?.canMoveDown ?? contextLayerIndex > 0)
+    : false;
   const primarySelectedLayerId = selectedLayerIds.length === 1 ? selectedLayerIds[0] : null;
   const isMultiSelected = selectedLayerIds.length > 1;
   const selectedLayer =
@@ -1454,42 +1472,36 @@ export function PageCanvas({
           </button>
           <button
             type="button"
-            disabled={contextLayerIndex === document.layers.length - 1}
+            disabled={!canMoveContextUp}
             role="menuitem"
-            onClick={() =>
-              runContextAction(() => onReorderLayer(contextLayer.id, document.layers.length - 1))
-            }
+            onClick={() => runContextAction(() => onReorderLayer(contextLayer.id, "top"))}
           >
             <ArrowUpRegular />
             <span>Move to top</span>
           </button>
           <button
             type="button"
-            disabled={contextLayerIndex === 0}
+            disabled={!canMoveContextDown}
             role="menuitem"
-            onClick={() => runContextAction(() => onReorderLayer(contextLayer.id, 0))}
+            onClick={() => runContextAction(() => onReorderLayer(contextLayer.id, "bottom"))}
           >
             <ArrowDownRegular />
             <span>Move to bottom</span>
           </button>
           <button
             type="button"
-            disabled={contextLayerIndex === document.layers.length - 1}
+            disabled={!canMoveContextUp}
             role="menuitem"
-            onClick={() =>
-              runContextAction(() => onReorderLayer(contextLayer.id, contextLayerIndex + 1))
-            }
+            onClick={() => runContextAction(() => onReorderLayer(contextLayer.id, "up"))}
           >
             <ArrowUpRegular />
             <span>Move up</span>
           </button>
           <button
             type="button"
-            disabled={contextLayerIndex === 0}
+            disabled={!canMoveContextDown}
             role="menuitem"
-            onClick={() =>
-              runContextAction(() => onReorderLayer(contextLayer.id, contextLayerIndex - 1))
-            }
+            onClick={() => runContextAction(() => onReorderLayer(contextLayer.id, "down"))}
           >
             <ArrowDownRegular />
             <span>Move down</span>

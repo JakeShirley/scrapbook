@@ -23,7 +23,7 @@ const pageDetail = (id: string, document: PageDocument): PageDetail => ({
 const layerIds = (page: PageDetail): string[] => page.document.layers.map((layer) => layer.id);
 
 describe("spread layer syncing", () => {
-  it("keeps existing spread layer copies at the source stack index", () => {
+  it("keeps existing spread layer copies at their own stack index on each page", () => {
     const sharedLeft = createPhotoLayer({
       assetId: "asset_1",
       id: "shared_photo",
@@ -73,8 +73,8 @@ describe("spread layer syncing", () => {
       "left_foreground",
     ]);
     expect(layerIds(result.details.get(right.id) ?? right)).toEqual([
-      "right_background",
       "shared_photo",
+      "right_background",
       "right_foreground",
     ]);
   });
@@ -128,7 +128,7 @@ describe("spread layer syncing", () => {
     ]);
   });
 
-  it("moves spread layer copies to the top of pages with more layers", () => {
+  it("preserves each page's own stack position when syncing existing spread layer copies", () => {
     const sharedRight = createPhotoLayer({
       assetId: "asset_1",
       id: "shared_photo",
@@ -170,10 +170,10 @@ describe("spread layer syncing", () => {
     });
 
     expect(layerIds(result.details.get(left.id) ?? left)).toEqual([
+      "shared_photo",
       "left_one",
       "left_two",
       "left_three",
-      "shared_photo",
     ]);
     expect(layerIds(result.details.get(right.id) ?? right)).toEqual(["right_one", "shared_photo"]);
   });

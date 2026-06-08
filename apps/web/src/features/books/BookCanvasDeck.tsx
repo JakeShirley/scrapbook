@@ -5,8 +5,10 @@ import type { CanvasPoint } from "../editor/editorTypes";
 import {
   type CanvasPreviewLayer,
   PageCanvas,
+  type ReorderLayerCommand,
   type SelectionPanel,
   type SelectLayerOptions,
+  type SpreadReorderCapabilities,
 } from "../editor/PageCanvas";
 import type { LayerTransformUpdate } from "../editor/transforms";
 import type { EditHistoryMode } from "./bookEditorHistory";
@@ -19,6 +21,7 @@ type BookCanvasDeckProps = {
   orderedPageIds: string[];
   pageDetails: Map<string, PageDetail>;
   selectedLayerIds: string[];
+  spreadReorderCapabilities?: SpreadReorderCapabilities;
   viewMode: ViewMode;
   visiblePageIds: string[];
   getSpreadPreviewLayers: (pageId: string) => CanvasPreviewLayer[];
@@ -26,7 +29,7 @@ type BookCanvasDeckProps = {
   onDeleteLayer: (pageId: string, layerId: string) => void;
   onDropAsset?: (pageId: string, assetId: string, canvasPoint: CanvasPoint) => void;
   onDropFiles?: (pageId: string, files: File[], canvasPoint: CanvasPoint) => void;
-  onReorderLayer: (pageId: string, layerId: string, toIndex: number) => void;
+  onReorderLayer: (pageId: string, layerId: string, command: ReorderLayerCommand) => void;
   onSelectLayer: (pageId: string, layerId: string | null, options?: SelectLayerOptions) => void;
   onTransformEnd: (pageId: string, layerId: string, update: Partial<PageLayer> | null) => void;
   onTransformLayers: (pageId: string, updates: LayerTransformUpdate[]) => void;
@@ -46,6 +49,7 @@ export function BookCanvasDeck({
   orderedPageIds,
   pageDetails,
   selectedLayerIds,
+  spreadReorderCapabilities,
   viewMode,
   visiblePageIds,
   getSpreadPreviewLayers,
@@ -93,6 +97,7 @@ export function BookCanvasDeck({
               document={page.document}
               previewLayers={getSpreadPreviewLayers(pageId)}
               selectedLayerIds={isActivePage ? selectedLayerIds : []}
+              {...(spreadReorderCapabilities ? { spreadReorderCapabilities } : {})}
               onActiveSelectionPanelChange={isActivePage ? onActiveSelectionPanelChange : undefined}
               onChangeLayer={(layerId, update) => onUpdateLayerTransform(pageId, layerId, update)}
               onDeleteLayer={(layerId) => onDeleteLayer(pageId, layerId)}
@@ -102,7 +107,7 @@ export function BookCanvasDeck({
               {...(onDropFiles
                 ? { onDropFiles: (files, point) => onDropFiles(pageId, files, point) }
                 : {})}
-              onReorderLayer={(layerId, toIndex) => onReorderLayer(pageId, layerId, toIndex)}
+              onReorderLayer={(layerId, command) => onReorderLayer(pageId, layerId, command)}
               onSelectPreviewLayer={onSelectLayer}
               onSelectLayer={(layerId, options) => onSelectLayer(pageId, layerId, options)}
               onTransformEnd={(layerId, update) => onTransformEnd(pageId, layerId, update)}
