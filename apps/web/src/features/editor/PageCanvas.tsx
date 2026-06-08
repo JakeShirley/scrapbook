@@ -6,7 +6,6 @@ import {
   ArrowDownRegular,
   ArrowUpRegular,
   DeleteRegular,
-  DismissRegular,
   EditRegular,
   HandLeftRegular,
   ImageBorderRegular,
@@ -33,7 +32,6 @@ import type { Asset } from "../../types";
 import { assetDragMimeType } from "./AssetRail";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
 import { FontFamilySelect } from "./FontFamilySelect";
-import { LayerInspector } from "./LayerInspector";
 import { TextAlignmentControl } from "./TextAlignmentControl";
 import {
   applyGroupMove,
@@ -57,7 +55,7 @@ import {
   scaleLayerFromCornerHandle,
 } from "./transforms";
 
-type SelectionPanel = "edit" | "frame";
+export type SelectionPanel = "edit" | "frame";
 
 export type CanvasPreviewLayer = {
   layer: PageLayer;
@@ -135,7 +133,7 @@ const formatFramePreset = (preset: PhotoLayer["border"]["framePreset"]) =>
 const formatMaskShape = (shape: PhotoLayer["mask"]["shape"]) =>
   shape.charAt(0).toUpperCase() + shape.slice(1);
 
-const formatLayerKind = (kind: PageLayer["kind"]): string =>
+export const formatLayerKindLabel = (kind: PageLayer["kind"]): string =>
   kind === "photo"
     ? "Photo"
     : kind === "text"
@@ -163,7 +161,7 @@ const resolveBrowserPhotoHref = (asset: Asset | undefined): string | undefined =
     : (previewHref ?? asset.thumbnailUrl ?? asset.originalContentUrl);
 };
 
-const resolveBrowserWashiTapeHref = (
+export const resolveBrowserWashiTapeHref = (
   assetById: Map<string, Asset>,
   layer: WashiTapeLayer,
 ): string | undefined =>
@@ -245,10 +243,12 @@ type ActiveGroupTransform = {
 };
 
 export function PageCanvas({
+  activeSelectionPanel = null,
   assetById,
   document,
   previewLayers = [],
   selectedLayerIds,
+  onActiveSelectionPanelChange,
   onDeleteLayer,
   onChangeLayer,
   onDropAsset,
@@ -256,16 +256,17 @@ export function PageCanvas({
   onReorderLayer,
   onSelectPreviewLayer,
   onSelectLayer,
-  onChooseWashiTapePhoto,
   onTransformEnd,
   onTransformLayer,
   onTransformLayers,
   onTransformLayersEnd,
 }: {
+  activeSelectionPanel?: SelectionPanel | null;
   assetById: Map<string, Asset>;
   document: PageDocument;
   previewLayers?: CanvasPreviewLayer[];
   selectedLayerIds: string[];
+  onActiveSelectionPanelChange?: ((panel: SelectionPanel | null) => void) | undefined;
   onDeleteLayer: (layerId: string) => void;
   onChangeLayer?: (layerId: string, update: Partial<PageLayer>) => void;
   onDropAsset?: (assetId: string, canvasPoint: CanvasPoint) => void;
@@ -273,7 +274,6 @@ export function PageCanvas({
   onReorderLayer: (layerId: string, toIndex: number) => void;
   onSelectPreviewLayer?: (pageId: string, layerId: string) => void;
   onSelectLayer: (layerId: string | null, options?: SelectLayerOptions) => void;
-  onChooseWashiTapePhoto?: ((layerId: string) => void) | undefined;
   onTransformEnd?: (layerId: string, update: Partial<PageLayer> | null) => void;
   onTransformLayer: (layerId: string, update: Partial<PageLayer>) => void;
   onTransformLayers?: (updates: LayerTransformUpdate[]) => void;
@@ -301,7 +301,14 @@ export function PageCanvas({
   const [activeGroupTransformUpdates, setActiveGroupTransformUpdates] = useState<
     LayerTransformUpdate[] | null
   >(null);
-  const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
+  const setActiveSelectionPanel = useCallback(
+    (next: SelectionPanel | null | ((current: SelectionPanel | null) => SelectionPanel | null)) => {
+      if (!onActiveSelectionPanelChange) return;
+      const nextValue = typeof next === "function" ? next(activeSelectionPanel) : next;
+      if (nextValue !== activeSelectionPanel) onActiveSelectionPanelChange(nextValue);
+    },
+    [activeSelectionPanel, onActiveSelectionPanelChange],
+  );
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | null>(null);
   const [panPreviewLayerId, setPanPreviewLayerId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
@@ -411,8 +418,12 @@ export function PageCanvas({
       multiSelectedLayers.length > 0 ? getMultiSelectionBoundingBox(multiSelectedLayers) : null,
     [multiSelectedLayers],
   );
-  const selectedLayerLabel = selectedLayer ? `${formatLayerKind(selectedLayer.kind)} layer` : null;
-  const contextLayerLabel = contextLayer ? `${formatLayerKind(contextLayer.kind)} layer` : null;
+  const selectedLayerLabel = selectedLayer
+    ? `${formatLayerKindLabel(selectedLayer.kind)} layer`
+    : null;
+  const contextLayerLabel = contextLayer
+    ? `${formatLayerKindLabel(contextLayer.kind)} layer`
+    : null;
   const selectedSelectionFrame = selectedLayer ? getLayerSelectionFrame(selectedLayer) : null;
   const selectedLayerMenuPlacement =
     selectedSelectionFrame && selectedSelectionFrame.y > document.canvas.height * 0.16
@@ -498,12 +509,8 @@ export function PageCanvas({
   }, [stickerIds, stickerSvgById]);
 
   useEffect(() => {
-    if (!primarySelectedLayerId) setActiveSelectionPanel(null);
-  }, [primarySelectedLayerId]);
-
-  useEffect(() => {
     if (activeTransform) setActiveSelectionPanel(null);
-  }, [activeTransform]);
+  }, [activeTransform, setActiveSelectionPanel]);
 
   useEffect(() => {
     if (!panPreviewLayerId) return;
@@ -578,19 +585,6 @@ export function PageCanvas({
 
   useLayoutEffect(() => () => restoreTextTransformPreview(), [restoreTextTransformPreview]);
 
-  useEffect(() => {
-    if (!activeSelectionPanel) return;
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setActiveSelectionPanel(null);
-    };
-
-    globalThis.document.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      globalThis.document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [activeSelectionPanel]);
   useEffect(() => {
     if (!contextMenu) return;
 
@@ -1037,7 +1031,7 @@ export function PageCanvas({
           height: `${(selectionFrame.height / layer.height) * 100}%`,
           transform: `rotate(${selectionFrame.rotation}deg)`,
         };
-        const layerLabel = `${formatLayerKind(layer.kind)} layer`;
+        const layerLabel = `${formatLayerKindLabel(layer.kind)} layer`;
         return (
           <div
             key={isPreview ? `${interactiveLayer.sourcePageId}:${layer.id}` : layer.id}
@@ -1439,42 +1433,6 @@ export function PageCanvas({
               </div>
             </div>
           ) : null}
-        </div>
-      ) : null}
-      {activeSelectionPanel === "edit" && selectedLayer ? (
-        <div
-          className="selected-layer-edit-overlay"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <section
-            aria-label={`Edit ${selectedLayerLabel}`}
-            aria-modal="true"
-            className="selected-layer-edit-dialog"
-            role="dialog"
-          >
-            <header className="selected-layer-edit-header">
-              <div className="selected-layer-edit-title">
-                <h3>{selectedLayerLabel}</h3>
-              </div>
-              <button
-                type="button"
-                aria-label="Close editor"
-                className="selected-layer-edit-close"
-                title="Close"
-                onClick={() => setActiveSelectionPanel(null)}
-              >
-                <DismissRegular />
-              </button>
-            </header>
-            <div className="selected-layer-edit-body">
-              <LayerInspector
-                layer={selectedLayer}
-                onChange={(update) => changeLayer(selectedLayer.id, update)}
-                onChooseWashiTapePhoto={onChooseWashiTapePhoto}
-                resolveWashiTapeHref={(layer) => resolveBrowserWashiTapeHref(assetById, layer)}
-              />
-            </div>
-          </section>
         </div>
       ) : null}
       {contextMenu && contextLayer ? (

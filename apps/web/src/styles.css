@@ -1216,14 +1216,14 @@ textarea:focus-visible {
 
 .editor-shell {
   display: grid;
-  grid-template-columns: minmax(180px, 230px) minmax(420px, 1fr);
+  grid-template-columns: minmax(180px, 230px) minmax(420px, 1fr) minmax(280px, 340px);
   gap: 16px;
   align-items: start;
 }
 
 .book-editor-shell {
   display: grid;
-  grid-template-columns: minmax(180px, 230px) minmax(460px, 1fr);
+  grid-template-columns: minmax(180px, 230px) minmax(460px, 1fr) minmax(280px, 340px);
   gap: 16px;
   align-items: start;
 }
@@ -3436,20 +3436,6 @@ textarea:focus-visible {
 }
 
 @media (max-width: 720px) {
-  .selected-layer-edit-overlay {
-    padding: 12px;
-  }
-
-  .selected-layer-edit-dialog {
-    width: calc(100vw - 24px);
-    height: calc(100vh - 24px);
-  }
-
-  .selected-layer-edit-body .inspector-form {
-    grid-template-columns: 1fr;
-    padding: 12px;
-  }
-
   .app-modal-overlay {
     padding: 12px;
   }
@@ -4313,30 +4299,20 @@ body {
   background: var(--sb-brand);
 }
 
-.selected-layer-edit-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: grid;
-  place-items: center;
-  padding: 8px;
-  background: rgb(0 0 0 / 46%);
-  backdrop-filter: blur(2px);
-}
-
-.selected-layer-edit-dialog {
+.editor-edit-pane {
+  position: sticky;
+  top: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  width: min(920px, calc(100vw - 16px));
-  max-height: calc(100vh - 16px);
+  max-height: calc(100vh - 32px);
   overflow: hidden;
   border: 1px solid var(--sb-neutral-stroke-2);
   border-radius: 8px;
   background: var(--sb-neutral-background);
-  box-shadow: 0 24px 64px rgb(0 0 0 / 28%);
+  box-shadow: var(--sb-shadow-4);
 }
 
-.selected-layer-edit-header {
+.editor-edit-pane-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4347,191 +4323,90 @@ body {
   background: var(--sb-neutral-background);
 }
 
-.selected-layer-edit-title {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.selected-layer-edit-title h3 {
+.editor-edit-pane-header h3 {
   overflow: hidden;
   margin: 0;
   color: var(--sb-neutral-foreground);
   font-size: 0.98rem;
   font-weight: 650;
   text-overflow: ellipsis;
+  text-transform: capitalize;
   white-space: nowrap;
 }
 
-.selected-layer-edit-close {
-  display: grid;
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid var(--sb-neutral-stroke);
-  border-radius: 6px;
-  color: var(--sb-neutral-foreground);
-  background: var(--sb-neutral-background);
-}
-
-.selected-layer-edit-close:hover {
-  background: var(--sb-neutral-background-4);
-}
-
-.selected-layer-edit-close svg {
-  width: 17px;
-  height: 17px;
-}
-
-.selected-layer-edit-body {
+.editor-edit-pane-body {
   min-height: 0;
   overflow-y: auto;
   background: var(--sb-neutral-background-2);
 }
 
-.selected-layer-edit-body .inspector-form {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.editor-edit-pane-placeholder {
+  margin: 0;
+  padding: 24px 16px;
+  color: var(--sb-neutral-foreground-3);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.editor-edit-pane-body .inspector-form {
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  align-items: stretch;
-  gap: 8px;
+  gap: 10px;
   border-top: 0;
-  padding: 8px;
+  padding: 10px;
 }
 
-.selected-layer-edit-body .layer-details-section,
-.selected-layer-edit-body .layer-inspector-section,
-.selected-layer-edit-body .text-controls-section,
-.selected-layer-edit-body .text-effects-section {
-  grid-column: 1 / -1;
+.editor-edit-pane-body .inspector-form label,
+.editor-edit-pane-body .inspector-form .text-alignment-field {
+  gap: 4px;
+  font-size: 0.74rem;
 }
 
-.selected-layer-edit-body .inspector-form label,
-.selected-layer-edit-body .inspector-form .text-alignment-field {
-  gap: 3px;
-  font-size: 0.72rem;
-}
-
-.selected-layer-edit-body .inspector-form input,
-.selected-layer-edit-body .inspector-form select,
-.selected-layer-edit-body .inspector-form textarea {
-  min-height: 24px;
+.editor-edit-pane-body .inspector-form input,
+.editor-edit-pane-body .inspector-form select,
+.editor-edit-pane-body .inspector-form textarea {
+  min-height: 26px;
   border-radius: 5px;
-  padding: 0 6px;
-  font-size: 0.78rem;
+  padding: 0 7px;
+  font-size: 0.8rem;
 }
 
-.selected-layer-edit-body .inspector-form textarea {
-  min-height: 120px;
+.editor-edit-pane-body .inspector-form textarea {
+  min-height: 96px;
   padding-block: 5px;
 }
 
-.selected-layer-edit-body .inspector-form input[type="range"] {
+.editor-edit-pane-body .inspector-form input[type="range"] {
   padding: 0;
 }
 
-.selected-layer-edit-body .inspector-form input[type="color"] {
-  width: 34px;
+.editor-edit-pane-body .inspector-form input[type="color"] {
+  width: 36px;
   padding: 2px;
 }
 
-.selected-layer-edit-body .layer-inspector-section {
-  align-content: start;
-  align-items: start;
-}
-
-.selected-layer-edit-body .layer-controls-grid {
-  grid-template-columns: repeat(4, 92px) 120px;
+.editor-edit-pane-body .layer-controls-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: 8px;
 }
 
-.selected-layer-edit-body .rotation-field {
-  width: 120px;
+.editor-edit-pane-body .rotation-field,
+.editor-edit-pane-body .opacity-field,
+.editor-edit-pane-body .layer-controls-grid .opacity-field,
+.editor-edit-pane-body .layer-controls-grid .checkbox-label {
+  grid-column: 1 / -1;
+  width: auto;
 }
 
-.selected-layer-edit-body .opacity-field {
-  width: 220px;
-}
-
-.selected-layer-edit-body .layer-controls-grid .opacity-field {
-  grid-column: 1 / 3;
-}
-
-.selected-layer-edit-body .layer-controls-grid .checkbox-label {
-  grid-column: 4 / 6;
-}
-
-.selected-layer-edit-body .font-family-select-trigger {
-  min-height: 28px;
-  padding-inline: 8px 26px;
-  font-size: 0.78rem;
-}
-
-.selected-layer-edit-body .font-family-select-trigger::after {
-  right: 9px;
-  width: 7px;
-  height: 7px;
-}
-
-.selected-layer-edit-body .text-alignment-selector {
-  border-radius: 6px;
-  padding: 2px;
-}
-
-.selected-layer-edit-body .text-alignment-selector button {
-  min-height: 26px;
-}
-
-.selected-layer-edit-body .text-alignment-selector button svg {
-  width: 16px;
-  height: 16px;
-}
-
-.selected-layer-edit-body .inspector-grid {
-  gap: 5px;
-}
-
-.selected-layer-edit-body .text-effects-grid {
-  gap: 6px;
-}
-
-.selected-layer-edit-body .text-effects-layout {
-  grid-template-columns: minmax(220px, 0.78fr) minmax(360px, 1.22fr);
+.editor-edit-pane-body .text-effects-layout {
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
-.selected-layer-edit-body .text-preview-pane {
-  min-height: 100%;
-}
-
-.selected-layer-edit-body .text-effect-card {
-  gap: 5px;
-  padding: 5px;
-}
-
-.selected-layer-edit-body .text-effect-controls-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.selected-layer-edit-body .text-effect-controls-grid-wide {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (max-width: 760px) {
-  .selected-layer-edit-body .text-effects-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .selected-layer-edit-body .text-preview-pane {
-    min-height: 108px;
-  }
-}
-
-.selected-layer-edit-body .checkbox-label {
-  align-self: end;
-  min-height: 24px;
+.editor-edit-pane-body .text-preview-pane {
+  min-height: 108px;
 }
 
 .selected-layer-edit-body .checkbox-label input {
@@ -4967,7 +4842,7 @@ body {
 }
 
 .book-editor-page .book-editor-shell {
-  grid-template-columns: minmax(168px, 216px) minmax(0, 1fr);
+  grid-template-columns: minmax(168px, 216px) minmax(0, 1fr) minmax(260px, 320px);
   gap: 10px;
   align-items: stretch;
   min-height: 0;

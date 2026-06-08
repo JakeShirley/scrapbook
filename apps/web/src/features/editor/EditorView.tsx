@@ -32,7 +32,13 @@ import type { Asset, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "./AssetRail";
 import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
-import { PageCanvas } from "./PageCanvas";
+import { LayerInspector } from "./LayerInspector";
+import {
+  PageCanvas,
+  resolveBrowserWashiTapeHref,
+  formatLayerKindLabel,
+  type SelectionPanel,
+} from "./PageCanvas";
 import { PhotoPickerModal } from "./PhotoPickerModal";
 import { type PngExportSettings, PngExportSettingsModal } from "./PngExportSettingsModal";
 import { StickerPickerModal } from "./StickerPickerModal";
@@ -52,6 +58,7 @@ export function EditorView() {
   const [photoPickerMode, setPhotoPickerMode] = useState<PhotoPickerMode | null>(null);
   const [isPngExportSettingsOpen, setIsPngExportSettingsOpen] = useState(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
+  const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
   const [status, setStatus] = useState<EditorSaveStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 
@@ -90,6 +97,22 @@ export function EditorView() {
   }, [navigate, pageId]);
 
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
+  const primarySelectedLayerId = selectedLayerIds.length === 1 ? selectedLayerIds[0] : null;
+  const selectedLayer = useMemo(
+    () => document?.layers.find((layer) => layer.id === primarySelectedLayerId) ?? null,
+    [document, primarySelectedLayerId],
+  );
+  useEffect(() => {
+    if (!primarySelectedLayerId) setActiveSelectionPanel(null);
+  }, [primarySelectedLayerId]);
+  useEffect(() => {
+    if (!activeSelectionPanel) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActiveSelectionPanel(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [activeSelectionPanel]);
   const selectLayer = (layerId: string | null, options?: { additive?: boolean }) => {
     if (layerId === null) {
       setSelectedLayerIds([]);
@@ -384,20 +407,52 @@ export function EditorView() {
             }}
           />
           <PageCanvas
+            activeSelectionPanel={activeSelectionPanel}
             assetById={assetById}
             document={document}
             selectedLayerIds={selectedLayerIds}
+            onActiveSelectionPanelChange={setActiveSelectionPanel}
             onChangeLayer={updateLayerTransform}
             onDeleteLayer={deleteCanvasLayer}
             onReorderLayer={reorderCanvasLayer}
             onSelectLayer={selectLayer}
-            onChooseWashiTapePhoto={(layerId) =>
-              setPhotoPickerMode({ kind: "washiTapePattern", layerId })
-            }
             onTransformLayer={updateLayerTransform}
             onTransformLayers={updateLayerTransforms}
           />
         </section>
+        <aside
+          aria-label={
+            selectedLayer
+              ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
+              : "Layer inspector"
+          }
+          className="editor-edit-pane"
+          role="dialog"
+        >
+          <header className="editor-edit-pane-header">
+            <h3>
+              {selectedLayer
+                ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
+                : "Layer inspector"}
+            </h3>
+          </header>
+          <div className="editor-edit-pane-body">
+            {selectedLayer ? (
+              <LayerInspector
+                layer={selectedLayer}
+                onChange={(update) => updateLayerTransform(selectedLayer.id, update)}
+                onChooseWashiTapePhoto={(layerId) =>
+                  setPhotoPickerMode({ kind: "washiTapePattern", layerId })
+                }
+                resolveWashiTapeHref={(layer) => resolveBrowserWashiTapeHref(assetById, layer)}
+              />
+            ) : (
+              <p className="editor-edit-pane-placeholder">
+                Select a layer on the page to edit its properties here.
+              </p>
+            )}
+          </div>
+        </aside>
       </div>
     </>
   );
