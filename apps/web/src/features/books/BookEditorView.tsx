@@ -27,7 +27,13 @@ import { getErrorMessage } from "../../lib/errors";
 import type { Asset, BookDetail, ExportJob, PageDetail } from "../../types";
 import { AssetRail } from "../editor/AssetRail";
 import type { EditorSaveStatus } from "../editor/editorTypes";
-import type { CanvasPreviewLayer } from "../editor/PageCanvas";
+import { LayerInspector } from "../editor/LayerInspector";
+import {
+  type CanvasPreviewLayer,
+  formatLayerKindLabel,
+  resolveBrowserWashiTapeHref,
+  type SelectionPanel,
+} from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
 import { type PngExportSettings, PngExportSettingsModal } from "../editor/PngExportSettingsModal";
 import { StickerPickerModal } from "../editor/StickerPickerModal";
@@ -80,6 +86,7 @@ export function BookEditorView() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
+  const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("spread");
   const [exportJob, setExportJob] = useState<ExportJob | null>(null);
   const [pendingExportFormat, setPendingExportFormat] = useState<"pdf" | "png" | null>(null);
@@ -205,6 +212,25 @@ export function BookEditorView() {
   const editingPage = editingPageId ? (pageDetails.get(editingPageId) ?? null) : null;
   const editingPageIndex = editingPageId ? orderedPageIds.indexOf(editingPageId) : -1;
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
+  const primarySelectedLayerId = selectedLayerIds.length === 1 ? selectedLayerIds[0] : null;
+  const selectedLayer = useMemo(
+    () =>
+      primarySelectedLayerId && activePage
+        ? (activePage.document.layers.find((layer) => layer.id === primarySelectedLayerId) ?? null)
+        : null,
+    [activePage, primarySelectedLayerId],
+  );
+  useEffect(() => {
+    if (!primarySelectedLayerId) setActiveSelectionPanel(null);
+  }, [primarySelectedLayerId]);
+  useEffect(() => {
+    if (!activeSelectionPanel) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActiveSelectionPanel(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [activeSelectionPanel]);
   const selectPage = (pageId: string, layerId: string | null = null) => {
     setActivePageId(pageId);
     setSelectedLayerIds(layerId ? [layerId] : []);
@@ -1416,6 +1442,7 @@ export function BookEditorView() {
             <>
               <BookCanvasDeck
                 activePageId={activePage.id}
+                activeSelectionPanel={activeSelectionPanel}
                 assetById={assetById}
                 getSpreadPreviewLayers={getSpreadPreviewLayers}
                 orderedPageIds={orderedPageIds}
@@ -1423,9 +1450,7 @@ export function BookEditorView() {
                 selectedLayerIds={selectedLayerIds}
                 viewMode={viewMode}
                 visiblePageIds={visiblePageIds}
-                onChooseWashiTapePhoto={(pageId, layerId) =>
-                  setPhotoPickerMode({ kind: "washiTapePattern", pageId, layerId })
-                }
+                onActiveSelectionPanelChange={setActiveSelectionPanel}
                 onDeleteLayer={deletePageLayer}
                 onDropAsset={(pageId, assetId, point) => {
                   const asset = assetById.get(assetId);
@@ -1492,6 +1517,41 @@ export function BookEditorView() {
             </div>
           )}
         </section>
+        <aside
+          aria-label={
+            selectedLayer
+              ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
+              : "Layer inspector"
+          }
+          className="editor-edit-pane"
+          role="dialog"
+        >
+          <header className="editor-edit-pane-header">
+            <h3>
+              {selectedLayer
+                ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
+                : "Layer inspector"}
+            </h3>
+          </header>
+          <div className="editor-edit-pane-body">
+            {selectedLayer && activePageId ? (
+              <LayerInspector
+                layer={selectedLayer}
+                onChange={(update) => updateLayerTransform(activePageId, selectedLayer.id, update)}
+                onChooseWashiTapePhoto={(layerId) =>
+                  setPhotoPickerMode({ kind: "washiTapePattern", pageId: activePageId, layerId })
+                }
+                resolveWashiTapeHref={(layer) => resolveBrowserWashiTapeHref(assetById, layer)}
+              />
+            ) : (
+              <p className="editor-edit-pane-placeholder">
+                {activePageId
+                  ? "Select a layer on the page to edit its properties here."
+                  : "Open a page to edit its layers."}
+              </p>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );

@@ -2,13 +2,19 @@ import type { PageLayer } from "@scrapbook/editor-core";
 
 import type { Asset, PageDetail } from "../../types";
 import type { CanvasPoint } from "../editor/editorTypes";
-import { type CanvasPreviewLayer, PageCanvas, type SelectLayerOptions } from "../editor/PageCanvas";
+import {
+  type CanvasPreviewLayer,
+  PageCanvas,
+  type SelectionPanel,
+  type SelectLayerOptions,
+} from "../editor/PageCanvas";
 import type { LayerTransformUpdate } from "../editor/transforms";
 import type { EditHistoryMode } from "./bookEditorHistory";
 import type { ViewMode } from "./bookEditorTypes";
 
 type BookCanvasDeckProps = {
   activePageId: string;
+  activeSelectionPanel?: SelectionPanel | null;
   assetById: Map<string, Asset>;
   orderedPageIds: string[];
   pageDetails: Map<string, PageDetail>;
@@ -16,8 +22,8 @@ type BookCanvasDeckProps = {
   viewMode: ViewMode;
   visiblePageIds: string[];
   getSpreadPreviewLayers: (pageId: string) => CanvasPreviewLayer[];
+  onActiveSelectionPanelChange?: (panel: SelectionPanel | null) => void;
   onDeleteLayer: (pageId: string, layerId: string) => void;
-  onChooseWashiTapePhoto?: ((pageId: string, layerId: string) => void) | undefined;
   onDropAsset?: (pageId: string, assetId: string, canvasPoint: CanvasPoint) => void;
   onDropFiles?: (pageId: string, files: File[], canvasPoint: CanvasPoint) => void;
   onReorderLayer: (pageId: string, layerId: string, toIndex: number) => void;
@@ -35,6 +41,7 @@ type BookCanvasDeckProps = {
 
 export function BookCanvasDeck({
   activePageId,
+  activeSelectionPanel,
   assetById,
   orderedPageIds,
   pageDetails,
@@ -42,8 +49,8 @@ export function BookCanvasDeck({
   viewMode,
   visiblePageIds,
   getSpreadPreviewLayers,
+  onActiveSelectionPanelChange,
   onDeleteLayer,
-  onChooseWashiTapePhoto,
   onDropAsset,
   onDropFiles,
   onReorderLayer,
@@ -63,20 +70,23 @@ export function BookCanvasDeck({
           return null;
         }
 
+        const isActivePage = pageId === activePageId;
+
         return (
           <section
             className="book-page-frame"
-            data-active={pageId === activePageId}
+            data-active={isActivePage}
             key={pageId}
             aria-label={`Page ${pageIndex + 1}`}
           >
             <PageCanvas
+              activeSelectionPanel={isActivePage ? (activeSelectionPanel ?? null) : null}
               assetById={assetById}
               document={page.document}
               previewLayers={getSpreadPreviewLayers(pageId)}
-              selectedLayerIds={pageId === activePageId ? selectedLayerIds : []}
+              selectedLayerIds={isActivePage ? selectedLayerIds : []}
+              onActiveSelectionPanelChange={isActivePage ? onActiveSelectionPanelChange : undefined}
               onChangeLayer={(layerId, update) => onUpdateLayerTransform(pageId, layerId, update)}
-              onChooseWashiTapePhoto={(layerId) => onChooseWashiTapePhoto?.(pageId, layerId)}
               onDeleteLayer={(layerId) => onDeleteLayer(pageId, layerId)}
               {...(onDropAsset
                 ? { onDropAsset: (assetId, point) => onDropAsset(pageId, assetId, point) }
