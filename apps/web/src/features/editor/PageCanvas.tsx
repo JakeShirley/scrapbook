@@ -243,6 +243,7 @@ export function PageCanvas({
   >(null);
   const [activeSelectionPanel, setActiveSelectionPanel] = useState<SelectionPanel | null>(null);
   const [editingTextLayerId, setEditingTextLayerId] = useState<string | null>(null);
+  const [panPreviewLayerId, setPanPreviewLayerId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ layerId: string; x: number; y: number } | null>(
     null,
   );
@@ -314,8 +315,9 @@ export function PageCanvas({
         resolvePhotoHref: (layer) => resolveBrowserPhotoHref(assetById.get(layer.assetId)),
         resolveStickerSvg: (layer) => stickerSvgById.get(layer.stickerId),
         resolveWashiTapeHref: (layer) => resolveBrowserWashiTapeHref(assetById, layer),
+        ...(panPreviewLayerId ? { panPreviewLayerIds: new Set([panPreviewLayerId]) } : {}),
       }),
-    [assetById, renderedDocument, stickerSvgById, svgIdPrefix],
+    [assetById, renderedDocument, stickerSvgById, svgIdPrefix, panPreviewLayerId],
   );
   const contextLayerIndex = contextMenu
     ? document.layers.findIndex((layer) => layer.id === contextMenu.layerId)
@@ -442,6 +444,13 @@ export function PageCanvas({
   useEffect(() => {
     if (activeTransform) setActiveSelectionPanel(null);
   }, [activeTransform]);
+
+  useEffect(() => {
+    if (!panPreviewLayerId) return;
+    if (panPreviewLayerId !== primarySelectedLayerId || activeTransform) {
+      setPanPreviewLayerId(null);
+    }
+  }, [activeTransform, panPreviewLayerId, primarySelectedLayerId]);
 
   useEffect(() => {
     if (editingTextLayerId && editingTextLayerId !== primarySelectedLayerId) {
@@ -1085,7 +1094,22 @@ export function PageCanvas({
                       aria-label="Click and drag to adjust photo"
                       className="transform-pan-handle"
                       title="Click and drag to adjust photo"
-                      onPointerDown={(event) => startTransform(event, layer, "pan")}
+                      onPointerDown={(event) => {
+                        setPanPreviewLayerId(null);
+                        startTransform(event, layer, "pan");
+                      }}
+                      onPointerEnter={() => setPanPreviewLayerId(layer.id)}
+                      onPointerLeave={() => {
+                        setPanPreviewLayerId((current) =>
+                          current === layer.id ? null : current,
+                        );
+                      }}
+                      onFocus={() => setPanPreviewLayerId(layer.id)}
+                      onBlur={() => {
+                        setPanPreviewLayerId((current) =>
+                          current === layer.id ? null : current,
+                        );
+                      }}
                     >
                       <HandLeftRegular />
                     </button>
