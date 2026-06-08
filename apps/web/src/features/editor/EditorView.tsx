@@ -33,12 +33,7 @@ import { AssetRail } from "./AssetRail";
 import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
 import { LayerInspector } from "./LayerInspector";
-import {
-  PageCanvas,
-  resolveBrowserWashiTapeHref,
-  formatLayerKindLabel,
-  type SelectionPanel,
-} from "./PageCanvas";
+import { PageCanvas, formatLayerKindLabel, type SelectionPanel } from "./PageCanvas";
 import { PhotoPickerModal } from "./PhotoPickerModal";
 import { type PngExportSettings, PngExportSettingsModal } from "./PngExportSettingsModal";
 import { StickerPickerModal } from "./StickerPickerModal";
@@ -454,7 +449,6 @@ export function EditorView() {
                 onChooseWashiTapePhoto={(layerId) =>
                   setPhotoPickerMode({ kind: "washiTapePattern", layerId })
                 }
-                resolveWashiTapeHref={(layer) => resolveBrowserWashiTapeHref(assetById, layer)}
               />
             ) : (
               <p className="editor-edit-pane-placeholder">
