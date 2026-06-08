@@ -70,6 +70,22 @@ import {
   serverLogEntryResponseSchema,
   serverLogListResponseSchema,
   serverLogListRoute,
+  customStickerContentRoute,
+  customStickerListResponseSchema,
+  customStickerListRoute,
+  customStickerResponseSchema,
+  type CustomStickerResponse,
+  stickerPackCreateRoute,
+  stickerPackDeleteRoute,
+  stickerPackDetailRoute,
+  stickerPackListResponseSchema,
+  stickerPackListRoute,
+  stickerPackPatchRoute,
+  stickerPackResponseSchema,
+  stickerPackStickerListRoute,
+  stickerPackStickerRemoveRoute,
+  stickerPackStickerUploadRoute,
+  type StickerPackResponse,
 } from "@scrapbook/api-contract";
 import {
   createBookSpreads,
@@ -103,18 +119,23 @@ import {
   type Repositories,
   type RepositoryClock,
 } from "./persistence/repositories.js";
-import type { AlbumWithCountRecord } from "./persistence/repositories.js";
+import type {
+  AlbumWithCountRecord,
+  StickerPackWithCountRecord,
+} from "./persistence/repositories.js";
 import type {
   AccountRecord,
   AssetRecord,
   AssetVariantRecord,
   BookPageRecord,
   BookRecord,
+  CustomStickerRecord,
   ExportJobRecord,
   PageRecord,
   SessionRecord,
 } from "./persistence/schema.js";
 import { readStaticAsset } from "./static.js";
+import { CustomStickerUploadError, createCustomStickerFromUpload } from "./custom-stickers.js";
 
 type ApiBindings = {
   Variables: {
@@ -368,6 +389,34 @@ const toAlbumResponse = (album: AlbumWithCountRecord): AlbumResponse =>
     photoCount: album.photoCount,
     createdAt: album.createdAt,
     updatedAt: album.updatedAt,
+  });
+
+const buildCustomStickerContentUrl = (stickerId: string): string =>
+  `/api/v1/custom-stickers/${stickerId}/content`;
+
+const toStickerPackResponse = (pack: StickerPackWithCountRecord): StickerPackResponse =>
+  stickerPackResponseSchema.parse({
+    id: pack.id,
+    title: pack.title,
+    author: pack.author,
+    sourceUrl: pack.sourceUrl,
+    stickerCount: pack.stickerCount,
+    createdAt: pack.createdAt,
+    updatedAt: pack.updatedAt,
+  });
+
+const toCustomStickerResponse = (sticker: CustomStickerRecord): CustomStickerResponse =>
+  customStickerResponseSchema.parse({
+    id: sticker.id,
+    packId: sticker.packId,
+    name: sticker.name,
+    mimeType: sticker.mimeType,
+    byteSize: sticker.byteSize,
+    width: sticker.width,
+    height: sticker.height,
+    contentUrl: buildCustomStickerContentUrl(sticker.id),
+    createdAt: sticker.createdAt,
+    updatedAt: sticker.updatedAt,
   });
 
 const toBookSummaryResponse = (
@@ -1886,6 +1935,396 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
       albumListResponseSchema.parse({ albums: records.map(toAlbumResponse) }),
       200,
     );
+  });
+
+  app.openapi(stickerPackListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const records = options.repositories.stickerPacks.listForAccount(authSession.account.id);
+
+    return context.json(
+      stickerPackListResponseSchema.parse({ packs: records.map(toStickerPackResponse) }),
+      200,
+    );
+  });
+
+  app.openapi(stickerPackCreateRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const input = context.req.valid("json");
+    const pack = options.repositories.stickerPacks.create({
+      accountId: authSession.account.id,
+      title: input.title,
+      author: input.author ?? null,
+      sourceUrl: input.sourceUrl ?? null,
+    });
+
+    return context.json(toStickerPackResponse({ ...pack, stickerCount: 0 }), 201);
+  });
+
+  app.openapi(stickerPackDetailRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { packId } = context.req.valid("param");
+    const records = options.repositories.stickerPacks.listForAccount(authSession.account.id);
+    const match = records.find((record) => record.id === packId);
+
+    if (!match) {
+      return context.json(
+        createErrorResponse(context, "sticker_pack_not_found", "Sticker pack not found"),
+        404,
+      );
+    }
+
+    return context.json(toStickerPackResponse(match), 200);
+  });
+
+  app.openapi(stickerPackPatchRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { packId } = context.req.valid("param");
+    const input = context.req.valid("json");
+    const updated = options.repositories.stickerPacks.update({
+      accountId: authSession.account.id,
+      packId,
+      ...(input.title === undefined ? {} : { title: input.title }),
+      ...(input.author === undefined ? {} : { author: input.author }),
+      ...(input.sourceUrl === undefined ? {} : { sourceUrl: input.sourceUrl }),
+    });
+
+    if (!updated) {
+      return context.json(
+        createErrorResponse(context, "sticker_pack_not_found", "Sticker pack not found"),
+        404,
+      );
+    }
+
+    const records = options.repositories.stickerPacks.listForAccount(authSession.account.id);
+    const match = records.find((record) => record.id === packId);
+
+    return context.json(toStickerPackResponse(match ?? { ...updated, stickerCount: 0 }), 200);
+  });
+
+  app.openapi(stickerPackDeleteRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { packId } = context.req.valid("param");
+    const removedStickers = options.repositories.stickerPacks.delete({
+      accountId: authSession.account.id,
+      packId,
+    });
+
+    if (removedStickers.length === 0) {
+      const stillExists = options.repositories.stickerPacks.findByIdForAccount(
+        authSession.account.id,
+        packId,
+      );
+
+      if (stillExists) {
+        return context.body(null, 204);
+      }
+
+      return context.json(
+        createErrorResponse(context, "sticker_pack_not_found", "Sticker pack not found"),
+        404,
+      );
+    }
+
+    for (const sticker of removedStickers) {
+      try {
+        await options.storage.remove(sticker.storageKey);
+      } catch {
+        // Ignore storage cleanup errors; the database row is already gone.
+      }
+    }
+
+    return context.body(null, 204);
+  });
+
+  app.openapi(stickerPackStickerListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { packId } = context.req.valid("param");
+    const pack = options.repositories.stickerPacks.findByIdForAccount(
+      authSession.account.id,
+      packId,
+    );
+
+    if (!pack) {
+      return context.json(
+        createErrorResponse(context, "sticker_pack_not_found", "Sticker pack not found"),
+        404,
+      );
+    }
+
+    const stickers = options.repositories.stickerPacks.listStickersForPack(
+      authSession.account.id,
+      packId,
+    );
+
+    return context.json(
+      customStickerListResponseSchema.parse({ stickers: stickers.map(toCustomStickerResponse) }),
+      200,
+    );
+  });
+
+  app.openapi(stickerPackStickerUploadRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { packId } = context.req.valid("param");
+
+    let body: Record<string, unknown>;
+
+    try {
+      body = await context.req.parseBody();
+    } catch {
+      return context.json(
+        createErrorResponse(context, "invalid_upload", "Upload must be multipart form data"),
+        400,
+      );
+    }
+
+    try {
+      const sticker = await createCustomStickerFromUpload({
+        accountId: authSession.account.id,
+        packId,
+        file: body.file,
+        ...(typeof body.name === "string" ? { name: body.name } : {}),
+        repositories: options.repositories,
+        storage: options.storage,
+      });
+
+      return context.json(toCustomStickerResponse(sticker), 201);
+    } catch (error) {
+      if (error instanceof CustomStickerUploadError) {
+        return context.json(createErrorResponse(context, error.code, error.message), error.status);
+      }
+
+      if (error instanceof OwnershipError) {
+        return context.json(
+          createErrorResponse(context, "sticker_pack_not_found", "Sticker pack not found"),
+          404,
+        );
+      }
+
+      throw error;
+    }
+  });
+
+  app.openapi(stickerPackStickerRemoveRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { packId, stickerId } = context.req.valid("param");
+    const sticker = options.repositories.stickerPacks.findStickerByIdForAccount(
+      authSession.account.id,
+      stickerId,
+    );
+
+    if (!sticker || sticker.packId !== packId) {
+      return context.json(
+        createErrorResponse(context, "custom_sticker_not_found", "Custom sticker not found"),
+        404,
+      );
+    }
+
+    const removed = options.repositories.stickerPacks.removeStickerFromPack({
+      accountId: authSession.account.id,
+      stickerId,
+    });
+
+    if (!removed) {
+      return context.json(
+        createErrorResponse(context, "custom_sticker_not_found", "Custom sticker not found"),
+        404,
+      );
+    }
+
+    try {
+      await options.storage.remove(removed.storageKey);
+    } catch {
+      // Ignore storage cleanup errors; the database row is already gone.
+    }
+
+    return context.body(null, 204);
+  });
+
+  app.openapi(customStickerListRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { packId } = context.req.valid("query");
+    const stickers = packId
+      ? options.repositories.stickerPacks.listStickersForPack(authSession.account.id, packId)
+      : options.repositories.stickerPacks.listStickersForAccount(authSession.account.id);
+
+    return context.json(
+      customStickerListResponseSchema.parse({ stickers: stickers.map(toCustomStickerResponse) }),
+      200,
+    );
+  });
+
+  app.openapi(customStickerContentRoute, async (context) => {
+    if (!options.repositories || !options.storage) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { stickerId } = context.req.valid("param");
+    const sticker = options.repositories.stickerPacks.findStickerByIdForAccount(
+      authSession.account.id,
+      stickerId,
+    );
+
+    if (!sticker) {
+      return context.json(
+        createErrorResponse(context, "custom_sticker_not_found", "Custom sticker not found"),
+        404,
+      );
+    }
+
+    const buffer = await options.storage.read(sticker.storageKey);
+
+    return context.body(toArrayBuffer(buffer), 200, {
+      "cache-control": "private, max-age=86400",
+      "content-length": String(buffer.byteLength),
+      "content-type": sticker.mimeType,
+    });
   });
 
   app.openapi(exportCreateRoute, async (context) => {

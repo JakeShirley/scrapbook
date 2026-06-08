@@ -153,10 +153,11 @@ const legacyPhotoWashiTapePattern = {
   kind: "customPhoto" as const,
 };
 
-export type StickerLibraryId = "noto" | "twemoji";
+export type StickerLibraryId = "noto" | "twemoji" | "custom";
 export type StickerId = `${StickerLibraryId}:${string}`;
 
-const stickerIdPattern = /^(noto|twemoji):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const builtInStickerIdPattern = /^(noto|twemoji):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const customStickerIdPattern = /^custom:custom_sticker_[a-z0-9_-]+$/;
 
 const legacyStickerIds: Record<string, StickerId> = {
   balloon: "noto:balloon",
@@ -184,11 +185,15 @@ export const normalizeStickerId = (stickerId: string): StickerId =>
   legacyStickerIds[stickerId] ?? (stickerId as StickerId);
 
 const isStickerId = (value: unknown): value is StickerId =>
-  typeof value === "string" && stickerIdPattern.test(value);
+  typeof value === "string" &&
+  (builtInStickerIdPattern.test(value) || customStickerIdPattern.test(value));
+
+export const isCustomStickerId = (value: string): value is `custom:${string}` =>
+  customStickerIdPattern.test(value);
 
 const stickerIdSchema = z.preprocess(
   (value) => (typeof value === "string" ? normalizeStickerId(value) : value),
-  z.custom<StickerId>(isStickerId, "Sticker id must include a supported library prefix"),
+  z.custom<StickerId>(isStickerId, "Sticker id must reference a supported library or custom pack"),
 );
 
 export type StickerDefinition = {
@@ -402,6 +407,7 @@ export type RenderPageSvgOptions = {
   includeBackground?: boolean;
   resolvePhotoHref?: (layer: PhotoLayer) => string | null | undefined;
   resolveStickerSvg?: (layer: StickerLayer) => StickerSvg | null | undefined;
+  resolveStickerHref?: (layer: StickerLayer) => string | null | undefined;
   resolveWashiTapeHref?: (layer: WashiTapeLayer) => string | null | undefined;
   /**
    * Photo layer ids that should render an extra translucent unclipped image
@@ -1743,7 +1749,12 @@ const renderPhotoLayerSvg = (
 const renderStickerLayerSvg = (
   layer: StickerLayer,
   stickerSvg: StickerSvg | null | undefined,
+  stickerHref: string | null | undefined,
 ): string => {
+  if (stickerHref) {
+    return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><image x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" href="${escapeXml(stickerHref)}" preserveAspectRatio="xMidYMid meet" /></g>`;
+  }
+
   if (!stickerSvg) {
     return `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}"><rect x="${layer.x}" y="${layer.y}" width="${layer.width}" height="${layer.height}" rx="${Math.min(layer.width, layer.height) * 0.08}" fill="#f7f3eb" stroke="#d8ddd8" stroke-width="6" stroke-dasharray="18 14" /></g>`;
   }
@@ -2000,7 +2011,13 @@ export const renderPageDocumentSvg = (
       continue;
     }
 
-    bodies.push(renderStickerLayerSvg(layer, options.resolveStickerSvg?.(layer)));
+    bodies.push(
+      renderStickerLayerSvg(
+        layer,
+        options.resolveStickerSvg?.(layer),
+        options.resolveStickerHref?.(layer),
+      ),
+    );
   }
 
   const background =

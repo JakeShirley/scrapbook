@@ -224,6 +224,40 @@ CREATE INDEX album_assets_account_id_idx ON album_assets (account_id);
 CREATE INDEX album_assets_album_id_idx ON album_assets (album_id);
 `,
   },
+  {
+    id: "0010_add_sticker_packs",
+    sql: `
+CREATE TABLE sticker_packs (
+  id TEXT PRIMARY KEY NOT NULL CHECK (id GLOB 'sticker_pack_*'),
+  account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  author TEXT,
+  source_url TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX sticker_packs_account_id_idx ON sticker_packs (account_id);
+
+CREATE TABLE custom_stickers (
+  id TEXT PRIMARY KEY NOT NULL CHECK (id GLOB 'custom_sticker_*'),
+  account_id TEXT NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+  pack_id TEXT NOT NULL REFERENCES sticker_packs (id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  byte_size INTEGER NOT NULL CHECK (byte_size >= 0),
+  width INTEGER CHECK (width IS NULL OR width > 0),
+  height INTEGER CHECK (height IS NULL OR height > 0),
+  checksum_sha256 TEXT NOT NULL,
+  sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX custom_stickers_account_id_idx ON custom_stickers (account_id);
+CREATE INDEX custom_stickers_pack_id_idx ON custom_stickers (pack_id);
+CREATE UNIQUE INDEX custom_stickers_storage_key_unique ON custom_stickers (storage_key);
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {

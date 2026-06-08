@@ -234,6 +234,48 @@ export const albumAssets = sqliteTable(
   ],
 );
 
+export const stickerPacks = sqliteTable(
+  "sticker_packs",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    author: text("author"),
+    sourceUrl: text("source_url"),
+    ...timestampColumns(),
+  },
+  (table) => [index("sticker_packs_account_id_idx").on(table.accountId)],
+);
+
+export const customStickers = sqliteTable(
+  "custom_stickers",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    packId: text("pack_id")
+      .notNull()
+      .references(() => stickerPacks.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    storageKey: text("storage_key").notNull(),
+    mimeType: text("mime_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    checksumSha256: text("checksum_sha256").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    ...timestampColumns(),
+  },
+  (table) => [
+    index("custom_stickers_account_id_idx").on(table.accountId),
+    index("custom_stickers_pack_id_idx").on(table.packId),
+    uniqueIndex("custom_stickers_storage_key_unique").on(table.storageKey),
+  ],
+);
+
 export const bookAssets = sqliteTable(
   "book_assets",
   {
@@ -291,4 +333,6 @@ export type BookPageRecord = typeof bookPages.$inferSelect;
 export type BookAssetRecord = typeof bookAssets.$inferSelect;
 export type AlbumRecord = typeof albums.$inferSelect;
 export type AlbumAssetRecord = typeof albumAssets.$inferSelect;
+export type StickerPackRecord = typeof stickerPacks.$inferSelect;
+export type CustomStickerRecord = typeof customStickers.$inferSelect;
 export type ExportJobRecord = typeof exportJobs.$inferSelect;

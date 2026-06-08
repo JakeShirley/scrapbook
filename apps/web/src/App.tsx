@@ -3,6 +3,7 @@ import {
   BookRegular,
   ChevronLeftRegular,
   ChevronRightRegular,
+  EmojiRegular,
   GridRegular,
   ImageRegular,
   SettingsRegular,
@@ -30,6 +31,7 @@ import { ChangelogModal } from "./features/changelog/ChangelogModal";
 import { ImageGridView } from "./features/image-grid/ImageGridView";
 import { LibraryView } from "./features/library/LibraryView";
 import { SettingsView } from "./features/settings/SettingsView";
+import { StickerPacksView } from "./features/stickers/StickerPacksView";
 import { appVersion } from "./generated/changelog";
 import { getErrorMessage } from "./lib/errors";
 import type { AuthMode, AuthSession, SessionState } from "./types";
@@ -37,6 +39,7 @@ import type { AuthMode, AuthSession, SessionState } from "./types";
 const navItems = [
   { to: "/books", label: "Books", icon: <BookRegular /> },
   { to: "/library", label: "Photos", icon: <ImageRegular /> },
+  { to: "/stickers", label: "Stickers", icon: <EmojiRegular /> },
   { to: "/image-grid", label: "Grid", icon: <GridRegular /> },
   { to: "/settings", label: "Settings", icon: <SettingsRegular /> },
 ] satisfies { to: string; label: string; icon: ReactNode }[];
@@ -259,6 +262,7 @@ function ProtectedShell({
         <Routes>
           <Route index element={<Navigate to="/books" replace />} />
           <Route path="library" element={<LibraryView />} />
+          <Route path="stickers" element={<StickerPacksView />} />
           <Route path="image-grid" element={<ImageGridView />} />
           <Route path="books" element={<BooksView />} />
           <Route path="books/:bookId" element={<BookEditorView />} />

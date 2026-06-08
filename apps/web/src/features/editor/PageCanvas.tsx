@@ -16,6 +16,7 @@ import {
   type PageDocument,
   type PageLayer,
   type PhotoLayer,
+  isCustomStickerId,
   renderPageDocumentSvg,
   type StickerSvg,
   type WashiTapeLayer,
@@ -332,7 +333,7 @@ export function PageCanvas({
     () => [
       ...new Set(
         interactiveLayers.flatMap(({ layer }) =>
-          layer.kind === "sticker" ? [layer.stickerId] : [],
+          layer.kind === "sticker" && !isCustomStickerId(layer.stickerId) ? [layer.stickerId] : [],
         ),
       ),
     ],
@@ -390,6 +391,10 @@ export function PageCanvas({
         idPrefix: svgIdPrefix,
         resolvePhotoHref: (layer) => resolveBrowserPhotoHref(assetById.get(layer.assetId)),
         resolveStickerSvg: (layer) => stickerSvgById.get(layer.stickerId),
+        resolveStickerHref: (layer) =>
+          isCustomStickerId(layer.stickerId)
+            ? `/api/v1/custom-stickers/${layer.stickerId.slice("custom:".length)}/content`
+            : null,
         resolveWashiTapeHref: (layer) => resolveBrowserWashiTapeHref(assetById, layer),
         ...(panPreviewLayerId ? { panPreviewLayerIds: new Set([panPreviewLayerId]) } : {}),
       }),
