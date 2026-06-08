@@ -188,18 +188,20 @@ export const syncLayerAcrossSpread = ({
     let nextDocument = currentPage.document;
 
     if (shouldKeepLayer) {
-      nextDocument = existingLayer
-        ? updateLayer(currentPage.document, sourceLayer.id, localLayer)
-        : addLayer(
-            currentPage.document,
-            localLayer,
-            Math.max(0, Math.min(sourceLayerStackIndex, currentPage.document.layers.length)),
-          );
-      nextDocument = reorderLayer(
-        nextDocument,
-        sourceLayer.id,
-        getLayerStackIndex(nextDocument, sourceLayerStackPlacement),
-      );
+      if (existingLayer) {
+        nextDocument = updateLayer(currentPage.document, sourceLayer.id, localLayer);
+      } else {
+        nextDocument = addLayer(
+          currentPage.document,
+          localLayer,
+          Math.max(0, Math.min(sourceLayerStackIndex, currentPage.document.layers.length)),
+        );
+        nextDocument = reorderLayer(
+          nextDocument,
+          sourceLayer.id,
+          getLayerStackIndex(nextDocument, sourceLayerStackPlacement),
+        );
+      }
     } else if (existingLayer) {
       nextDocument = deleteLayer(currentPage.document, sourceLayer.id);
     }

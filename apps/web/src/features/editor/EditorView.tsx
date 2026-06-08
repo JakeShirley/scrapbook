@@ -33,7 +33,12 @@ import { AssetRail } from "./AssetRail";
 import { EditorToolbar } from "./EditorToolbar";
 import type { EditorSaveStatus } from "./editorTypes";
 import { LayerInspector } from "./LayerInspector";
-import { PageCanvas, formatLayerKindLabel, type SelectionPanel } from "./PageCanvas";
+import {
+  PageCanvas,
+  formatLayerKindLabel,
+  type ReorderLayerCommand,
+  type SelectionPanel,
+} from "./PageCanvas";
 import { PhotoPickerModal } from "./PhotoPickerModal";
 import { type PngExportSettings, PngExportSettingsModal } from "./PngExportSettingsModal";
 import { StickerPickerModal } from "./StickerPickerModal";
@@ -140,8 +145,20 @@ export function EditorView() {
     }
     editDocument(nextDocument);
   };
-  const reorderCanvasLayer = (layerId: string, toIndex: number) => {
+  const reorderCanvasLayer = (layerId: string, command: ReorderLayerCommand) => {
     if (!document) return;
+    const currentIndex = document.layers.findIndex((layer) => layer.id === layerId);
+    if (currentIndex < 0) return;
+    const lastIndex = document.layers.length - 1;
+    const toIndex =
+      command === "top"
+        ? lastIndex
+        : command === "bottom"
+          ? 0
+          : command === "up"
+            ? Math.min(lastIndex, currentIndex + 1)
+            : Math.max(0, currentIndex - 1);
+    if (toIndex === currentIndex) return;
     editDocument(reorderLayer(document, layerId, toIndex));
     setSelectedLayerIds([layerId]);
   };

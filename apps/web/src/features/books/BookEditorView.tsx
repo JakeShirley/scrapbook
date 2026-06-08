@@ -31,6 +31,7 @@ import { LayerInspector } from "../editor/LayerInspector";
 import {
   type CanvasPreviewLayer,
   formatLayerKindLabel,
+  type ReorderLayerCommand,
   type SelectionPanel,
 } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
@@ -192,6 +193,25 @@ export function BookEditorView() {
     () => (viewMode === "spread" ? getSpreadPageContexts(pageDetails, visiblePageIds) : []),
     [pageDetails, viewMode, visiblePageIds],
   );
+  const spreadReorderCapabilities = useMemo<
+    ReadonlyMap<string, { canMoveDown: boolean; canMoveUp: boolean }> | undefined
+  >(() => {
+    if (viewMode !== "spread" || visibleSpreadPages.length < 2) {
+      return undefined;
+    }
+    const capabilities = new Map<string, { canMoveDown: boolean; canMoveUp: boolean }>();
+    for (const spreadPage of visibleSpreadPages) {
+      const layers = spreadPage.page.document.layers;
+      const lastIndex = layers.length - 1;
+      for (const [index, layer] of layers.entries()) {
+        const current = capabilities.get(layer.id) ?? { canMoveDown: false, canMoveUp: false };
+        if (index > 0) current.canMoveDown = true;
+        if (index < lastIndex) current.canMoveUp = true;
+        capabilities.set(layer.id, current);
+      }
+    }
+    return capabilities;
+  }, [viewMode, visibleSpreadPages]);
   const canNavigatePrevious = viewMode === "spread" ? activeSpreadIndex > 0 : activePageIndex > 0;
   const canNavigateNext =
     viewMode === "spread"
@@ -686,35 +706,83 @@ export function BookEditorView() {
     endHistoryGroup();
   };
 
-  const reorderPageLayer = (pageId: string, layerId: string, toIndex: number) => {
+  const reorderPageLayer = (pageId: string, layerId: string, command: ReorderLayerCommand) => {
+    if (viewMode === "spread" && visibleSpreadPages.length > 1) {
+      const nextDetails = new Map(pageDetails);
+      const changedPageIds: string[] = [];
+
+      for (const spreadPage of visibleSpreadPages) {
+        const currentLayers = spreadPage.page.document.layers;
+        const currentIndex = currentLayers.findIndex((layer) => layer.id === layerId);
+
+        if (currentIndex < 0) {
+          continue;
+        }
+
+        const lastIndex = currentLayers.length - 1;
+        const toIndex =
+          command === "top"
+            ? lastIndex
+            : command === "bottom"
+              ? 0
+              : command === "up"
+                ? Math.min(lastIndex, currentIndex + 1)
+                : Math.max(0, currentIndex - 1);
+
+        if (toIndex === currentIndex) {
+          continue;
+        }
+
+        nextDetails.set(
+          spreadPage.pageId,
+          replacePageDocument(
+            spreadPage.page,
+            reorderLayer(spreadPage.page.document, layerId, toIndex),
+          ),
+        );
+        changedPageIds.push(spreadPage.pageId);
+      }
+
+      if (changedPageIds.length > 0) {
+        recordEditorHistory();
+        setPageDetails(nextDetails);
+        setPagesStatus(changedPageIds, "unsaved");
+      }
+
+      setActivePageId(pageId);
+      setSelectedLayerIds([layerId]);
+      return;
+    }
+
     const page = pageDetails.get(pageId);
 
     if (!page) {
       return;
     }
 
-    const nextDocument = reorderLayer(page.document, layerId, toIndex);
-    const layer = nextDocument.layers.find((candidateLayer) => candidateLayer.id === layerId);
+    const currentIndex = page.document.layers.findIndex((layer) => layer.id === layerId);
 
-    if (viewMode === "spread" && layer && visiblePageIds.length > 1) {
-      const nextDetails = new Map(pageDetails);
-      nextDetails.set(pageId, replacePageDocument(page, nextDocument));
-
-      applySpreadLayerSync(
-        syncLayerAcrossSpread({
-          details: nextDetails,
-          removeNonOverlappingSource: false,
-          sourceLayer: layer,
-          sourcePageId: pageId,
-          spreadPageIds: visiblePageIds,
-        }),
-        { selectedLayerIds: [layerId] },
-      );
-      setActivePageId(pageId);
+    if (currentIndex < 0) {
       return;
     }
 
-    editPageDocument(pageId, nextDocument);
+    const lastIndex = page.document.layers.length - 1;
+    const toIndex =
+      command === "top"
+        ? lastIndex
+        : command === "bottom"
+          ? 0
+          : command === "up"
+            ? Math.min(lastIndex, currentIndex + 1)
+            : Math.max(0, currentIndex - 1);
+
+    if (toIndex === currentIndex) {
+      setActivePageId(pageId);
+      setSelectedLayerIds([layerId]);
+      return;
+    }
+
+    editPageDocument(pageId, reorderLayer(page.document, layerId, toIndex));
     setActivePageId(pageId);
     setSelectedLayerIds([layerId]);
   };
@@ -1447,6 +1515,7 @@ export function BookEditorView() {
                 orderedPageIds={orderedPageIds}
                 pageDetails={pageDetails}
                 selectedLayerIds={selectedLayerIds}
+                {...(spreadReorderCapabilities ? { spreadReorderCapabilities } : {})}
                 viewMode={viewMode}
                 visiblePageIds={visiblePageIds}
                 onActiveSelectionPanelChange={setActiveSelectionPanel}
