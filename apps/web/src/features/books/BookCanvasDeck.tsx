@@ -61,7 +61,15 @@ export function BookCanvasDeck({
   onUpdateLayerTransform,
 }: BookCanvasDeckProps) {
   return (
-    <div className="book-canvas-deck" data-mode={viewMode}>
+    <div
+      className="book-canvas-deck"
+      data-mode={viewMode}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        if ((event.target as HTMLElement).closest(".editor-canvas")) return;
+        onSelectLayer(activePageId, null);
+      }}
+    >
       {visiblePageIds.map((pageId) => {
         const page = pageDetails.get(pageId);
         const pageIndex = orderedPageIds.indexOf(pageId);
