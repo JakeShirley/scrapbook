@@ -7,7 +7,7 @@ All user-facing changes must be validated locally in a browser before the work i
 In the final response, state what local browser validation was performed. If browser validation is not possible, explain why and describe the fallback verification used.
 
 ## Validate Changes Locally
-Before submitting a pull request, ensure that all changes have been validated locally with the appropriate NPM scripts. At minimum run `pnpm -w run typecheck`, `pnpm -w run lint`, and `pnpm -w run test`. For changes that touch any UI or screenshot fixture, also run `pnpm screenshots` so the Playwright suite executes the way CI will.
+Before submitting a pull request, ensure that all changes have been validated locally with the appropriate NPM scripts. At minimum run `pnpm format:check`, `pnpm -w run typecheck`, `pnpm -w run lint`, and `pnpm -w run test`. CI runs `pnpm format:check` (Biome) as a hard gate, so always run it before declaring a change finished and fix any formatting drift with `pnpm -w run format`. For changes that touch any UI or screenshot fixture, also run `pnpm screenshots` so the Playwright suite executes the way CI will.
 
 ## Screenshot Scenarios and Visual Diff CI
 The `App Visual Diffs` workflow (`.github/workflows/app-visual-diffs.yml`) runs the **head branch's** `apps/web/screenshots/app-screenshots.spec.ts` against **two** webservers: the HEAD workspace and a worktree of the merge-base commit. That means any new scenario must be authored so it still succeeds when the UI and API it targets do not yet exist on the merge-base.
@@ -27,11 +27,10 @@ When adding API endpoints, persistence tables, or migrations:
 - When extending a Zod response schema, update every test fixture and mock that constructs that shape (notably `createAsset` in the screenshot spec). A missing nullable field will be rejected by `schema.parse` and surface as a runtime error in the browser, not a type error.
 
 ## Commit Messages
-When writing commit messages, use conventional commit formatting.  You can use these types of commits:
+When writing commit messages, use conventional commit formatting.  You can use these types of commits and THESE TYPES ONLY:
 - `feat`: A new user facing feature has been added.
 - `fix`: A user facing bug has been fixed.
-- `refactor`: Code has been refactored without adding features or fixing bugs.
-- `chore`: Changes to build process, dependencies, or other non-user facing changes.
+- `chore`: Any other change aside from the others listed here.
 
 If you are working on a GitHub issue, make sure the first line includes "(fixes #<issue number>)" to automatically link the commit to the issue.
 
