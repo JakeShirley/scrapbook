@@ -403,6 +403,12 @@ export type RenderPageSvgOptions = {
   resolvePhotoHref?: (layer: PhotoLayer) => string | null | undefined;
   resolveStickerSvg?: (layer: StickerLayer) => StickerSvg | null | undefined;
   resolveWashiTapeHref?: (layer: WashiTapeLayer) => string | null | undefined;
+  /**
+   * Photo layer ids that should render an extra translucent unclipped image
+   * behind the cropped one, so the editor can preview the full source photo
+   * while the user is positioning a crop.
+   */
+  panPreviewLayerIds?: ReadonlySet<string>;
 };
 
 export type OrderedBookPage = {
@@ -1688,6 +1694,7 @@ const renderPhotoLayerSvg = (
   href: string | null | undefined,
   index: number,
   idPrefix: string | undefined,
+  showFullPhotoPreview: boolean,
 ): { body: string; defs: string } | null => {
   if (!href) {
     return null;
@@ -1720,10 +1727,16 @@ const renderPhotoLayerSvg = (
     : layer.photoTransform.scale;
   const shadowFilter = renderPhotoShadowFilterSvg(layer, shadowFilterId);
   const shadowBody = renderPhotoShadowSvg(layer, frameLayout, shadowFilterId);
+  const imageTransform = `translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})`;
+  const preserveAspect = `xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}`;
+  const escapedHref = escapeXml(href);
+  const fullPhotoPreview = showFullPhotoPreview
+    ? `<image data-photo-pan-preview="true" href="${escapedHref}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="${preserveAspect}" opacity="0.35" transform="${imageTransform}" pointer-events="none" />`
+    : "";
 
   return {
     defs: `${photoClipPath(layer, clipId, frameLayout.image)}${shadowFilter}`,
-    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${shadowBody}${renderPhotoFrameBackgroundSvg(layer, frameLayout)}<image href="${escapeXml(href)}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="xMidYMid ${layer.fit === "cover" ? "slice" : "meet"}" clip-path="url(#${clipId})" transform="translate(${imageCenterX} ${imageCenterY}) rotate(${layer.photoTransform.rotation}) scale(${scaleX} ${scaleY}) translate(${-imageCenterX} ${-imageCenterY})" />${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
+    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${shadowBody}${renderPhotoFrameBackgroundSvg(layer, frameLayout)}${fullPhotoPreview}<g clip-path="url(#${clipId})"><image href="${escapedHref}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="${preserveAspect}" transform="${imageTransform}" /></g>${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
   };
 };
 
@@ -1949,6 +1962,7 @@ export const renderPageDocumentSvg = (
         options.resolvePhotoHref?.(layer),
         index,
         options.idPrefix,
+        options.panPreviewLayerIds?.has(layer.id) ?? false,
       );
 
       if (rendered) {
