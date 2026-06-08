@@ -1736,7 +1736,7 @@ const renderPhotoLayerSvg = (
 
   return {
     defs: `${photoClipPath(layer, clipId, frameLayout.image)}${shadowFilter}`,
-    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${shadowBody}${renderPhotoFrameBackgroundSvg(layer, frameLayout)}${fullPhotoPreview}<image href="${escapedHref}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="${preserveAspect}" clip-path="url(#${clipId})" transform="${imageTransform}" />${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
+    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${shadowBody}${renderPhotoFrameBackgroundSvg(layer, frameLayout)}${fullPhotoPreview}<g clip-path="url(#${clipId})"><image href="${escapedHref}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="${preserveAspect}" transform="${imageTransform}" /></g>${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
   };
 };
 

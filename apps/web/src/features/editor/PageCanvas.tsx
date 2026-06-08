@@ -1,4 +1,5 @@
 import {
+  AddRegular,
   ArrowAutofitHeightRegular,
   ArrowAutofitWidthRegular,
   ArrowClockwiseRegular,
@@ -9,6 +10,7 @@ import {
   EditRegular,
   HandLeftRegular,
   ImageBorderRegular,
+  SubtractRegular,
   TextTRegular,
 } from "@fluentui/react-icons";
 import {
@@ -37,6 +39,7 @@ import {
   applyGroupMove,
   applyGroupRotate,
   applyGroupScale,
+  clampPhotoPanOffset,
   cropPhotoLayerFromHandle,
   type GroupBoundingBox,
   getAngle,
@@ -171,6 +174,66 @@ const resolveBrowserWashiTapeHref = (
   );
 
 export type SelectLayerOptions = { additive?: boolean };
+
+const PHOTO_SCALE_MIN = 1;
+const PHOTO_SCALE_MAX = 5;
+const PHOTO_SCALE_STEP = 0.1;
+
+const clampPhotoScale = (value: number): number =>
+  Math.min(PHOTO_SCALE_MAX, Math.max(PHOTO_SCALE_MIN, Math.round(value * 10) / 10));
+
+function PhotoScaleSlider({
+  layer,
+  onChange,
+}: {
+  layer: PhotoLayer;
+  onChange: (scale: number) => void;
+}) {
+  const scale = layer.photoTransform.scale;
+  const commit = (next: number) => {
+    const clamped = clampPhotoScale(next);
+    if (clamped !== scale) onChange(clamped);
+  };
+
+  return (
+    <div
+      className="transform-scale-slider"
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        aria-label="Zoom photo out"
+        className="transform-scale-button"
+        title="Zoom out"
+        disabled={scale <= PHOTO_SCALE_MIN}
+        onClick={() => commit(scale - PHOTO_SCALE_STEP)}
+      >
+        <SubtractRegular />
+      </button>
+      <input
+        aria-label="Photo zoom"
+        className="transform-scale-range"
+        max={PHOTO_SCALE_MAX}
+        min={PHOTO_SCALE_MIN}
+        step={PHOTO_SCALE_STEP}
+        title={`Zoom ${(scale * 100).toFixed(0)}%`}
+        type="range"
+        value={scale}
+        onChange={(event) => commit(Number(event.currentTarget.value))}
+      />
+      <button
+        type="button"
+        aria-label="Zoom photo in"
+        className="transform-scale-button"
+        title="Zoom in"
+        disabled={scale >= PHOTO_SCALE_MAX}
+        onClick={() => commit(scale + PHOTO_SCALE_STEP)}
+      >
+        <AddRegular />
+      </button>
+    </div>
+  );
+}
 
 type ActiveGroupTransform = {
   layerIds: string[];
@@ -1113,6 +1176,24 @@ export function PageCanvas({
                     >
                       <HandLeftRegular />
                     </button>
+                  ) : null}
+                  {layer.kind === "photo" ? (
+                    <PhotoScaleSlider
+                      layer={layer}
+                      onChange={(scale) => {
+                        const nextPhotoTransform = { ...layer.photoTransform, scale };
+                        const clampedOffset = clampPhotoPanOffset(
+                          { ...layer, photoTransform: nextPhotoTransform },
+                          {
+                            offsetX: layer.photoTransform.offsetX,
+                            offsetY: layer.photoTransform.offsetY,
+                          },
+                        );
+                        changeLayer(layer.id, {
+                          photoTransform: { ...nextPhotoTransform, ...clampedOffset },
+                        } as Partial<PageLayer>);
+                      }}
+                    />
                   ) : null}
                 </>
               ) : null}

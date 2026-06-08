@@ -253,15 +253,24 @@ export const panPhotoLayer = (
   const flipY = layer.photoTransform.flipY ? -1 : 1;
   const nextOffsetX = startOffset.offsetX + (localDelta.x * 2 * flipX) / (imageWidth * scale);
   const nextOffsetY = startOffset.offsetY + (localDelta.y * 2 * flipY) / (imageHeight * scale);
+  return clampPhotoPanOffset(layer, { offsetX: nextOffsetX, offsetY: nextOffsetY });
+};
+
+// Clamp a pan offset so the source image continues to cover the crop frame
+// at the layer's current scale.
+export const clampPhotoPanOffset = (
+  layer: PhotoLayer,
+  offset: { offsetX: number; offsetY: number },
+): { offsetX: number; offsetY: number } => {
+  const scale = Math.max(layer.photoTransform.scale, 0.1);
   const minOffsetX = 2 * (layer.crop.x + layer.crop.width) - 1 - scale;
   const maxOffsetX = 2 * layer.crop.x + scale - 1;
   const minOffsetY = 2 * (layer.crop.y + layer.crop.height) - 1 - scale;
   const maxOffsetY = 2 * layer.crop.y + scale - 1;
   const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
   return {
-    offsetX: clamp(nextOffsetX, Math.max(-1, minOffsetX), Math.min(1, maxOffsetX)),
-    offsetY: clamp(nextOffsetY, Math.max(-1, minOffsetY), Math.min(1, maxOffsetY)),
+    offsetX: clamp(offset.offsetX, Math.max(-1, minOffsetX), Math.min(1, maxOffsetX)),
+    offsetY: clamp(offset.offsetY, Math.max(-1, minOffsetY), Math.min(1, maxOffsetY)),
   };
 };
 
