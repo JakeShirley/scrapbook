@@ -1,38 +1,36 @@
-# Project Guidelines
+# Copilot Agent Instructions
 
-## User-Facing Changes
+## Priority Rules (MUST)
 
-All user-facing changes must be validated locally in a browser before the work is considered complete. Run the relevant dev server or preview, open the affected page or flow, and confirm the UI renders and behaves as intended.
+- Validate every user-facing change in a local browser before considering work complete.
+- In the final response, state what browser validation was performed. If browser validation is not possible, explain why and provide fallback verification.
+- Before opening a pull request, run: `pnpm format:check`, `pnpm -w run typecheck`, `pnpm -w run lint`, and `pnpm -w run test`.
+- `pnpm format:check` is a CI gate. If formatting drifts, run `pnpm -w run format`.
+- If any UI or screenshot fixture changes, also run `pnpm screenshots`.
 
-In the final response, state what local browser validation was performed. If browser validation is not possible, explain why and describe the fallback verification used.
+## Screenshot and Visual Diff Rules
 
-## Validate Changes Locally
-Before submitting a pull request, ensure that all changes have been validated locally with the appropriate NPM scripts. At minimum run `pnpm format:check`, `pnpm -w run typecheck`, `pnpm -w run lint`, and `pnpm -w run test`. CI runs `pnpm format:check` (Biome) as a hard gate, so always run it before declaring a change finished and fix any formatting drift with `pnpm -w run format`. For changes that touch any UI or screenshot fixture, also run `pnpm screenshots` so the Playwright suite executes the way CI will.
+The `App Visual Diffs` workflow (`.github/workflows/app-visual-diffs.yml`) runs `apps/web/screenshots/app-screenshots.spec.ts` against both the HEAD workspace and a merge-base worktree. New or modified scenarios must pass in both environments.
 
-## Screenshot Scenarios and Visual Diff CI
-The `App Visual Diffs` workflow (`.github/workflows/app-visual-diffs.yml`) runs the **head branch's** `apps/web/screenshots/app-screenshots.spec.ts` against **two** webservers: the HEAD workspace and a worktree of the merge-base commit. That means any new scenario must be authored so it still succeeds when the UI and API it targets do not yet exist on the merge-base.
+- In `waitFor`, assert only elements that exist in both merge-base and HEAD for existing pages.
+- Put feature-specific behavior in `prepare`, guard with `isVisible(...)`, and exit early when the new affordance is absent.
+- For new feature routes, keep screenshot API mocks falsey-tolerant so smaller merge-base request sets still resolve.
+- Before publishing screenshot scenario changes, run a local merge-base sanity check using a worktree server (port 5174) and `pnpm --filter @scrapbook/web screenshots:capture -g <scenario>`.
 
-When adding or modifying screenshot scenarios:
+## API, Schema, and Migration Rules
 
-- Do not assert that brand-new UI elements, routes, or text are visible inside `waitFor` for a scenario that targets a page that already existed. `waitFor` should only assert state that is present in both the merge-base and HEAD workspaces (typically the page heading or shell chrome).
-- Put feature-specific interactions in `prepare`, guard them with the existing `isVisible(...)` helper, and bail out early when the new affordance is missing. The `image-grid` scenario and `waitForFeatureOrFallback` already follow this pattern — copy it.
-- Mock API routes added for a new feature with the same falsey-tolerant shape (route by path prefix, return an empty/fallback payload when the request shape is unknown) so the merge-base UI's smaller request set still resolves.
-- Before publishing the change, sanity-check the merge-base run locally: stand up a vite from a worktree at the PR's base commit on port 5174 and run `pnpm --filter @scrapbook/web screenshots:capture -g <scenario>` against it. The new scenario should pass and produce a screenshot of the unmodified page.
-
-## API and Schema Changes
 When adding API endpoints, persistence tables, or migrations:
 
-- Update `apps/web/screenshots/app-screenshots.spec.ts`'s mock API to handle the new path. The catch-all 404 will fail every scenario whose page issues the new request, even if that scenario predates the change.
-- Migrations are append-only and tracked in `apps/api/src/persistence/migrations.test.ts`. Update both the migration array and the test's expected migration ids and table names in the same change.
-- When extending a Zod response schema, update every test fixture and mock that constructs that shape (notably `createAsset` in the screenshot spec). A missing nullable field will be rejected by `schema.parse` and surface as a runtime error in the browser, not a type error.
+- Update screenshot API mocks in `apps/web/screenshots/app-screenshots.spec.ts` for new paths.
+- Keep migrations append-only and update both migration definitions and expectations in `apps/api/src/persistence/migrations.test.ts` in the same change.
+- When extending Zod response schemas, update all fixtures/mocks that build the schema (including screenshot fixtures such as `createAsset`).
 
-## Commit Messages
-When writing commit messages, use conventional commit formatting.  You can use these types of commits and THESE TYPES ONLY:
-- `feat`: A new user facing feature has been added.
-- `fix`: A user facing bug has been fixed.
-- `chore`: Any other change aside from the others listed here.
+## Commit Rules
 
-If you are working on a GitHub issue, make sure the first line includes "(fixes #<issue number>)" to automatically link the commit to the issue.
+- Use Conventional Commits with only these types: `feat`, `fix`, `chore`.
+- If the work addresses a GitHub issue, include `(fixes #<issue number>)` on the first line.
+- Do not commit automatically unless explicitly instructed.
 
-## Committing Changes
-Do not automatically commit changes when working on items unless explicitly instructed to do so.
+## If Blocked
+
+- If a required validation step cannot run, report what command or browser step was attempted, why it failed, and what fallback checks were completed.
