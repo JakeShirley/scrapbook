@@ -196,10 +196,7 @@ function PhotoScaleSlider({
   };
 
   return (
-    <div
-      className="transform-scale-slider"
-      onPointerDown={(event) => event.stopPropagation()}
-    >
+    <div className="transform-scale-slider" onPointerDown={(event) => event.stopPropagation()}>
       <button
         type="button"
         aria-label="Zoom photo out"
@@ -1163,15 +1160,11 @@ export function PageCanvas({
                       }}
                       onPointerEnter={() => setPanPreviewLayerId(layer.id)}
                       onPointerLeave={() => {
-                        setPanPreviewLayerId((current) =>
-                          current === layer.id ? null : current,
-                        );
+                        setPanPreviewLayerId((current) => (current === layer.id ? null : current));
                       }}
                       onFocus={() => setPanPreviewLayerId(layer.id)}
                       onBlur={() => {
-                        setPanPreviewLayerId((current) =>
-                          current === layer.id ? null : current,
-                        );
+                        setPanPreviewLayerId((current) => (current === layer.id ? null : current));
                       }}
                     >
                       <HandLeftRegular />
