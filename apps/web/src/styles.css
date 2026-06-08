@@ -2808,37 +2808,6 @@ textarea:focus-visible {
   font-size: 0.72rem;
 }
 
-.text-effects-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.text-preview-pane {
-  display: grid;
-  min-height: 108px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--sb-neutral-stroke-2);
-  border-radius: 7px;
-  background:
-    linear-gradient(90deg, rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
-    linear-gradient(rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
-    var(--sb-neutral-background-2);
-}
-
-.text-preview-surface {
-  width: 100%;
-  max-width: 420px;
-}
-
-.text-preview-surface svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
 .text-effects-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4400,15 +4369,6 @@ body {
   width: auto;
 }
 
-.editor-edit-pane-body .text-effects-layout {
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.editor-edit-pane-body .text-preview-pane {
-  min-height: 108px;
-}
-
 .selected-layer-edit-body .checkbox-label input {
   min-height: auto;
 }
@@ -4431,13 +4391,6 @@ body {
 
 .selected-layer-edit-body .washi-tape-controls-section {
   grid-column: 1 / -1;
-}
-
-.washi-tape-controls-layout {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr);
-  gap: 12px;
-  align-items: start;
 }
 
 .washi-tape-settings-column {
@@ -4495,40 +4448,6 @@ body {
 
 .washi-tape-scale-reset-button:hover {
   background: var(--sb-neutral-background-4);
-}
-
-.washi-tape-preview-pane {
-  display: grid;
-  min-height: 100%;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--sb-neutral-stroke-2);
-  border-radius: 7px;
-  background:
-    linear-gradient(90deg, rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
-    linear-gradient(rgb(32 36 38 / 5%) 1px, transparent 1px) 0 0 / 24px 24px,
-    var(--sb-neutral-background-2);
-}
-
-.washi-tape-preview-surface {
-  width: 100%;
-  max-width: 420px;
-}
-
-.washi-tape-preview-surface svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-@media (max-width: 760px) {
-  .washi-tape-controls-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .washi-tape-preview-pane {
-    min-height: 108px;
-  }
 }
 
 .canvas-layer[data-selected="true"] .canvas-layer-content {

@@ -31,7 +31,6 @@ import { LayerInspector } from "../editor/LayerInspector";
 import {
   type CanvasPreviewLayer,
   formatLayerKindLabel,
-  resolveBrowserWashiTapeHref,
   type SelectionPanel,
 } from "../editor/PageCanvas";
 import { PhotoPickerModal } from "../editor/PhotoPickerModal";
@@ -1541,7 +1540,6 @@ export function BookEditorView() {
                 onChooseWashiTapePhoto={(layerId) =>
                   setPhotoPickerMode({ kind: "washiTapePattern", pageId: activePageId, layerId })
                 }
-                resolveWashiTapeHref={(layer) => resolveBrowserWashiTapeHref(assetById, layer)}
               />
             ) : (
               <p className="editor-edit-pane-placeholder">
