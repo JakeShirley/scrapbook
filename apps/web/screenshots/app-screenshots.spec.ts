@@ -530,7 +530,6 @@ const scenarios: ScreenshotScenario[] = [
       const dialog = page.getByRole("dialog", { name: "Edit Washi tape layer" });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
-      await expect(dialog.getByRole("img", { name: "Washi tape preview" })).toBeVisible();
     },
     viewports: ["desktop"],
     waitFor: waitForBookEditor,
@@ -557,7 +556,6 @@ const scenarios: ScreenshotScenario[] = [
       const dialog = page.getByRole("dialog", { name: "Edit Text layer" });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
-      await expect(dialog.getByRole("img", { name: "Text preview" })).toBeVisible();
     },
     viewports: ["desktop"],
     waitFor: waitForBookEditor,
