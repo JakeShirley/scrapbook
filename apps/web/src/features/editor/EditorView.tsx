@@ -393,7 +393,17 @@ export function EditorView() {
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
           onOpenWashiTapePicker={addWashiTape}
         />
-        <section className="editor-stage" aria-label="Page canvas">
+        <section
+          className="editor-stage"
+          aria-label="Page canvas"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            const target = event.target as HTMLElement;
+            if (target.closest(".editor-canvas")) return;
+            if (target.closest(".editor-toolbar")) return;
+            selectLayer(null);
+          }}
+        >
           <EditorToolbar
             document={document}
             status={status}
