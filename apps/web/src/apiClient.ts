@@ -20,6 +20,10 @@ import {
   type BookSetPagesRequest,
   bookListResponseSchema,
   bookResponseSchema,
+  type CustomStickerListResponse,
+  type CustomStickerResponse,
+  customStickerListResponseSchema,
+  customStickerResponseSchema,
   type ExportCreateRequest,
   type ExportJobResponse,
   errorResponseSchema,
@@ -38,6 +42,12 @@ import {
   type ServerLogLevel,
   type ServerLogListResponse,
   serverLogListResponseSchema,
+  type StickerPackCreateRequest,
+  type StickerPackListResponse,
+  type StickerPackPatchRequest,
+  type StickerPackResponse,
+  stickerPackListResponseSchema,
+  stickerPackResponseSchema,
 } from "@scrapbook/api-contract";
 
 export class ApiClientError extends Error {
@@ -166,6 +176,103 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
       throw await parseError(response);
     }
   },
+
+  listStickerPacks: (): Promise<StickerPackListResponse> =>
+    requestJson(baseUrl, stickerPackListResponseSchema, "/api/v1/sticker-packs"),
+
+  createStickerPack: (input: StickerPackCreateRequest): Promise<StickerPackResponse> =>
+    requestJson(baseUrl, stickerPackResponseSchema, "/api/v1/sticker-packs", {
+      body: JSON.stringify(input),
+      method: "POST",
+    }),
+
+  updateStickerPack: (
+    packId: string,
+    input: StickerPackPatchRequest,
+  ): Promise<StickerPackResponse> =>
+    requestJson(baseUrl, stickerPackResponseSchema, `/api/v1/sticker-packs/${packId}`, {
+      body: JSON.stringify(input),
+      method: "PATCH",
+    }),
+
+  deleteStickerPack: async (packId: string): Promise<void> => {
+    const response = await fetch(buildUrl(baseUrl, `/api/v1/sticker-packs/${packId}`), {
+      credentials: "include",
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+  },
+
+  listPackStickers: (packId: string): Promise<CustomStickerListResponse> =>
+    requestJson(
+      baseUrl,
+      customStickerListResponseSchema,
+      `/api/v1/sticker-packs/${packId}/stickers`,
+    ),
+
+  listCustomStickers: (packId?: string): Promise<CustomStickerListResponse> => {
+    const path = packId
+      ? `/api/v1/custom-stickers?${new URLSearchParams({ packId })}`
+      : "/api/v1/custom-stickers";
+
+    return requestJson(baseUrl, customStickerListResponseSchema, path);
+  },
+
+  removeCustomSticker: async (packId: string, stickerId: string): Promise<void> => {
+    const response = await fetch(
+      buildUrl(baseUrl, `/api/v1/sticker-packs/${packId}/stickers/${stickerId}`),
+      { credentials: "include", method: "DELETE" },
+    );
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+  },
+
+  uploadCustomSticker: (
+    packId: string,
+    file: File,
+    options: { name?: string; onProgress?: (progress: number | null) => void } = {},
+  ): Promise<CustomStickerResponse> =>
+    new Promise((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      const form = new FormData();
+
+      form.append("file", file);
+      if (options.name) {
+        form.append("name", options.name);
+      }
+      request.open("POST", buildUrl(baseUrl, `/api/v1/sticker-packs/${packId}/stickers`));
+      request.withCredentials = true;
+
+      request.upload.onprogress = (event) => {
+        options.onProgress?.(event.lengthComputable ? event.loaded / event.total : null);
+      };
+      request.onerror = () => {
+        reject(new ApiClientError("The API request failed", 0, "network_error"));
+      };
+      request.onload = () => {
+        if (request.status < 200 || request.status >= 300) {
+          try {
+            reject(parseErrorPayload(JSON.parse(request.responseText), request.status));
+          } catch {
+            reject(new ApiClientError("The API request failed", request.status, "request_failed"));
+          }
+          return;
+        }
+
+        try {
+          options.onProgress?.(1);
+          resolve(customStickerResponseSchema.parse(JSON.parse(request.responseText)));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      request.send(form);
+    }),
 
   listPages: (): Promise<PageListResponse> =>
     requestJson(baseUrl, pageListResponseSchema, "/api/v1/pages"),

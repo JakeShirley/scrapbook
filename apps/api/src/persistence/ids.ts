@@ -1,6 +1,13 @@
 import type { EntityKind, OpaqueId } from "@scrapbook/domain";
 
-type InternalEntityKind = "authIdentity" | "assetVariant" | "bookPage" | "bookAsset" | "albumAsset";
+type InternalEntityKind =
+  | "authIdentity"
+  | "assetVariant"
+  | "bookPage"
+  | "bookAsset"
+  | "albumAsset"
+  | "stickerPack"
+  | "customSticker";
 
 const internalPrefixes: Record<InternalEntityKind, string> = {
   authIdentity: "auth_identity",
@@ -8,6 +15,8 @@ const internalPrefixes: Record<InternalEntityKind, string> = {
   bookPage: "book_page",
   bookAsset: "book_asset",
   albumAsset: "album_asset",
+  stickerPack: "sticker_pack",
+  customSticker: "custom_sticker",
 };
 
 export const createEntityId = <Kind extends EntityKind>(kind: Kind): OpaqueId<Kind> =>

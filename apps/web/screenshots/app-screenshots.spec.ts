@@ -146,6 +146,99 @@ const albumAssetMap: Record<string, ReturnType<typeof createAsset>[]> = {
   album_misc: [assetFixtures[1]],
 };
 
+const stickerPackFixtures = [
+  {
+    createdAt: now,
+    id: "sticker_pack_florals",
+    title: "Hand-drawn florals",
+    author: "Lila Field",
+    sourceUrl: "https://example.com/florals",
+    stickerCount: 3,
+    updatedAt: now,
+  },
+  {
+    createdAt: now,
+    id: "sticker_pack_notebook",
+    title: "Notebook doodles",
+    author: null,
+    sourceUrl: null,
+    stickerCount: 2,
+    updatedAt: now,
+  },
+];
+
+const customStickerFixtures = [
+  {
+    id: "custom_sticker_daisy",
+    packId: "sticker_pack_florals",
+    name: "Daisy",
+    mimeType: "image/png",
+    byteSize: 12_834,
+    width: 512,
+    height: 512,
+    contentUrl: "/api/v1/custom-stickers/custom_sticker_daisy/content",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "custom_sticker_rose",
+    packId: "sticker_pack_florals",
+    name: "Rose",
+    mimeType: "image/png",
+    byteSize: 14_204,
+    width: 512,
+    height: 512,
+    contentUrl: "/api/v1/custom-stickers/custom_sticker_rose/content",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "custom_sticker_tulip",
+    packId: "sticker_pack_florals",
+    name: "Tulip",
+    mimeType: "image/png",
+    byteSize: 11_504,
+    width: 512,
+    height: 512,
+    contentUrl: "/api/v1/custom-stickers/custom_sticker_tulip/content",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "custom_sticker_arrow",
+    packId: "sticker_pack_notebook",
+    name: "Squiggle arrow",
+    mimeType: "image/svg+xml",
+    byteSize: 1_842,
+    width: 320,
+    height: 200,
+    contentUrl: "/api/v1/custom-stickers/custom_sticker_arrow/content",
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: "custom_sticker_starburst",
+    packId: "sticker_pack_notebook",
+    name: "Starburst",
+    mimeType: "image/svg+xml",
+    byteSize: 2_104,
+    width: 320,
+    height: 320,
+    contentUrl: "/api/v1/custom-stickers/custom_sticker_starburst/content",
+    createdAt: now,
+    updatedAt: now,
+  },
+];
+
+const customStickersByPack: Record<string, typeof customStickerFixtures> = {
+  sticker_pack_florals: customStickerFixtures.filter(
+    (sticker) => sticker.packId === "sticker_pack_florals",
+  ),
+  sticker_pack_notebook: customStickerFixtures.filter(
+    (sticker) => sticker.packId === "sticker_pack_notebook",
+  ),
+};
+
 const pageFixtures = [
   createPage("page_cover", "Cover", {
     backgroundColor: "#fff6e6",
@@ -795,6 +888,25 @@ async function installMockApi(page: Page, authenticated: boolean) {
           )
         : [];
       await route.fulfill({ json: { albums: memberAlbums } });
+      return;
+    }
+
+    if (pathName === "/api/v1/sticker-packs") {
+      await route.fulfill({ json: { packs: stickerPackFixtures } });
+      return;
+    }
+
+    if (pathName.startsWith("/api/v1/sticker-packs/") && pathName.endsWith("/stickers")) {
+      const packId = pathName.split("/").at(-2);
+      const packStickers = packId ? (customStickersByPack[packId] ?? []) : [];
+      await route.fulfill({ json: { stickers: packStickers } });
+      return;
+    }
+
+    if (pathName === "/api/v1/custom-stickers") {
+      const packId = url.searchParams.get("packId");
+      const filtered = packId ? (customStickersByPack[packId] ?? []) : customStickerFixtures;
+      await route.fulfill({ json: { stickers: filtered } });
       return;
     }
 

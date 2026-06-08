@@ -26,6 +26,8 @@ import {
   bookAssets,
   bookPages,
   books,
+  type CustomStickerRecord,
+  customStickers,
   type ExportFormat,
   type ExportJobRecord,
   type ExportPreset,
@@ -34,6 +36,8 @@ import {
   pages,
   type SessionRecord,
   sessions,
+  type StickerPackRecord,
+  stickerPacks,
 } from "./schema.js";
 
 export type RepositoryClock = () => Date;
@@ -1068,6 +1072,231 @@ export class AlbumRepository {
   }
 }
 
+export type StickerPackWithCountRecord = StickerPackRecord & { stickerCount: number };
+
+export class StickerPackRepository {
+  constructor(
+    private readonly db: AppDatabase,
+    private readonly clock: RepositoryClock = defaultClock,
+  ) {}
+
+  create(input: {
+    accountId: string;
+    title: string;
+    author?: string | null;
+    sourceUrl?: string | null;
+    id?: string;
+  }): StickerPackRecord {
+    const timestamp = now(this.clock);
+    const record: StickerPackRecord = {
+      id: input.id ?? createInternalId("stickerPack"),
+      accountId: input.accountId,
+      title: input.title,
+      author: input.author ?? null,
+      sourceUrl: input.sourceUrl ?? null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    this.db.insert(stickerPacks).values(record).run();
+
+    return record;
+  }
+
+  update(input: {
+    accountId: string;
+    packId: string;
+    title?: string;
+    author?: string | null;
+    sourceUrl?: string | null;
+  }): StickerPackRecord | null {
+    const existing = this.findByIdForAccount(input.accountId, input.packId);
+
+    if (!existing) {
+      return null;
+    }
+
+    const timestamp = now(this.clock);
+    const next: StickerPackRecord = {
+      ...existing,
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.author !== undefined ? { author: input.author } : {}),
+      ...(input.sourceUrl !== undefined ? { sourceUrl: input.sourceUrl } : {}),
+      updatedAt: timestamp,
+    };
+
+    this.db
+      .update(stickerPacks)
+      .set({
+        title: next.title,
+        author: next.author,
+        sourceUrl: next.sourceUrl,
+        updatedAt: timestamp,
+      })
+      .where(and(eq(stickerPacks.accountId, input.accountId), eq(stickerPacks.id, input.packId)))
+      .run();
+
+    return next;
+  }
+
+  delete(input: { accountId: string; packId: string }): CustomStickerRecord[] {
+    const stickersToRemove = this.db
+      .select()
+      .from(customStickers)
+      .where(
+        and(eq(customStickers.accountId, input.accountId), eq(customStickers.packId, input.packId)),
+      )
+      .all();
+
+    const result = this.db
+      .delete(stickerPacks)
+      .where(and(eq(stickerPacks.accountId, input.accountId), eq(stickerPacks.id, input.packId)))
+      .run();
+
+    return result.changes > 0 ? stickersToRemove : [];
+  }
+
+  findByIdForAccount(accountId: string, packId: string): StickerPackRecord | null {
+    return (
+      this.db
+        .select()
+        .from(stickerPacks)
+        .where(and(eq(stickerPacks.accountId, accountId), eq(stickerPacks.id, packId)))
+        .get() ?? null
+    );
+  }
+
+  listForAccount(accountId: string): StickerPackWithCountRecord[] {
+    const rows = this.db
+      .select({
+        pack: stickerPacks,
+        stickerCount: sql<number>`COUNT(${customStickers.id})`.as("sticker_count"),
+      })
+      .from(stickerPacks)
+      .leftJoin(customStickers, eq(customStickers.packId, stickerPacks.id))
+      .where(eq(stickerPacks.accountId, accountId))
+      .groupBy(stickerPacks.id)
+      .orderBy(asc(stickerPacks.title))
+      .all();
+
+    return rows.map((row) => ({ ...row.pack, stickerCount: Number(row.stickerCount) }));
+  }
+
+  listStickersForPack(accountId: string, packId: string): CustomStickerRecord[] {
+    return this.db
+      .select()
+      .from(customStickers)
+      .where(and(eq(customStickers.accountId, accountId), eq(customStickers.packId, packId)))
+      .orderBy(asc(customStickers.sortOrder))
+      .all();
+  }
+
+  listStickersForAccount(accountId: string): CustomStickerRecord[] {
+    return this.db
+      .select()
+      .from(customStickers)
+      .where(eq(customStickers.accountId, accountId))
+      .orderBy(asc(customStickers.sortOrder))
+      .all();
+  }
+
+  findStickerByIdForAccount(accountId: string, stickerId: string): CustomStickerRecord | null {
+    return (
+      this.db
+        .select()
+        .from(customStickers)
+        .where(and(eq(customStickers.accountId, accountId), eq(customStickers.id, stickerId)))
+        .get() ?? null
+    );
+  }
+
+  addStickerToPack(input: {
+    accountId: string;
+    packId: string;
+    name: string;
+    storageKey: string;
+    mimeType: string;
+    byteSize: number;
+    width: number | null;
+    height: number | null;
+    checksumSha256: string;
+    id?: string;
+  }): CustomStickerRecord {
+    const pack = this.findByIdForAccount(input.accountId, input.packId);
+
+    if (!pack) {
+      throw new OwnershipError("Sticker pack does not belong to the account");
+    }
+
+    const maxSortRow = this.db
+      .select({ value: customStickers.sortOrder })
+      .from(customStickers)
+      .where(
+        and(eq(customStickers.accountId, input.accountId), eq(customStickers.packId, input.packId)),
+      )
+      .orderBy(desc(customStickers.sortOrder))
+      .limit(1)
+      .get();
+    const nextSortOrder = (maxSortRow?.value ?? -1) + 1;
+
+    const timestamp = now(this.clock);
+    const record: CustomStickerRecord = {
+      id: input.id ?? createInternalId("customSticker"),
+      accountId: input.accountId,
+      packId: input.packId,
+      name: input.name,
+      storageKey: input.storageKey,
+      mimeType: input.mimeType,
+      byteSize: input.byteSize,
+      width: input.width,
+      height: input.height,
+      checksumSha256: input.checksumSha256,
+      sortOrder: nextSortOrder,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    this.db.insert(customStickers).values(record).run();
+    this.db
+      .update(stickerPacks)
+      .set({ updatedAt: timestamp })
+      .where(and(eq(stickerPacks.accountId, input.accountId), eq(stickerPacks.id, input.packId)))
+      .run();
+
+    return record;
+  }
+
+  removeStickerFromPack(input: {
+    accountId: string;
+    stickerId: string;
+  }): CustomStickerRecord | null {
+    const existing = this.findStickerByIdForAccount(input.accountId, input.stickerId);
+
+    if (!existing) {
+      return null;
+    }
+
+    const result = this.db
+      .delete(customStickers)
+      .where(
+        and(eq(customStickers.accountId, input.accountId), eq(customStickers.id, input.stickerId)),
+      )
+      .run();
+
+    if (result.changes === 0) {
+      return null;
+    }
+
+    this.db
+      .update(stickerPacks)
+      .set({ updatedAt: now(this.clock) })
+      .where(and(eq(stickerPacks.accountId, input.accountId), eq(stickerPacks.id, existing.packId)))
+      .run();
+
+    return existing;
+  }
+}
+
 export class ExportJobRepository {
   constructor(
     private readonly db: AppDatabase,
@@ -1172,6 +1401,7 @@ export const createRepositories = (
     sessions: new SessionRepository(db, clock),
     assets: new AssetRepository(db, clock),
     albums: new AlbumRepository(db, clock),
+    stickerPacks: new StickerPackRepository(db, clock),
     pages: new PageRepository(db, clock, pageDocuments),
     books: new BookRepository(db, clock, pageDocuments),
     exports: new ExportJobRepository(db, clock),

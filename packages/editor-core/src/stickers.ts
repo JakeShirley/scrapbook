@@ -81,7 +81,9 @@ export const stickerCatalog: readonly StickerDefinition[] = stickerLibraries.fla
   getLibraryStickers(library),
 );
 
-export const stickerLibraryCounts: Readonly<Record<StickerLibraryId, number>> = {
+export type BuiltInStickerLibraryId = Exclude<StickerLibraryId, "custom">;
+
+export const stickerLibraryCounts: Readonly<Record<BuiltInStickerLibraryId, number>> = {
   noto: getLibraryStickers(notoLibrary).length,
   twemoji: getLibraryStickers(twemojiLibrary).length,
 };

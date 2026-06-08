@@ -1,5 +1,6 @@
 import type { ExportPreset } from "@scrapbook/api-contract";
 import {
+  isCustomStickerId,
   type PageDocument,
   type PhotoLayer,
   renderPageDocumentSvg,
@@ -95,6 +96,7 @@ export const renderPageSvg = async (input: {
     input.dpi === undefined ? { preset: input.preset } : { dpi: input.dpi, preset: input.preset };
   const photoHrefs = new Map<string, string>();
   const washiTapeHrefs = new Map<string, string>();
+  const stickerHrefs = new Map<string, string>();
 
   for (const layer of input.document.layers) {
     if (layer.kind === "photo") {
@@ -114,6 +116,23 @@ export const renderPageSvg = async (input: {
           targetDimension: targetPhotoDimension(layer, settings),
         }),
       );
+
+      continue;
+    }
+
+    if (layer.kind === "sticker" && isCustomStickerId(layer.stickerId)) {
+      const customStickerId = layer.stickerId.slice("custom:".length);
+      const sticker = input.repositories.stickerPacks.findStickerByIdForAccount(
+        input.accountId,
+        customStickerId,
+      );
+
+      if (!sticker) {
+        continue;
+      }
+
+      const buffer = await input.storage.read(sticker.storageKey);
+      stickerHrefs.set(layer.id, `data:${sticker.mimeType};base64,${buffer.toString("base64")}`);
 
       continue;
     }
@@ -150,7 +169,9 @@ export const renderPageSvg = async (input: {
       ? {}
       : { includeBackground: input.includeBackground }),
     resolvePhotoHref: (layer: PhotoLayer) => photoHrefs.get(layer.id),
-    resolveStickerSvg: (layer) => getStickerSvg(layer.stickerId),
+    resolveStickerSvg: (layer) =>
+      isCustomStickerId(layer.stickerId) ? null : getStickerSvg(layer.stickerId),
+    resolveStickerHref: (layer) => stickerHrefs.get(layer.id),
     resolveWashiTapeHref: (layer: WashiTapeLayer) => washiTapeHrefs.get(layer.id),
   });
 };

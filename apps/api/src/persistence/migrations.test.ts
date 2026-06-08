@@ -18,6 +18,7 @@ describe("SQLite migrations", () => {
         "0007_add_assets_date_taken",
         "0008_add_assets_exif_details",
         "0009_add_albums",
+        "0010_add_sticker_packs",
       ]);
       expect(runMigrations(connection.sqlite)).toEqual([]);
       expect(getAppliedMigrations(connection.sqlite)).toEqual([
@@ -30,6 +31,7 @@ describe("SQLite migrations", () => {
         "0007_add_assets_date_taken",
         "0008_add_assets_exif_details",
         "0009_add_albums",
+        "0010_add_sticker_packs",
       ]);
 
       const tableNames = connection.sqlite
@@ -47,10 +49,12 @@ describe("SQLite migrations", () => {
         "book_assets",
         "book_pages",
         "books",
+        "custom_stickers",
         "exports",
         "pages",
         "schema_migrations",
         "sessions",
+        "sticker_packs",
       ]);
     } finally {
       connection.close();
