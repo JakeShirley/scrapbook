@@ -1290,16 +1290,6 @@ export function PageCanvas({
             className="selected-layer-action-bar"
             role="toolbar"
           >
-            <button
-              type="button"
-              aria-label="Edit layer"
-              aria-pressed={activeSelectionPanel === "edit"}
-              title="Edit"
-              onClick={() => toggleSelectionPanel("edit")}
-            >
-              <EditRegular />
-              <span>Edit</span>
-            </button>
             {selectedLayer.kind === "photo" ? (
               <button
                 type="button"
