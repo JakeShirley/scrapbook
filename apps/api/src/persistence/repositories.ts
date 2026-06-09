@@ -1139,7 +1139,10 @@ export class StickerPackRepository {
     return next;
   }
 
-  delete(input: { accountId: string; packId: string }): CustomStickerRecord[] {
+  delete(input: { accountId: string; packId: string }): {
+    deleted: boolean;
+    removedStickers: CustomStickerRecord[];
+  } {
     const stickersToRemove = this.db
       .select()
       .from(customStickers)
@@ -1153,7 +1156,11 @@ export class StickerPackRepository {
       .where(and(eq(stickerPacks.accountId, input.accountId), eq(stickerPacks.id, input.packId)))
       .run();
 
-    return result.changes > 0 ? stickersToRemove : [];
+    if (result.changes === 0) {
+      return { deleted: false, removedStickers: [] };
+    }
+
+    return { deleted: true, removedStickers: stickersToRemove };
   }
 
   findByIdForAccount(accountId: string, packId: string): StickerPackRecord | null {
