@@ -33,6 +33,16 @@ const roundToNearestHundredth = (value: number): number => {
 
   return Object.is(rounded, -0) ? 0 : rounded;
 };
+const roundToNearestThousandth = (value: number): number => {
+  const rounded = Math.round(value * 1000) / 1000;
+
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
+const roundToNearestTenThousandth = (value: number): number => {
+  const rounded = Math.round(value * 10000) / 10000;
+
+  return Object.is(rounded, -0) ? 0 : rounded;
+};
 const coordinateSchema = z.number().finite().transform(roundToNearestTenth);
 const positiveSizeSchema = z
   .number()
@@ -227,12 +237,15 @@ export const photoLayerSchema = pageLayerBaseSchema.extend({
   fit: z.enum(["cover", "contain"]),
   photoTransform: z
     .object({
-      scale: z.number().finite().min(0.1).max(5).transform(roundToNearestTenth),
+      // Finer precision (thousandths for scale, ten-thousandths for offset) keeps
+      // interactive crop/pan drags smooth: with tenths-rounded scale the displayed
+      // image extent snaps by ~5% of image size between consecutive pointer ticks.
+      scale: z.number().finite().min(0.1).max(5).transform(roundToNearestThousandth),
       rotation: rotationSchema,
       flipX: z.boolean(),
       flipY: z.boolean(),
-      offsetX: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
-      offsetY: z.number().finite().min(-1).max(1).transform(roundToNearestHundredth),
+      offsetX: z.number().finite().min(-1).max(1).transform(roundToNearestTenThousandth),
+      offsetY: z.number().finite().min(-1).max(1).transform(roundToNearestTenThousandth),
     })
     .default(defaultPhotoTransform),
   crop: z

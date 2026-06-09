@@ -118,7 +118,7 @@ describe("page document helpers", () => {
     }
 
     expect(layer.photoTransform).toMatchObject({
-      scale: 1.2,
+      scale: 1.24,
       rotation: 8.8,
       offsetX: 0.12,
       offsetY: -0.04,
@@ -236,7 +236,7 @@ describe("page document helpers", () => {
     });
 
     expect(photo.assetId).toBe("asset_1");
-    expect(photo.photoTransform).toMatchObject({ scale: 1.3, flipX: true });
+    expect(photo.photoTransform).toMatchObject({ scale: 1.25, flipX: true });
     expect(photo.crop).toMatchObject({ x: 0.1, width: 0.7 });
     expect(photo.mask.shape).toBe("ellipse");
     expect(photo.border.framePreset).toBe("polaroid");
