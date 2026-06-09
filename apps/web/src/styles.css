@@ -4851,6 +4851,12 @@ body {
   height: 100%;
 }
 
+.workspace:has(> .book-editor-page) {
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-bottom: 10px;
+}
+
 .book-editor-page .topbar {
   gap: 10px;
   min-height: 42px;
