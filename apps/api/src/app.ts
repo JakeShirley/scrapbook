@@ -2079,21 +2079,12 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
     }
 
     const { packId } = context.req.valid("param");
-    const removedStickers = options.repositories.stickerPacks.delete({
+    const { deleted, removedStickers } = options.repositories.stickerPacks.delete({
       accountId: authSession.account.id,
       packId,
     });
 
-    if (removedStickers.length === 0) {
-      const stillExists = options.repositories.stickerPacks.findByIdForAccount(
-        authSession.account.id,
-        packId,
-      );
-
-      if (stillExists) {
-        return context.body(null, 204);
-      }
-
+    if (!deleted) {
       return context.json(
         createErrorResponse(context, "sticker_pack_not_found", "Sticker pack not found"),
         404,
