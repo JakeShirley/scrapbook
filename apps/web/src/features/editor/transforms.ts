@@ -150,15 +150,19 @@ export const scaleLayerFromCornerHandle = (
   return { height, width, x: center.x - width / 2, y: center.y - height / 2 };
 };
 
-// Crop adjustment: moving a cardinal edge shrinks or grows the visible frame while
-// the underlying image stays anchored in canvas space, so the displayed image is
-// neither scaled nor repositioned -- only more or less of it is shown.
+// Crop adjustment: moving a cardinal edge shrinks or grows the visible frame
+// while the underlying image stays anchored in canvas space, so the displayed
+// image is neither scaled nor repositioned -- only more or less of it is shown.
+// Zoomed-in photos (photoTransform.scale > 1) are handled too: the user can
+// grow the frame all the way to the displayed image edge, and if the new frame
+// exceeds the natural (unscaled) image extent the layer's scale is reduced
+// just enough to keep crop within [0, 1] without shifting the visible image.
 export const cropPhotoLayerFromHandle = (
   layer: PhotoLayer,
   handle: ResizeHandle,
   pointer: CanvasPoint,
   startPointer: CanvasPoint,
-): Pick<PhotoLayer, "height" | "width" | "x" | "y" | "crop"> => {
+): Pick<PhotoLayer, "height" | "width" | "x" | "y" | "crop" | "photoTransform"> => {
   const localDelta = rotatePoint(
     { x: pointer.x - startPointer.x, y: pointer.y - startPointer.y },
     -layer.rotation,
@@ -167,9 +171,9 @@ export const cropPhotoLayerFromHandle = (
   const safeCropHeight = Math.max(layer.crop.height, 0.05);
   const imageWidth = layer.width / safeCropWidth;
   const imageHeight = layer.height / safeCropHeight;
-  // Image extent in layer-center-local coordinates (rotation ignored; localDelta
-  // already accounts for layer.rotation). The displayed image spans this region;
-  // the visible frame is a sub-window of it.
+  const scale = Math.max(layer.photoTransform.scale, 0.1);
+  // Unscaled image extent in layer-center-local coords (localDelta already
+  // accounts for layer.rotation).
   const imageLeftLocal =
     -layer.crop.x * imageWidth + layer.photoTransform.offsetX * imageWidth * 0.5 - layer.width / 2;
   const imageRightLocal = imageLeftLocal + imageWidth;
@@ -178,6 +182,12 @@ export const cropPhotoLayerFromHandle = (
     layer.photoTransform.offsetY * imageHeight * 0.5 -
     layer.height / 2;
   const imageBottomLocal = imageTopLocal + imageHeight;
+  // Actual displayed image extent after photoTransform.scale (the scale pivots
+  // around the frame center, which is 0 in centered layer-local coords).
+  const scaledImageLeft = imageLeftLocal * scale;
+  const scaledImageRight = imageRightLocal * scale;
+  const scaledImageTop = imageTopLocal * scale;
+  const scaledImageBottom = imageBottomLocal * scale;
 
   let left = -layer.width / 2;
   let right = layer.width / 2;
@@ -189,10 +199,12 @@ export const cropPhotoLayerFromHandle = (
   if (handle.includes("n")) top += localDelta.y;
   if (handle.includes("s")) bottom += localDelta.y;
 
-  if (left < imageLeftLocal) left = imageLeftLocal;
-  if (right > imageRightLocal) right = imageRightLocal;
-  if (top < imageTopLocal) top = imageTopLocal;
-  if (bottom > imageBottomLocal) bottom = imageBottomLocal;
+  // Clamp the visible frame to the actual displayed image extents (scaled),
+  // so the user can grow the crop until it meets the true edge of the photo.
+  if (left < scaledImageLeft) left = scaledImageLeft;
+  if (right > scaledImageRight) right = scaledImageRight;
+  if (top < scaledImageTop) top = scaledImageTop;
+  if (bottom > scaledImageBottom) bottom = scaledImageBottom;
 
   const minWidth = Math.max(minimumLayerSize, 0.05 * imageWidth);
   const minHeight = Math.max(minimumLayerSize, 0.05 * imageHeight);
@@ -207,17 +219,74 @@ export const cropPhotoLayerFromHandle = (
 
   const width = right - left;
   const height = bottom - top;
-  const nextCropX =
-    (left - imageLeftLocal + layer.photoTransform.offsetX * imageWidth * 0.5) / imageWidth;
-  const nextCropY =
-    (top - imageTopLocal + layer.photoTransform.offsetY * imageHeight * 0.5) / imageHeight;
-  const nextCropWidth = width / imageWidth;
-  const nextCropHeight = height / imageHeight;
+  // Layer center shifts by the midpoint of the new frame (in pre-rotation
+  // local coords) so the frame's edges land where the user dragged them.
+  const shiftLocal = { x: (left + right) / 2, y: (top + bottom) / 2 };
 
-  const shift = rotatePoint({ x: (left + right) / 2, y: (top + bottom) / 2 }, layer.rotation);
+  // Displayed image canvas extent in OLD layer-centered coords. This is the
+  // anchor target: after the drag the displayed image must occupy the same
+  // canvas region.
+  const dispImageWidth = imageWidth * scale;
+  const dispImageHeight = imageHeight * scale;
+  const dispImageLeftNew = scaledImageLeft - shiftLocal.x;
+  const dispImageTopNew = scaledImageTop - shiftLocal.y;
+
+  // Keep the current scale unless the new frame exceeds the natural image
+  // extent (which would require crop.width/height > 1). In that case reduce
+  // scale so crop.width/height saturate at 1 and the displayed image canvas
+  // size remains unchanged. photoTransform.scale is a single value covering
+  // both axes, so take the more conservative reduction.
+  const scaleX = width > imageWidth ? dispImageWidth / width : scale;
+  const scaleY = height > imageHeight ? dispImageHeight / height : scale;
+  const newScale = Math.min(scale, scaleX, scaleY);
+  const newImageWidth = dispImageWidth / newScale;
+  const newImageHeight = dispImageHeight / newScale;
+
+  const nextCropWidth = width / newImageWidth;
+  const nextCropHeight = height / newImageHeight;
+
+  // For the image to stay anchored, the unscaled image-left in the NEW
+  // layer-centered coords must equal dispImageLeftNew / newScale.
+  const newImageLeftTarget = dispImageLeftNew / newScale;
+  const newImageTopTarget = dispImageTopNew / newScale;
+  // newImageLeftTarget = -nextCropX*newImageWidth + offsetX*newImageWidth*0.5 - width/2
+  // → nextCropX = (offsetX*newImageWidth*0.5 - width/2 - newImageLeftTarget) / newImageWidth
+  let nextOffsetX = layer.photoTransform.offsetX;
+  let nextOffsetY = layer.photoTransform.offsetY;
+  let nextCropX =
+    (nextOffsetX * newImageWidth * 0.5 - width / 2 - newImageLeftTarget) / newImageWidth;
+  let nextCropY =
+    (nextOffsetY * newImageHeight * 0.5 - height / 2 - newImageTopTarget) / newImageHeight;
+
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+  // If holding offsetX constant would push crop.x out of [0, 1-crop.width],
+  // snap crop.x to the limit and shift offsetX to compensate so the displayed
+  // image still stays anchored. Same for Y.
+  const cropWidthMax = Math.max(0, 1 - nextCropWidth);
+  const clampedCropX = clamp(nextCropX, 0, cropWidthMax);
+  if (clampedCropX !== nextCropX) {
+    nextOffsetX = clamp(
+      (2 * (newImageLeftTarget + clampedCropX * newImageWidth + width / 2)) / newImageWidth,
+      -1,
+      1,
+    );
+    nextCropX = clampedCropX;
+  }
+  const cropHeightMax = Math.max(0, 1 - nextCropHeight);
+  const clampedCropY = clamp(nextCropY, 0, cropHeightMax);
+  if (clampedCropY !== nextCropY) {
+    nextOffsetY = clamp(
+      (2 * (newImageTopTarget + clampedCropY * newImageHeight + height / 2)) / newImageHeight,
+      -1,
+      1,
+    );
+    nextCropY = clampedCropY;
+  }
+
+  const shift = rotatePoint(shiftLocal, layer.rotation);
   const startCenter = getLayerCenter(layer);
   const center = { x: startCenter.x + shift.x, y: startCenter.y + shift.y };
-  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
   return {
     height,
@@ -230,6 +299,12 @@ export const cropPhotoLayerFromHandle = (
       y: clamp(nextCropY, 0, 1 - 0.05),
       width: clamp(nextCropWidth, 0.05, 1),
       height: clamp(nextCropHeight, 0.05, 1),
+    },
+    photoTransform: {
+      ...layer.photoTransform,
+      scale: newScale,
+      offsetX: nextOffsetX,
+      offsetY: nextOffsetY,
     },
   };
 };
