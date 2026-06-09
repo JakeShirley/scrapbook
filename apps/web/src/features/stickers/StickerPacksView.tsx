@@ -16,6 +16,11 @@ import { apiClient } from "../../apiClient";
 import { Panel, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import { formatBytes } from "../../lib/format";
+import {
+  extractGoodnotesStickers,
+  formatGoodnotesDiagnostics,
+  isGoodnotesFile,
+} from "../../lib/goodnotesExtractor";
 import { getStickerUsage, subscribeStickerUsage } from "../../lib/stickerUsage";
 import type { CustomSticker, StickerPack } from "../../types";
 import {
@@ -37,10 +42,15 @@ const supportedStickerMimeTypes = new Set([
   "image/webp",
   "image/gif",
   "image/svg+xml",
+  "image/heic",
+  "image/heif",
+  "image/jp2",
+  "image/jpx",
+  "image/jpeg2000",
 ]);
 
 const supportedStickerAccept =
-  "image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg";
+  "image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/heic,image/heif,image/jp2,image/jpx,.png,.jpg,.jpeg,.webp,.gif,.svg,.heic,.heif,.jp2,.jpx,.goodnotes";
 
 type SortMode = "used" | "added" | "name";
 
@@ -81,6 +91,8 @@ export function StickerPacksView() {
   const [isStickersLoading, setIsStickersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [diagnostics, setDiagnostics] = useState<string | null>(null);
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
   const [dialog, setDialog] = useState<PackDialog | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,23 +171,79 @@ export function StickerPacksView() {
     const packId = editablePackId;
 
     setError(null);
+    setDiagnostics(null);
+    setDiagnosticsCopied(false);
     setUploadProgress(0);
 
-    const uploaded: CustomSticker[] = [];
+    const expanded: File[] = [];
     const failures: string[] = [];
+    const diagnosticChunks: string[] = [];
+    // Only count entries we genuinely couldn't recognize. PDFs and metadata
+    // files (.plist / .pb / thumbnail) are expected non-image content in a
+    // Goodnotes archive and aren't worth flagging to the user.
+    let unrecognizedFromArchives = 0;
 
-    for (const [fileIndex, file] of files.entries()) {
+    for (const file of files) {
+      if (!isGoodnotesFile(file)) {
+        expanded.push(file);
+        continue;
+      }
+      try {
+        const result = await extractGoodnotesStickers(file);
+        expanded.push(...result.files);
+        unrecognizedFromArchives += result.skipped.nonImage;
+        diagnosticChunks.push(formatGoodnotesDiagnostics(file, result));
+      } catch (extractError: unknown) {
+        failures.push(`${file.name}: ${getErrorMessage(extractError)}`);
+        diagnosticChunks.push(
+          `Goodnotes archive: ${file.name}\nArchive size: ${file.size} bytes\nError: ${getErrorMessage(extractError)}`,
+        );
+      }
+    }
+
+    if (expanded.length === 0) {
+      const reasons: string[] = [];
+      if (unrecognizedFromArchives > 0) {
+        reasons.push(
+          `No supported images were found in the Goodnotes archive (${unrecognizedFromArchives} ${unrecognizedFromArchives === 1 ? "entry" : "entries"} could not be recognized as an image).`,
+        );
+      }
+      reasons.push(...failures);
+      setError(reasons.length > 0 ? reasons.join(" ") : null);
+      setDiagnostics(
+        reasons.length > 0 && diagnosticChunks.length > 0 ? diagnosticChunks.join("\n\n") : null,
+      );
+      setUploadProgress(null);
+      return;
+    }
+
+    const uploaded: CustomSticker[] = [];
+    const seenStickerIds = new Set<string>();
+    // Snapshot pack contents before the batch so server-deduped records (returned
+    // when the same bytes already exist) are reported as duplicates even when
+    // the entire batch is duplicates.
+    const preExistingIds = new Set(stickers.map((sticker) => sticker.id));
+    let duplicateUploads = 0;
+
+    for (const [fileIndex, file] of expanded.entries()) {
       try {
         const sticker = await apiClient.uploadCustomSticker(packId, file, {
           onProgress: (fileProgress) => {
-            setUploadProgress((fileIndex + (fileProgress ?? 0)) / files.length);
+            setUploadProgress((fileIndex + (fileProgress ?? 0)) / expanded.length);
           },
         });
-        uploaded.push(sticker);
+        const isDuplicate = preExistingIds.has(sticker.id) || seenStickerIds.has(sticker.id);
+        if (isDuplicate) {
+          duplicateUploads += 1;
+        }
+        if (!seenStickerIds.has(sticker.id)) {
+          seenStickerIds.add(sticker.id);
+          uploaded.push(sticker);
+        }
       } catch (uploadError: unknown) {
         failures.push(`${file.name}: ${getErrorMessage(uploadError)}`);
       } finally {
-        setUploadProgress((fileIndex + 1) / files.length);
+        setUploadProgress((fileIndex + 1) / expanded.length);
       }
     }
 
@@ -185,7 +253,18 @@ export function StickerPacksView() {
       await refreshPacks();
     }
 
-    setError(failures.length > 0 ? failures.join(" ") : null);
+    const notices: string[] = [...failures];
+    if (unrecognizedFromArchives > 0) {
+      notices.push(
+        `Skipped ${unrecognizedFromArchives} Goodnotes ${unrecognizedFromArchives === 1 ? "attachment that wasn't" : "attachments that weren't"} recognized as an image.`,
+      );
+    }
+    if (duplicateUploads > 0) {
+      notices.push(
+        `${duplicateUploads} sticker${duplicateUploads === 1 ? " was" : "s were"} already in this pack and ${duplicateUploads === 1 ? "was" : "were"} skipped.`,
+      );
+    }
+    setError(notices.length > 0 ? notices.join(" ") : null);
     setUploadProgress(null);
   };
 
@@ -213,8 +292,8 @@ export function StickerPacksView() {
     event.preventDefault();
     dragOverDepthRef.current = 0;
     setIsFileDragOver(false);
-    const files = Array.from(event.dataTransfer.files).filter((file) =>
-      supportedStickerMimeTypes.has(file.type),
+    const files = Array.from(event.dataTransfer.files).filter(
+      (file) => supportedStickerMimeTypes.has(file.type) || isGoodnotesFile(file),
     );
     if (files.length === 0) return;
     void uploadFiles(files);
@@ -317,9 +396,29 @@ export function StickerPacksView() {
       >
         <Panel title={panelTitle} count={panelCount}>
           {error ? (
-            <p className="panel-alert" role="alert">
-              {error}
-            </p>
+            <div className="panel-alert" role="alert">
+              <p>{error}</p>
+              {diagnostics ? (
+                <div className="panel-alert-actions">
+                  <Button
+                    type="button"
+                    size="small"
+                    className="secondary-button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(diagnostics);
+                        setDiagnosticsCopied(true);
+                        window.setTimeout(() => setDiagnosticsCopied(false), 2500);
+                      } catch {
+                        setDiagnosticsCopied(false);
+                      }
+                    }}
+                  >
+                    {diagnosticsCopied ? "Diagnostics copied" : "Copy diagnostics"}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           {uploadProgress !== null ? (
             <div className="upload-progress" aria-live="polite">

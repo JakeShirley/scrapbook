@@ -915,6 +915,16 @@ textarea:focus-visible {
   font-size: 0.9rem;
 }
 
+.panel-alert p {
+  margin: 0;
+}
+
+.panel-alert-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
 .download-banner {
   border: 1px solid #aed1c8;
   border-radius: 8px;

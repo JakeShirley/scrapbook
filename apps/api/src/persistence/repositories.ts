@@ -1217,6 +1217,26 @@ export class StickerPackRepository {
     );
   }
 
+  findStickerInPackByChecksum(
+    accountId: string,
+    packId: string,
+    checksumSha256: string,
+  ): CustomStickerRecord | null {
+    return (
+      this.db
+        .select()
+        .from(customStickers)
+        .where(
+          and(
+            eq(customStickers.accountId, accountId),
+            eq(customStickers.packId, packId),
+            eq(customStickers.checksumSha256, checksumSha256),
+          ),
+        )
+        .get() ?? null
+    );
+  }
+
   addStickerToPack(input: {
     accountId: string;
     packId: string;
