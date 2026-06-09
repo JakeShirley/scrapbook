@@ -5,12 +5,19 @@ import {
   ImageAddRegular,
   TextTRegular,
 } from "@fluentui/react-icons";
+import type { ReactNode } from "react";
 
 import type { Asset } from "../../types";
+
+export type AssetRailInspector = {
+  title: string;
+  content: ReactNode;
+};
 
 type AssetRailCommonProps = {
   isPhotoPickerDisabled?: boolean;
   isStickerPickerDisabled?: boolean;
+  inspector?: AssetRailInspector | null;
   onAddText: () => void;
   onOpenStickerPicker: () => void;
   onOpenWashiTapePicker: () => void;
@@ -36,19 +43,17 @@ export function AssetRail(props: AssetRailProps) {
   const {
     isPhotoPickerDisabled = false,
     isStickerPickerDisabled = false,
+    inspector,
     onAddText,
     onOpenStickerPicker,
     onOpenWashiTapePicker,
   } = props;
   const isReferencedMode = props.mode === "referenced";
   const photoCount = isReferencedMode ? props.referencedAssets.length : props.assetCount;
+  const showInspector = Boolean(inspector);
 
   return (
-    <aside className="editor-panel editor-asset-rail" aria-label="Assets">
-      <div className="panel-heading compact-heading">
-        <h3>Photos</h3>
-        <span>{photoCount}</span>
-      </div>
+    <aside className="editor-panel editor-asset-rail" aria-label="Editor sidebar">
       <div className="asset-rail-actions">
         {isReferencedMode ? null : (
           <Button
@@ -100,47 +105,60 @@ export function AssetRail(props: AssetRailProps) {
           </Button>
         ) : null}
       </div>
-      {isReferencedMode ? (
-        <ul className="asset-rail-photos" aria-label="Photos referenced by this book">
-          {props.referencedAssets.length === 0 ? (
-            <li className="asset-rail-photos-empty-item">
-              <p className="asset-rail-photos-empty">
-                No photos yet. Click <em>Add more photos</em> to add some from your library.
-              </p>
-            </li>
-          ) : (
-            props.referencedAssets.map((asset) => {
-              const isDisabled = isPhotoPickerDisabled;
-              return (
-                <li key={asset.id} className="asset-rail-photo-item">
-                  <button
-                    type="button"
-                    className="asset-rail-photo"
-                    title={`Drag ${asset.originalFilename} onto the page`}
-                    aria-label={`Drag ${asset.originalFilename} onto the page`}
-                    disabled={isDisabled}
-                    draggable={!isDisabled}
-                    onDragStart={(event) => {
-                      if (isDisabled) {
-                        event.preventDefault();
-                        return;
-                      }
-                      event.dataTransfer.effectAllowed = "copy";
-                      event.dataTransfer.setData(assetDragMimeType, asset.id);
-                      event.dataTransfer.setData("text/plain", asset.id);
-                    }}
-                  >
-                    <img
-                      src={asset.thumbnailUrl ?? asset.originalContentUrl}
-                      alt=""
-                      draggable={false}
-                    />
-                  </button>
-                </li>
-              );
-            })
-          )}
-        </ul>
+      {showInspector && inspector ? (
+        <section aria-label={inspector.title} className="asset-rail-inspector" role="dialog">
+          <header className="editor-edit-pane-header">
+            <h3>{inspector.title}</h3>
+          </header>
+          <div className="editor-edit-pane-body">{inspector.content}</div>
+        </section>
+      ) : isReferencedMode ? (
+        <section className="asset-rail-photos-section" aria-label="Photos">
+          <div className="panel-heading compact-heading asset-rail-photos-heading">
+            <h3>Photos</h3>
+            <span>{photoCount}</span>
+          </div>
+          <ul className="asset-rail-photos" aria-label="Photos referenced by this book">
+            {props.referencedAssets.length === 0 ? (
+              <li className="asset-rail-photos-empty-item">
+                <p className="asset-rail-photos-empty">
+                  No photos yet. Click <em>Add more photos</em> to add some from your library.
+                </p>
+              </li>
+            ) : (
+              props.referencedAssets.map((asset) => {
+                const isDisabled = isPhotoPickerDisabled;
+                return (
+                  <li key={asset.id} className="asset-rail-photo-item">
+                    <button
+                      type="button"
+                      className="asset-rail-photo"
+                      title={`Drag ${asset.originalFilename} onto the page`}
+                      aria-label={`Drag ${asset.originalFilename} onto the page`}
+                      disabled={isDisabled}
+                      draggable={!isDisabled}
+                      onDragStart={(event) => {
+                        if (isDisabled) {
+                          event.preventDefault();
+                          return;
+                        }
+                        event.dataTransfer.effectAllowed = "copy";
+                        event.dataTransfer.setData(assetDragMimeType, asset.id);
+                        event.dataTransfer.setData("text/plain", asset.id);
+                      }}
+                    >
+                      <img
+                        src={asset.thumbnailUrl ?? asset.originalContentUrl}
+                        alt=""
+                        draggable={false}
+                      />
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </section>
       ) : null}
     </aside>
   );

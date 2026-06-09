@@ -400,6 +400,22 @@ export function EditorView() {
       <div className="editor-shell">
         <AssetRail
           assetCount={assets.length}
+          inspector={
+            selectedLayer
+              ? {
+                  title: `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`,
+                  content: (
+                    <LayerInspector
+                      layer={selectedLayer}
+                      onChange={(update) => updateLayerTransform(selectedLayer.id, update)}
+                      onChooseWashiTapePhoto={(layerId) =>
+                        setPhotoPickerMode({ kind: "washiTapePattern", layerId })
+                      }
+                    />
+                  ),
+                }
+              : null
+          }
           onAddText={addText}
           onOpenPhotoPicker={() => setPhotoPickerMode({ kind: "photo" })}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
@@ -442,38 +458,6 @@ export function EditorView() {
             onTransformLayers={updateLayerTransforms}
           />
         </section>
-        <aside
-          aria-label={
-            selectedLayer
-              ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
-              : "Layer inspector"
-          }
-          className="editor-edit-pane"
-          role="dialog"
-        >
-          <header className="editor-edit-pane-header">
-            <h3>
-              {selectedLayer
-                ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
-                : "Layer inspector"}
-            </h3>
-          </header>
-          <div className="editor-edit-pane-body">
-            {selectedLayer ? (
-              <LayerInspector
-                layer={selectedLayer}
-                onChange={(update) => updateLayerTransform(selectedLayer.id, update)}
-                onChooseWashiTapePhoto={(layerId) =>
-                  setPhotoPickerMode({ kind: "washiTapePattern", layerId })
-                }
-              />
-            ) : (
-              <p className="editor-edit-pane-placeholder">
-                Select a layer on the page to edit its properties here.
-              </p>
-            )}
-          </div>
-        </aside>
       </div>
     </>
   );

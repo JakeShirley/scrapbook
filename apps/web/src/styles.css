@@ -1284,14 +1284,14 @@ textarea:focus-visible {
 
 .editor-shell {
   display: grid;
-  grid-template-columns: minmax(180px, 230px) minmax(420px, 1fr) minmax(280px, 340px);
+  grid-template-columns: minmax(220px, 300px) minmax(420px, 1fr);
   gap: 16px;
   align-items: start;
 }
 
 .book-editor-shell {
   display: grid;
-  grid-template-columns: minmax(180px, 230px) minmax(460px, 1fr) minmax(280px, 340px);
+  grid-template-columns: minmax(220px, 300px) minmax(460px, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -4896,7 +4896,7 @@ body {
 }
 
 .book-editor-page .book-editor-shell {
-  grid-template-columns: minmax(168px, 216px) minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-columns: minmax(208px, 280px) minmax(0, 1fr);
   gap: 10px;
   align-items: stretch;
   min-height: 0;
@@ -4904,7 +4904,14 @@ body {
 
 .book-editor-page .editor-asset-rail {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.book-editor-page .asset-rail-photos-section {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
@@ -4912,6 +4919,13 @@ body {
 .book-editor-page .asset-rail-photos {
   min-height: 0;
   overflow-y: auto;
+}
+
+.book-editor-page .asset-rail-inspector {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .book-editor-page .book-editor-stage {
