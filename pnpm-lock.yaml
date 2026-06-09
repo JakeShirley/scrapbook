@@ -86,6 +86,9 @@ importers:
       hono:
         specifier: 4.12.19
         version: 4.12.19
+      jpeg2000:
+        specifier: ^1.1.1
+        version: 1.1.1
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -111,6 +114,9 @@ importers:
       '@zakka/editor-core':
         specifier: workspace:*
         version: link:../../packages/editor-core
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       marked:
         specifier: ^18.0.4
         version: 18.0.4
@@ -1962,6 +1968,9 @@ packages:
       picomatch:
         optional: true
 
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
   figures@2.0.0:
     resolution: {integrity: sha512-Oa2M9atig69ZkfwiApY8F2Yy+tzMbazyvqv21R0NsSC8floSOC09BbT1ITWAdoMGQvJ/aZnR1KMwdx9tvHnTNA==}
     engines: {node: '>=4'}
@@ -2177,6 +2186,9 @@ packages:
 
   jpeg-js@0.4.4:
     resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
+
+  jpeg2000@1.1.1:
+    resolution: {integrity: sha512-keyTI3PY83W4AoeAw8aNJp7LUaU+OcZAga7QiUZPF+LtSY721kuIMNBkJmEXem6v7+lR8I85tcJTGEz8dHNIyQ==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -5373,6 +5385,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
+  fflate@0.8.3: {}
+
   figures@2.0.0:
     dependencies:
       escape-string-regexp: 1.0.5
@@ -5556,6 +5570,8 @@ snapshots:
   java-properties@1.0.2: {}
 
   jpeg-js@0.4.4: {}
+
+  jpeg2000@1.1.1: {}
 
   js-tokens@4.0.0: {}
 

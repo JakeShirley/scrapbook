@@ -25,10 +25,11 @@
     "exifr": "^7.1.3",
     "heic-convert": "^2.1.0",
     "hono": "4.12.19",
+    "jpeg2000": "^1.1.1",
     "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "@zakka/test-utils": "workspace:*",
-    "@types/better-sqlite3": "^7.6.13"
+    "@types/better-sqlite3": "^7.6.13",
+    "@zakka/test-utils": "workspace:*"
   }
 }
