@@ -15,6 +15,19 @@ The production build is packaged as a single Docker image. The container runs th
 - Local-first persistence using SQLite plus managed files for uploads, page documents, previews, variants, and exports.
 - OpenAPI-backed API under `/api/v1`.
 
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Book editor](docs/product-screenshots/book-editor.png) | ![Text and washi tape effects](docs/product-screenshots/book-editor-effects.png) |
+| Book editor with a facing-page spread | Text effects and washi tape variations |
+| ![Books index](docs/product-screenshots/books.png) | ![Photo library](docs/product-screenshots/library.png) |
+| Books index | Photo library with albums |
+| ![Image grid](docs/product-screenshots/image-grid.png) | |
+| Image grid workspace | |
+
+Refresh these with `pnpm screenshots:product`; the script lives at [scripts/screenshots/capture-product-screenshots.ts](scripts/screenshots/capture-product-screenshots.ts) and writes PNGs into [docs/product-screenshots/](docs/product-screenshots/).
+
 ## Quick Start With Docker Compose
 
 From the repository root:

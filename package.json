@@ -26,6 +26,7 @@
     "screenshots": "pnpm --filter @scrapbook/web screenshots",
     "screenshots:capture": "pnpm --filter @scrapbook/web screenshots:capture",
     "screenshots:compare": "tsx scripts/screenshots/compare-screenshots.ts",
+    "screenshots:product": "tsx scripts/screenshots/capture-product-screenshots.ts",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
