@@ -1488,6 +1488,28 @@ export function BookEditorView() {
           referencedAssets={assets}
           isPhotoPickerDisabled={!activePage}
           isStickerPickerDisabled={!activePage}
+          inspector={
+            selectedLayer && activePageId
+              ? {
+                  title: `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`,
+                  content: (
+                    <LayerInspector
+                      layer={selectedLayer}
+                      onChange={(update) =>
+                        updateLayerTransform(activePageId, selectedLayer.id, update)
+                      }
+                      onChooseWashiTapePhoto={(layerId) =>
+                        setPhotoPickerMode({
+                          kind: "washiTapePattern",
+                          pageId: activePageId,
+                          layerId,
+                        })
+                      }
+                    />
+                  ),
+                }
+              : null
+          }
           onAddText={addText}
           onOpenLibraryPicker={() => setIsLibraryPickerOpen(true)}
           onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
@@ -1585,40 +1607,6 @@ export function BookEditorView() {
             </div>
           )}
         </section>
-        <aside
-          aria-label={
-            selectedLayer
-              ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
-              : "Layer inspector"
-          }
-          className="editor-edit-pane"
-          role="dialog"
-        >
-          <header className="editor-edit-pane-header">
-            <h3>
-              {selectedLayer
-                ? `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`
-                : "Layer inspector"}
-            </h3>
-          </header>
-          <div className="editor-edit-pane-body">
-            {selectedLayer && activePageId ? (
-              <LayerInspector
-                layer={selectedLayer}
-                onChange={(update) => updateLayerTransform(activePageId, selectedLayer.id, update)}
-                onChooseWashiTapePhoto={(layerId) =>
-                  setPhotoPickerMode({ kind: "washiTapePattern", pageId: activePageId, layerId })
-                }
-              />
-            ) : (
-              <p className="editor-edit-pane-placeholder">
-                {activePageId
-                  ? "Select a layer on the page to edit its properties here."
-                  : "Open a page to edit its layers."}
-              </p>
-            )}
-          </div>
-        </aside>
       </div>
     </div>
   );
