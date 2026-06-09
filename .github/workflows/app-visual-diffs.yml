@@ -53,10 +53,18 @@ jobs:
         id: base
         if: ${{ github.event_name == 'pull_request' }}
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          git fetch origin "${BASE_REF}:refs/remotes/origin/${BASE_REF}"
-          merge_base="$(git merge-base HEAD "refs/remotes/origin/${BASE_REF}")"
+          set -x
+          merge_base="$(gh api "repos/${REPO}/compare/${BASE_REF}...${HEAD_SHA}" --jq '.merge_base_commit.sha')"
+          if [ -z "${merge_base}" ]; then
+            echo "::error::GitHub compare API returned no merge_base_commit for ${BASE_REF}...${HEAD_SHA}"
+            exit 1
+          fi
+          git fetch --depth=1 origin "${merge_base}"
           echo "sha=${merge_base}" >> "$GITHUB_OUTPUT"
 
       - name: Generate merge-base screenshots
