@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiClient } from "../../apiClient";
 import { AppModal } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
+import { getStickerUsage, recordStickerUsage, subscribeStickerUsage } from "../../lib/stickerUsage";
 import type { CustomSticker, StickerPack } from "../../types";
 
 type StickerLibraryModule = typeof import("@scrapbook/editor-core/stickers");
@@ -13,6 +14,35 @@ type StickerLibraryModule = typeof import("@scrapbook/editor-core/stickers");
 const pageSize = 120;
 
 type StickerSource = "builtin" | "custom" | "favorites";
+
+type SortMode = "used" | "added" | "name";
+
+const sortModeLabels: Record<SortMode, string> = {
+  used: "Recently used",
+  added: "Date added (newest)",
+  name: "Name (A\u2013Z)",
+};
+
+const sortCustomStickers = (
+  stickers: CustomSticker[],
+  mode: SortMode,
+  usage: Record<string, number>,
+): CustomSticker[] => {
+  if (mode === "name") {
+    return [...stickers].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+  }
+  if (mode === "used") {
+    return [...stickers].sort((a, b) => {
+      const aUsed = usage[`custom:${a.id}`] ?? 0;
+      const bUsed = usage[`custom:${b.id}`] ?? 0;
+      if (aUsed !== bUsed) return bUsed - aUsed;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }
+  return [...stickers].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+};
 
 const formatCategory = (sticker: StickerDefinition) =>
   `${sticker.libraryName} / ${sticker.category}`;
@@ -43,6 +73,8 @@ export function StickerPickerModal({
 }) {
   const [source, setSource] = useState<StickerSource>("custom");
   const [query, setQuery] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("used");
+  const [stickerUsage, setStickerUsage] = useState<Record<string, number>>(() => getStickerUsage());
   const [stickerLibrary, setStickerLibrary] = useState<StickerLibraryModule | null>(null);
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -78,16 +110,24 @@ export function StickerPickerModal({
           ? customStickers
           : customStickers.filter((sticker) => sticker.packId === selectedPackId);
 
-    if (!normalizedQuery) {
-      return base;
-    }
+    const matched = !normalizedQuery
+      ? base
+      : base.filter((sticker) =>
+          `${sticker.name} ${packTitleById.get(sticker.packId) ?? ""}`
+            .toLocaleLowerCase()
+            .includes(normalizedQuery),
+        );
 
-    return base.filter((sticker) =>
-      `${sticker.name} ${packTitleById.get(sticker.packId) ?? ""}`
-        .toLocaleLowerCase()
-        .includes(normalizedQuery),
-    );
-  }, [customStickers, normalizedQuery, packTitleById, selectedPackId, source]);
+    return sortCustomStickers(matched, sortMode, stickerUsage);
+  }, [
+    customStickers,
+    normalizedQuery,
+    packTitleById,
+    selectedPackId,
+    sortMode,
+    source,
+    stickerUsage,
+  ]);
 
   const favoriteCount = useMemo(
     () => customStickers.reduce((total, sticker) => total + (sticker.isFavorite ? 1 : 0), 0),
@@ -98,6 +138,8 @@ export function StickerPickerModal({
   useEffect(() => {
     setVisibleCount(pageSize);
   }, [normalizedQuery, source]);
+
+  useEffect(() => subscribeStickerUsage(setStickerUsage), []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -168,13 +210,16 @@ export function StickerPickerModal({
   }, [source]);
 
   const addBuiltInSticker = (sticker: StickerDefinition) => {
+    recordStickerUsage(sticker.id);
     onAddSticker(sticker);
     onClose();
   };
 
   const addCustomSticker = (sticker: CustomSticker) => {
     const packTitle = packTitleById.get(sticker.packId) ?? "Custom";
-    onAddSticker(customStickerToDefinition(sticker, packTitle));
+    const definition = customStickerToDefinition(sticker, packTitle);
+    recordStickerUsage(definition.id);
+    onAddSticker(definition);
     onClose();
   };
 
@@ -271,6 +316,22 @@ export function StickerPickerModal({
                 ))}
               </select>
             </Field>
+          ) : null}
+          {source !== "builtin" ? (
+            <label className="photo-picker-sort" htmlFor="sticker-picker-sort">
+              <span>Sort by</span>
+              <select
+                id="sticker-picker-sort"
+                value={sortMode}
+                onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}
+              >
+                {(Object.keys(sortModeLabels) as SortMode[]).map((mode) => (
+                  <option key={mode} value={mode}>
+                    {sortModeLabels[mode]}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
           <span className="photo-picker-count">
             {source === "builtin"
