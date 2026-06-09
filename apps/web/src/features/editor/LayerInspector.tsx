@@ -24,28 +24,8 @@ export function LayerInspector({
   return (
     <form className="inspector-form">
       <fieldset className="inspector-section layer-inspector-section">
-        <legend>Layer</legend>
+        <legend>Common</legend>
         <div className="layer-controls-grid">
-          <label>
-            <span>X</span>
-            <NumericInput value={layer.x} onChange={updateNumber("x")} />
-          </label>
-          <label>
-            <span>Y</span>
-            <NumericInput value={layer.y} onChange={updateNumber("y")} />
-          </label>
-          <label>
-            <span>W</span>
-            <NumericInput min={1} value={layer.width} onChange={updateNumber("width")} />
-          </label>
-          <label>
-            <span>H</span>
-            <NumericInput min={1} value={layer.height} onChange={updateNumber("height")} />
-          </label>
-          <label className="rotation-field">
-            <span>Rotation</span>
-            <NumericInput value={layer.rotation} onChange={updateNumber("rotation")} />
-          </label>
           <label className="opacity-field">
             <span>Opacity</span>
             <input
@@ -76,6 +56,31 @@ export function LayerInspector({
           onChoosePhoto={onChooseWashiTapePhoto}
         />
       ) : null}
+      <fieldset className="inspector-section layer-inspector-section">
+        <legend>Transform</legend>
+        <div className="layer-controls-grid">
+          <label>
+            <span>X</span>
+            <NumericInput value={layer.x} onChange={updateNumber("x")} />
+          </label>
+          <label>
+            <span>Y</span>
+            <NumericInput value={layer.y} onChange={updateNumber("y")} />
+          </label>
+          <label>
+            <span>W</span>
+            <NumericInput min={1} value={layer.width} onChange={updateNumber("width")} />
+          </label>
+          <label>
+            <span>H</span>
+            <NumericInput min={1} value={layer.height} onChange={updateNumber("height")} />
+          </label>
+          <label className="rotation-field">
+            <span>Rotation</span>
+            <NumericInput value={layer.rotation} onChange={updateNumber("rotation")} />
+          </label>
+        </div>
+      </fieldset>
     </form>
   );
 }
