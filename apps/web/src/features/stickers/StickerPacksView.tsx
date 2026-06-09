@@ -6,6 +6,8 @@ import {
   DismissRegular,
   EditRegular,
   OpenRegular,
+  StarFilled,
+  StarRegular,
 } from "@fluentui/react-icons";
 import type { ChangeEvent, DragEvent as ReactDragEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,7 +17,11 @@ import { Panel, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import { formatBytes } from "../../lib/format";
 import type { CustomSticker, StickerPack } from "../../types";
-import { StickerPackChipBar } from "./StickerPackChipBar";
+import {
+  FAVORITES_PACK_ID,
+  StickerPackChipBar,
+  type StickerPackSelection,
+} from "./StickerPackChipBar";
 import { StickerPackDeleteModal } from "./StickerPackDeleteModal";
 import { type StickerPackSettings, StickerPackSettingsModal } from "./StickerPackSettingsModal";
 
@@ -38,7 +44,7 @@ const supportedStickerAccept =
 export function StickerPacksView() {
   const [packs, setPacks] = useState<StickerPack[]>([]);
   const [stickers, setStickers] = useState<CustomSticker[]>([]);
-  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [selectedPackId, setSelectedPackId] = useState<StickerPackSelection>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStickersLoading, setIsStickersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,9 +52,13 @@ export function StickerPacksView() {
   const [dialog, setDialog] = useState<PackDialog | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isFavoritesView = selectedPackId === FAVORITES_PACK_ID;
+  const editablePackId =
+    typeof selectedPackId === "string" && !isFavoritesView ? selectedPackId : null;
+
   const selectedPack = useMemo(
-    () => (selectedPackId ? (packs.find((pack) => pack.id === selectedPackId) ?? null) : null),
-    [packs, selectedPackId],
+    () => (editablePackId ? (packs.find((pack) => pack.id === editablePackId) ?? null) : null),
+    [packs, editablePackId],
   );
 
   const refreshPacks = useCallback(async () => {
@@ -57,10 +67,12 @@ export function StickerPacksView() {
     return response.packs;
   }, []);
 
-  const loadStickers = useCallback(async (packId: string | null) => {
+  const loadStickers = useCallback(async (selection: StickerPackSelection) => {
     setIsStickersLoading(true);
     try {
-      const response = await apiClient.listCustomStickers(packId ?? undefined);
+      const response = await apiClient.listCustomStickers(
+        selection === null || selection === FAVORITES_PACK_ID ? undefined : selection,
+      );
       setStickers(response.stickers);
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -105,12 +117,12 @@ export function StickerPacksView() {
   const uploadFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
-    if (!selectedPackId) {
+    if (!editablePackId) {
       setError("Select a sticker pack before uploading.");
       return;
     }
 
-    const packId = selectedPackId;
+    const packId = editablePackId;
 
     setError(null);
     setUploadProgress(0);
@@ -148,22 +160,22 @@ export function StickerPacksView() {
   const hasFilesPayload = (event: ReactDragEvent<HTMLDivElement>): boolean =>
     Array.from(event.dataTransfer.types).includes("Files");
   const handleDragEnter = (event: ReactDragEvent<HTMLDivElement>) => {
-    if (!hasFilesPayload(event) || !selectedPackId) return;
+    if (!hasFilesPayload(event) || !editablePackId) return;
     dragOverDepthRef.current += 1;
     setIsFileDragOver(true);
   };
   const handleDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
-    if (!hasFilesPayload(event) || !selectedPackId) return;
+    if (!hasFilesPayload(event) || !editablePackId) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
   };
   const handleDragLeave = (event: ReactDragEvent<HTMLDivElement>) => {
-    if (!hasFilesPayload(event) || !selectedPackId) return;
+    if (!hasFilesPayload(event) || !editablePackId) return;
     dragOverDepthRef.current = Math.max(0, dragOverDepthRef.current - 1);
     if (dragOverDepthRef.current === 0) setIsFileDragOver(false);
   };
   const handleDrop = (event: ReactDragEvent<HTMLDivElement>) => {
-    if (!hasFilesPayload(event) || !selectedPackId) return;
+    if (!hasFilesPayload(event) || !editablePackId) return;
     event.preventDefault();
     dragOverDepthRef.current = 0;
     setIsFileDragOver(false);
@@ -185,8 +197,52 @@ export function StickerPacksView() {
     }
   };
 
-  const panelTitle = selectedPack ? selectedPack.title : "All stickers";
-  const panelCount = selectedPack ? String(selectedPack.stickerCount) : String(stickers.length);
+  const toggleFavorite = async (sticker: CustomSticker) => {
+    const nextValue = !sticker.isFavorite;
+    setError(null);
+    setStickers((current) =>
+      current.map((candidate) =>
+        candidate.id === sticker.id ? { ...candidate, isFavorite: nextValue } : candidate,
+      ),
+    );
+    try {
+      const updated = await apiClient.setCustomStickerFavorite(sticker.id, {
+        isFavorite: nextValue,
+      });
+      setStickers((current) =>
+        current.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+      );
+    } catch (favoriteError) {
+      setStickers((current) =>
+        current.map((candidate) =>
+          candidate.id === sticker.id
+            ? { ...candidate, isFavorite: sticker.isFavorite }
+            : candidate,
+        ),
+      );
+      setError(getErrorMessage(favoriteError));
+    }
+  };
+
+  const visibleStickers = useMemo(
+    () => (isFavoritesView ? stickers.filter((sticker) => sticker.isFavorite) : stickers),
+    [isFavoritesView, stickers],
+  );
+  const favoriteCount = useMemo(
+    () => stickers.reduce((total, sticker) => total + (sticker.isFavorite ? 1 : 0), 0),
+    [stickers],
+  );
+
+  const panelTitle = isFavoritesView
+    ? "Favorites"
+    : selectedPack
+      ? selectedPack.title
+      : "All stickers";
+  const panelCount = isFavoritesView
+    ? String(visibleStickers.length)
+    : selectedPack
+      ? String(selectedPack.stickerCount)
+      : String(stickers.length);
 
   return (
     <>
@@ -202,10 +258,10 @@ export function StickerPacksView() {
         <Button
           type="button"
           className="secondary-button"
-          disabled={uploadProgress !== null || !selectedPackId}
+          disabled={uploadProgress !== null || !editablePackId}
           icon={<ArrowUploadRegular />}
           onClick={() => fileInputRef.current?.click()}
-          title={selectedPackId ? undefined : "Select a pack before uploading stickers"}
+          title={editablePackId ? undefined : "Select a pack before uploading stickers"}
         >
           {selectedPack ? `Upload to ${selectedPack.title}` : "Upload"}
         </Button>
@@ -235,6 +291,7 @@ export function StickerPacksView() {
           <StickerPackChipBar
             packs={packs}
             selectedPackId={selectedPackId}
+            favoriteCount={favoriteCount}
             onSelectPack={setSelectedPackId}
             trailing={
               <Button
@@ -291,16 +348,18 @@ export function StickerPacksView() {
           {!isLoading && packs.length > 0 && isStickersLoading ? (
             <p className="empty-state">Loading stickers</p>
           ) : null}
-          {!isLoading && packs.length > 0 && !isStickersLoading && stickers.length === 0 ? (
+          {!isLoading && packs.length > 0 && !isStickersLoading && visibleStickers.length === 0 ? (
             <p className="empty-state">
-              {selectedPack
-                ? "This pack is empty. Use Upload or drag images here to add stickers."
-                : "No stickers in any pack yet."}
+              {isFavoritesView
+                ? "You haven't starred any stickers yet. Tap the star on a sticker to add it here."
+                : selectedPack
+                  ? "This pack is empty. Use Upload or drag images here to add stickers."
+                  : "No stickers in any pack yet."}
             </p>
           ) : null}
-          {!isLoading && stickers.length > 0 ? (
+          {!isLoading && visibleStickers.length > 0 ? (
             <div className="asset-grid sticker-pack-grid">
-              {stickers.map((sticker) => {
+              {visibleStickers.map((sticker) => {
                 const sourcePack = packs.find((pack) => pack.id === sticker.packId);
                 return (
                   <div className="asset-tile-wrap" key={sticker.id}>
@@ -319,6 +378,20 @@ export function StickerPacksView() {
                         </span>
                       </span>
                     </div>
+                    <button
+                      type="button"
+                      className="asset-tile-favorite"
+                      aria-label={
+                        sticker.isFavorite
+                          ? `Remove ${sticker.name} from favorites`
+                          : `Add ${sticker.name} to favorites`
+                      }
+                      aria-pressed={sticker.isFavorite}
+                      title={sticker.isFavorite ? "Unfavorite sticker" : "Favorite sticker"}
+                      onClick={() => toggleFavorite(sticker)}
+                    >
+                      {sticker.isFavorite ? <StarFilled /> : <StarRegular />}
+                    </button>
                     <button
                       type="button"
                       className="asset-tile-remove"
@@ -369,7 +442,7 @@ export function StickerPacksView() {
           onClose={() => setDialog(null)}
           onConfirm={async () => {
             await apiClient.deleteStickerPack(dialog.pack.id);
-            if (selectedPackId === dialog.pack.id) {
+            if (editablePackId === dialog.pack.id) {
               setSelectedPackId(null);
             }
             await refreshPacks();

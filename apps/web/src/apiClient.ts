@@ -22,6 +22,7 @@ import {
   bookResponseSchema,
   type CustomStickerListResponse,
   type CustomStickerResponse,
+  type CustomStickerFavoritePatchRequest,
   customStickerListResponseSchema,
   customStickerResponseSchema,
   type ExportCreateRequest,
@@ -231,6 +232,17 @@ export const createApiClient = (baseUrl = defaultBaseUrl) => ({
       throw await parseError(response);
     }
   },
+
+  setCustomStickerFavorite: (
+    stickerId: string,
+    input: CustomStickerFavoritePatchRequest,
+  ): Promise<CustomStickerResponse> =>
+    requestJson(
+      baseUrl,
+      customStickerResponseSchema,
+      `/api/v1/custom-stickers/${stickerId}/favorite`,
+      { body: JSON.stringify(input), method: "PATCH" },
+    ),
 
   uploadCustomSticker: (
     packId: string,

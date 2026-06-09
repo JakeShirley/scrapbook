@@ -1,5 +1,5 @@
 import { Button, Field, Input } from "@fluentui/react-components";
-import { AddRegular } from "@fluentui/react-icons";
+import { AddRegular, StarFilled, StarRegular } from "@fluentui/react-icons";
 import type { StickerDefinition, StickerId } from "@scrapbook/editor-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -12,7 +12,7 @@ type StickerLibraryModule = typeof import("@scrapbook/editor-core/stickers");
 
 const pageSize = 120;
 
-type StickerSource = "builtin" | "custom";
+type StickerSource = "builtin" | "custom" | "favorites";
 
 const formatCategory = (sticker: StickerDefinition) =>
   `${sticker.libraryName} / ${sticker.category}`;
@@ -71,21 +71,28 @@ export function StickerPickerModal({
   );
 
   const filteredCustomStickers = useMemo(() => {
-    const byPack =
-      selectedPackId === null
-        ? customStickers
-        : customStickers.filter((sticker) => sticker.packId === selectedPackId);
+    const base =
+      source === "favorites"
+        ? customStickers.filter((sticker) => sticker.isFavorite)
+        : selectedPackId === null
+          ? customStickers
+          : customStickers.filter((sticker) => sticker.packId === selectedPackId);
 
     if (!normalizedQuery) {
-      return byPack;
+      return base;
     }
 
-    return byPack.filter((sticker) =>
+    return base.filter((sticker) =>
       `${sticker.name} ${packTitleById.get(sticker.packId) ?? ""}`
         .toLocaleLowerCase()
         .includes(normalizedQuery),
     );
-  }, [customStickers, normalizedQuery, packTitleById, selectedPackId]);
+  }, [customStickers, normalizedQuery, packTitleById, selectedPackId, source]);
+
+  const favoriteCount = useMemo(
+    () => customStickers.reduce((total, sticker) => total + (sticker.isFavorite ? 1 : 0), 0),
+    [customStickers],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset built-in page count whenever the search query or source changes
   useEffect(() => {
@@ -134,7 +141,7 @@ export function StickerPickerModal({
   }, [hasMoreBuiltInStickers, visibleBuiltInStickers.length, source]);
 
   useEffect(() => {
-    if (source !== "custom") {
+    if (source !== "custom" && source !== "favorites") {
       return;
     }
 
@@ -171,6 +178,32 @@ export function StickerPickerModal({
     onClose();
   };
 
+  const toggleCustomStickerFavorite = async (sticker: CustomSticker) => {
+    const nextValue = !sticker.isFavorite;
+    setCustomStickers((current) =>
+      current.map((candidate) =>
+        candidate.id === sticker.id ? { ...candidate, isFavorite: nextValue } : candidate,
+      ),
+    );
+    try {
+      const updated = await apiClient.setCustomStickerFavorite(sticker.id, {
+        isFavorite: nextValue,
+      });
+      setCustomStickers((current) =>
+        current.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
+      );
+    } catch (favoriteError) {
+      setCustomStickers((current) =>
+        current.map((candidate) =>
+          candidate.id === sticker.id
+            ? { ...candidate, isFavorite: sticker.isFavorite }
+            : candidate,
+        ),
+      );
+      setCustomError(getErrorMessage(favoriteError));
+    }
+  };
+
   return (
     <AppModal title="Add sticker" onClose={onClose}>
       <div className="photo-picker-modal">
@@ -184,6 +217,22 @@ export function StickerPickerModal({
             onClick={() => setSource("custom")}
           >
             Stickers
+          </Button>
+          <Button
+            type="button"
+            appearance={source === "favorites" ? "primary" : "subtle"}
+            role="tab"
+            aria-selected={source === "favorites"}
+            icon={<StarRegular />}
+            className={`sticker-picker-source-tab${source === "favorites" ? " sticker-picker-source-tab-selected" : ""}`}
+            onClick={() => setSource("favorites")}
+          >
+            Favorites
+            {favoriteCount > 0 ? (
+              <span className="sticker-picker-source-tab-count" aria-hidden="true">
+                {favoriteCount}
+              </span>
+            ) : null}
           </Button>
           <Button
             type="button"
@@ -275,41 +324,58 @@ export function StickerPickerModal({
                 {customError}
               </p>
             ) : null}
-            {!customLoading && !customError && stickerPacks.length === 0 ? (
+            {!customLoading && !customError && source === "custom" && stickerPacks.length === 0 ? (
               <p className="empty-state">
                 You don't have any sticker packs yet. Create one from the Stickers page.
               </p>
             ) : null}
             {!customLoading &&
             !customError &&
-            stickerPacks.length > 0 &&
+            (source === "favorites" || stickerPacks.length > 0) &&
             filteredCustomStickers.length === 0 ? (
               <p className="empty-state">
-                {customStickers.length === 0
-                  ? "No custom stickers uploaded yet."
-                  : "No custom stickers match your filters."}
+                {source === "favorites"
+                  ? "You haven't starred any stickers yet. Tap the star on a sticker to add it here."
+                  : customStickers.length === 0
+                    ? "No custom stickers uploaded yet."
+                    : "No custom stickers match your filters."}
               </p>
             ) : null}
             {!customLoading && filteredCustomStickers.length > 0 ? (
               <div className="photo-picker-grid sticker-picker-grid">
                 {filteredCustomStickers.map((sticker) => (
-                  <button
-                    type="button"
-                    key={sticker.id}
-                    className="photo-picker-item sticker-picker-item"
-                    aria-label={`Add ${sticker.name}`}
-                    onClick={() => addCustomSticker(sticker)}
-                  >
-                    <img src={sticker.contentUrl} alt="" loading="lazy" decoding="async" />
-                    <span className="photo-picker-item-copy">
-                      <span>{sticker.name}</span>
-                      <span>{packTitleById.get(sticker.packId) ?? "Custom"}</span>
-                    </span>
-                    <span className="primary-button photo-picker-add-indicator">
-                      <AddRegular />
-                      Add
-                    </span>
-                  </button>
+                  <div className="photo-picker-item-wrap" key={sticker.id}>
+                    <button
+                      type="button"
+                      className="photo-picker-item sticker-picker-item"
+                      aria-label={`Add ${sticker.name}`}
+                      onClick={() => addCustomSticker(sticker)}
+                    >
+                      <img src={sticker.contentUrl} alt="" loading="lazy" decoding="async" />
+                      <span className="photo-picker-item-copy">
+                        <span>{sticker.name}</span>
+                        <span>{packTitleById.get(sticker.packId) ?? "Custom"}</span>
+                      </span>
+                      <span className="primary-button photo-picker-add-indicator">
+                        <AddRegular />
+                        Add
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="asset-tile-favorite photo-picker-item-favorite"
+                      aria-label={
+                        sticker.isFavorite
+                          ? `Remove ${sticker.name} from favorites`
+                          : `Add ${sticker.name} to favorites`
+                      }
+                      aria-pressed={sticker.isFavorite}
+                      title={sticker.isFavorite ? "Unfavorite sticker" : "Favorite sticker"}
+                      onClick={() => toggleCustomStickerFavorite(sticker)}
+                    >
+                      {sticker.isFavorite ? <StarFilled /> : <StarRegular />}
+                    </button>
+                  </div>
                 ))}
               </div>
             ) : null}

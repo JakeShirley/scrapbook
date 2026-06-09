@@ -29,6 +29,7 @@ export const customStickerResponseSchema = z
     byteSize: z.number().int().nonnegative().openapi({ example: 12_834 }),
     width: z.number().int().positive().nullable().openapi({ example: 512 }),
     height: z.number().int().positive().nullable().openapi({ example: 512 }),
+    isFavorite: z.boolean().openapi({ example: false }),
     contentUrl: z
       .string()
       .openapi({ example: "/api/v1/custom-stickers/custom_sticker_018.../content" }),
@@ -72,6 +73,12 @@ export const stickerPackPatchRequestSchema = z
     sourceUrl: optionalTrimmedField(2048),
   })
   .openapi("StickerPackPatchRequest");
+
+export const customStickerFavoritePatchRequestSchema = z
+  .object({
+    isFavorite: z.boolean(),
+  })
+  .openapi("CustomStickerFavoritePatchRequest");
 
 const stickerPackParamsSchema = z.object({
   packId: z
@@ -162,6 +169,9 @@ export type CustomStickerResponse = z.infer<typeof customStickerResponseSchema>;
 export type CustomStickerListResponse = z.infer<typeof customStickerListResponseSchema>;
 export type StickerPackCreateRequest = z.infer<typeof stickerPackCreateRequestSchema>;
 export type StickerPackPatchRequest = z.infer<typeof stickerPackPatchRequestSchema>;
+export type CustomStickerFavoritePatchRequest = z.infer<
+  typeof customStickerFavoritePatchRequestSchema
+>;
 
 export const stickerPackListRoute = createRoute({
   method: "get",
@@ -373,6 +383,34 @@ export const customStickerContentRoute = createRoute({
     200: {
       description: "Returns the raw image bytes for a custom sticker.",
       content: customStickerBinaryContent,
+    },
+    ...stickerPackJsonResponses,
+  },
+});
+
+export const customStickerFavoriteRoute = createRoute({
+  method: "patch",
+  path: "/api/v1/custom-stickers/{stickerId}/favorite",
+  tags: ["StickerPacks"],
+  request: {
+    params: customStickerParamsSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: customStickerFavoritePatchRequestSchema,
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    200: {
+      description: "Updates the favorite flag on a custom sticker.",
+      content: {
+        "application/json": {
+          schema: customStickerResponseSchema,
+        },
+      },
     },
     ...stickerPackJsonResponses,
   },

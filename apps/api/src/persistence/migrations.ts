@@ -258,6 +258,13 @@ CREATE INDEX custom_stickers_pack_id_idx ON custom_stickers (pack_id);
 CREATE UNIQUE INDEX custom_stickers_storage_key_unique ON custom_stickers (storage_key);
 `,
   },
+  {
+    id: "0011_add_sticker_favorites",
+    sql: `
+ALTER TABLE custom_stickers ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0 CHECK (is_favorite IN (0, 1));
+CREATE INDEX custom_stickers_is_favorite_idx ON custom_stickers (account_id, is_favorite);
+`,
+  },
 ];
 
 export const ensureMigrationTable = (sqlite: Database.Database) => {
