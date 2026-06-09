@@ -1491,7 +1491,7 @@ export function BookEditorView() {
           inspector={
             selectedLayer && activePageId
               ? {
-                  title: `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`,
+                  title: `Edit ${formatLayerKindLabel(selectedLayer.kind)}`,
                   content: (
                     <LayerInspector
                       layer={selectedLayer}

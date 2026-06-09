@@ -403,7 +403,7 @@ export function EditorView() {
           inspector={
             selectedLayer
               ? {
-                  title: `Edit ${formatLayerKindLabel(selectedLayer.kind)} layer`,
+                  title: `Edit ${formatLayerKindLabel(selectedLayer.kind)}`,
                   content: (
                     <LayerInspector
                       layer={selectedLayer}

@@ -599,7 +599,7 @@ const scenarios: ScreenshotScenario[] = [
     path: "/books/book_summer",
     prepare: async (page) => {
       await openLayerEditor(page, "Page 1", "photo");
-      const dialog = page.getByRole("dialog", { name: "Edit Photo layer" });
+      const dialog = page.getByRole("dialog", { name: /^Edit Photo( layer)?$/ });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Photo" })).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Frame" })).toBeVisible();
@@ -612,7 +612,7 @@ const scenarios: ScreenshotScenario[] = [
     path: "/books/book_summer",
     prepare: async (page) => {
       await openLayerEditor(page, "Page 2", "washiTape");
-      const dialog = page.getByRole("dialog", { name: "Edit Washi tape layer" });
+      const dialog = page.getByRole("dialog", { name: /^Edit Washi tape( layer)?$/ });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
     },
@@ -625,7 +625,7 @@ const scenarios: ScreenshotScenario[] = [
     prepare: async (page) => {
       await navigateToSpread(page, "Spread 3 of 3");
       await openLayerEditor(page, "Page 5", "washiTape");
-      const dialog = page.getByRole("dialog", { name: "Edit Washi tape layer" });
+      const dialog = page.getByRole("dialog", { name: /^Edit Washi tape( layer)?$/ });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Washi tape" })).toBeVisible();
     },
@@ -637,7 +637,7 @@ const scenarios: ScreenshotScenario[] = [
     path: "/books/book_summer",
     prepare: async (page) => {
       await openLayerEditor(page, "Page 1", "text");
-      const dialog = page.getByRole("dialog", { name: "Edit Text layer" });
+      const dialog = page.getByRole("dialog", { name: /^Edit Text( layer)?$/ });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
       await expect(dialog.getByRole("textbox", { name: "Text" })).toBeVisible();
@@ -651,7 +651,7 @@ const scenarios: ScreenshotScenario[] = [
     prepare: async (page) => {
       await navigateToSpread(page, "Spread 3 of 3");
       await openLayerEditor(page, "Page 6", "text");
-      const dialog = page.getByRole("dialog", { name: "Edit Text layer" });
+      const dialog = page.getByRole("dialog", { name: /^Edit Text( layer)?$/ });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("group", { name: "Text", exact: true })).toBeVisible();
     },
