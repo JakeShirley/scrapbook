@@ -1259,6 +1259,7 @@ export class StickerPackRepository {
       height: input.height,
       checksumSha256: input.checksumSha256,
       sortOrder: nextSortOrder,
+      isFavorite: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -1301,6 +1302,42 @@ export class StickerPackRepository {
       .run();
 
     return existing;
+  }
+
+  setStickerFavorite(input: {
+    accountId: string;
+    stickerId: string;
+    isFavorite: boolean;
+  }): CustomStickerRecord | null {
+    const existing = this.findStickerByIdForAccount(input.accountId, input.stickerId);
+
+    if (!existing) {
+      return null;
+    }
+
+    if (existing.isFavorite === input.isFavorite) {
+      return existing;
+    }
+
+    const timestamp = now(this.clock);
+    this.db
+      .update(customStickers)
+      .set({ isFavorite: input.isFavorite, updatedAt: timestamp })
+      .where(
+        and(eq(customStickers.accountId, input.accountId), eq(customStickers.id, input.stickerId)),
+      )
+      .run();
+
+    return { ...existing, isFavorite: input.isFavorite, updatedAt: timestamp };
+  }
+
+  listFavoriteStickersForAccount(accountId: string): CustomStickerRecord[] {
+    return this.db
+      .select()
+      .from(customStickers)
+      .where(and(eq(customStickers.accountId, accountId), eq(customStickers.isFavorite, true)))
+      .orderBy(asc(customStickers.sortOrder))
+      .all();
   }
 }
 

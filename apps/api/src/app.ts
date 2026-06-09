@@ -71,6 +71,7 @@ import {
   serverLogListResponseSchema,
   serverLogListRoute,
   customStickerContentRoute,
+  customStickerFavoriteRoute,
   customStickerListResponseSchema,
   customStickerListRoute,
   customStickerResponseSchema,
@@ -414,6 +415,7 @@ const toCustomStickerResponse = (sticker: CustomStickerRecord): CustomStickerRes
     byteSize: sticker.byteSize,
     width: sticker.width,
     height: sticker.height,
+    isFavorite: sticker.isFavorite,
     contentUrl: buildCustomStickerContentUrl(sticker.id),
     createdAt: sticker.createdAt,
     updatedAt: sticker.updatedAt,
@@ -2316,6 +2318,42 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
       "content-length": String(buffer.byteLength),
       "content-type": sticker.mimeType,
     });
+  });
+
+  app.openapi(customStickerFavoriteRoute, (context) => {
+    if (!options.repositories) {
+      return context.json(
+        createErrorResponse(context, "sticker_packs_unavailable", "Sticker packs are unavailable"),
+        500,
+      );
+    }
+
+    const authSession = getAuthenticatedSession(context, options.repositories);
+
+    if (!authSession) {
+      return context.json(
+        createErrorResponse(context, "not_authenticated", "Authentication is required"),
+        401,
+      );
+    }
+
+    const { stickerId } = context.req.valid("param");
+    const { isFavorite } = context.req.valid("json");
+
+    const updated = options.repositories.stickerPacks.setStickerFavorite({
+      accountId: authSession.account.id,
+      stickerId,
+      isFavorite,
+    });
+
+    if (!updated) {
+      return context.json(
+        createErrorResponse(context, "custom_sticker_not_found", "Custom sticker not found"),
+        404,
+      );
+    }
+
+    return context.json(toCustomStickerResponse(updated), 200);
   });
 
   app.openapi(exportCreateRoute, async (context) => {

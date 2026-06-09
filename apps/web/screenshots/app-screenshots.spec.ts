@@ -176,6 +176,7 @@ const customStickerFixtures = [
     byteSize: 12_834,
     width: 512,
     height: 512,
+    isFavorite: true,
     contentUrl: "/api/v1/custom-stickers/custom_sticker_daisy/content",
     createdAt: now,
     updatedAt: now,
@@ -188,6 +189,7 @@ const customStickerFixtures = [
     byteSize: 14_204,
     width: 512,
     height: 512,
+    isFavorite: false,
     contentUrl: "/api/v1/custom-stickers/custom_sticker_rose/content",
     createdAt: now,
     updatedAt: now,
@@ -200,6 +202,7 @@ const customStickerFixtures = [
     byteSize: 11_504,
     width: 512,
     height: 512,
+    isFavorite: false,
     contentUrl: "/api/v1/custom-stickers/custom_sticker_tulip/content",
     createdAt: now,
     updatedAt: now,
@@ -212,6 +215,7 @@ const customStickerFixtures = [
     byteSize: 1_842,
     width: 320,
     height: 200,
+    isFavorite: true,
     contentUrl: "/api/v1/custom-stickers/custom_sticker_arrow/content",
     createdAt: now,
     updatedAt: now,
@@ -224,6 +228,7 @@ const customStickerFixtures = [
     byteSize: 2_104,
     width: 320,
     height: 320,
+    isFavorite: false,
     contentUrl: "/api/v1/custom-stickers/custom_sticker_starburst/content",
     createdAt: now,
     updatedAt: now,
@@ -907,6 +912,30 @@ async function installMockApi(page: Page, authenticated: boolean) {
       const packId = url.searchParams.get("packId");
       const filtered = packId ? (customStickersByPack[packId] ?? []) : customStickerFixtures;
       await route.fulfill({ json: { stickers: filtered } });
+      return;
+    }
+
+    if (
+      pathName.startsWith("/api/v1/custom-stickers/") &&
+      pathName.endsWith("/favorite") &&
+      route.request().method() === "PATCH"
+    ) {
+      const stickerId = pathName.split("/").at(-2);
+      const sticker = customStickerFixtures.find((entry) => entry.id === stickerId);
+      if (!sticker) {
+        await route.fulfill({ json: errorResponse("Custom sticker not found."), status: 404 });
+        return;
+      }
+      let isFavorite = !sticker.isFavorite;
+      try {
+        const body = route.request().postDataJSON() as { isFavorite?: boolean } | null;
+        if (body && typeof body.isFavorite === "boolean") {
+          isFavorite = body.isFavorite;
+        }
+      } catch {
+        // tolerate missing/invalid body
+      }
+      await route.fulfill({ json: { ...sticker, isFavorite } });
       return;
     }
 

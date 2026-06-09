@@ -267,11 +267,13 @@ export const customStickers = sqliteTable(
     height: integer("height"),
     checksumSha256: text("checksum_sha256").notNull(),
     sortOrder: integer("sort_order").notNull(),
+    isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
     ...timestampColumns(),
   },
   (table) => [
     index("custom_stickers_account_id_idx").on(table.accountId),
     index("custom_stickers_pack_id_idx").on(table.packId),
+    index("custom_stickers_is_favorite_idx").on(table.accountId, table.isFavorite),
     uniqueIndex("custom_stickers_storage_key_unique").on(table.storageKey),
   ],
 );
