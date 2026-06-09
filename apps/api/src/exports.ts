@@ -1,4 +1,4 @@
-import type { ExportFormat, ExportPreset } from "@scrapbook/api-contract";
+import type { ExportFormat, ExportPreset } from "@zakka/api-contract";
 
 import { rasterizeBookPngZip } from "./export-rendering/book-pages.js";
 import { rasterizeBookSheet } from "./export-rendering/book-sheet.js";

@@ -1,4 +1,4 @@
-import type { PageLayer, PhotoLayer, WashiTapeLayer } from "@scrapbook/editor-core";
+import type { PageLayer, PhotoLayer, WashiTapeLayer } from "@zakka/editor-core";
 
 import { NumericInput } from "../../components/NumericInput";
 import { PhotoControls } from "./PhotoControls";

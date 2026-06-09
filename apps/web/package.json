@@ -1,5 +1,5 @@
 {
-  "name": "@scrapbook/web",
+  "name": "@zakka/web",
   "version": "0.0.0-development",
   "private": true,
   "type": "module",
@@ -7,15 +7,15 @@
     "build": "pnpm -w run generate:changelog && tsc -p tsconfig.json && vite build",
     "dev": "pnpm -w run generate:changelog && vite --host 127.0.0.1",
     "preview": "vite preview --host 127.0.0.1",
-    "screenshots": "pnpm -w run generate:changelog && pnpm --filter @scrapbook/editor-core build && pnpm --filter @scrapbook/api-contract build && pnpm screenshots:capture",
+    "screenshots": "pnpm -w run generate:changelog && pnpm --filter @zakka/editor-core build && pnpm --filter @zakka/api-contract build && pnpm screenshots:capture",
     "screenshots:capture": "playwright test --config playwright.screenshots.config.ts",
     "typecheck": "pnpm -w run generate:changelog && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.73.8",
     "@fluentui/react-icons": "^2.0.326",
-    "@scrapbook/api-contract": "workspace:*",
-    "@scrapbook/editor-core": "workspace:*",
+    "@zakka/api-contract": "workspace:*",
+    "@zakka/editor-core": "workspace:*",
     "marked": "^18.0.4",
     "react": "19.2.6",
     "react-dom": "19.2.6",

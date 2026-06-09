@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = 5174;
-const webRoot = process.env.SCRAPBOOK_SCREENSHOT_WORKSPACE_ROOT
-  ? `${process.env.SCRAPBOOK_SCREENSHOT_WORKSPACE_ROOT}/apps/web`
+const webRoot = process.env.ZAKKA_SCREENSHOT_WORKSPACE_ROOT
+  ? `${process.env.ZAKKA_SCREENSHOT_WORKSPACE_ROOT}/apps/web`
   : ".";
 const webServerCommand = `cd ${shellQuote(webRoot)} && pnpm exec vite --host 127.0.0.1 --port ${port}`;
 

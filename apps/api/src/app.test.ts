@@ -11,9 +11,9 @@ import {
   healthResponseSchema,
   pageResponseSchema,
   serverLogListResponseSchema,
-} from "@scrapbook/api-contract";
-import { createPageDocument, createPhotoLayer, createTextLayer } from "@scrapbook/editor-core";
-import { makeFixedClock } from "@scrapbook/test-utils";
+} from "@zakka/api-contract";
+import { createPageDocument, createPhotoLayer, createTextLayer } from "@zakka/editor-core";
+import { makeFixedClock } from "@zakka/test-utils";
 import sharp from "sharp";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -226,7 +226,7 @@ describe("api app", () => {
     const body = healthResponseSchema.parse(await response.json());
 
     expect(body.status).toBe("ok");
-    expect(body.service).toBe("scrapbook-api");
+    expect(body.service).toBe("zakka-api");
   });
 
   it("uses the shared error envelope for missing routes", async () => {

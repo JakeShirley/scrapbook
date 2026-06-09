@@ -59,16 +59,16 @@ importers:
       '@hono/zod-openapi':
         specifier: 1.4.0
         version: 1.4.0(hono@4.12.19)(zod@4.4.3)
-      '@scrapbook/api-contract':
+      '@zakka/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
-      '@scrapbook/config':
+      '@zakka/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@scrapbook/domain':
+      '@zakka/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@scrapbook/editor-core':
+      '@zakka/editor-core':
         specifier: workspace:*
         version: link:../../packages/editor-core
       better-sqlite3:
@@ -90,12 +90,12 @@ importers:
         specifier: ^0.34.5
         version: 0.34.5
     devDependencies:
-      '@scrapbook/test-utils':
-        specifier: workspace:*
-        version: link:../../packages/test-utils
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13
+      '@zakka/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
 
   apps/web:
     dependencies:
@@ -105,10 +105,10 @@ importers:
       '@fluentui/react-icons':
         specifier: ^2.0.326
         version: 2.0.326(react@19.2.6)
-      '@scrapbook/api-contract':
+      '@zakka/api-contract':
         specifier: workspace:*
         version: link:../../packages/api-contract
-      '@scrapbook/editor-core':
+      '@zakka/editor-core':
         specifier: workspace:*
         version: link:../../packages/editor-core
       marked:
@@ -148,7 +148,7 @@ importers:
       '@hono/zod-openapi':
         specifier: 1.4.0
         version: 1.4.0(hono@4.12.19)(zod@4.4.3)
-      '@scrapbook/editor-core':
+      '@zakka/editor-core':
         specifier: workspace:*
         version: link:../editor-core
       zod:

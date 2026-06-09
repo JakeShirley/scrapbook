@@ -1,4 +1,4 @@
-import type { ExportFormat, ExportPreset } from "@scrapbook/api-contract";
+import type { ExportFormat, ExportPreset } from "@zakka/api-contract";
 import sharp from "sharp";
 
 import { checksumSha256 } from "./checksums.js";

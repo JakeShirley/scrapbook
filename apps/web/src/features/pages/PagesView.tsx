@@ -1,6 +1,6 @@
 import { Button } from "@fluentui/react-components";
 import { AddRegular } from "@fluentui/react-icons";
-import { createPageDocument } from "@scrapbook/editor-core";
+import { createPageDocument } from "@zakka/editor-core";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 

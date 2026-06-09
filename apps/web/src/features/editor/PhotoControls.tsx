@@ -1,6 +1,6 @@
 import { Button } from "@fluentui/react-components";
 import { PageFitRegular } from "@fluentui/react-icons";
-import { type PhotoLayer, resetPhotoLayerEdits } from "@scrapbook/editor-core";
+import { type PhotoLayer, resetPhotoLayerEdits } from "@zakka/editor-core";
 
 import { NumericInput } from "../../components/NumericInput";
 

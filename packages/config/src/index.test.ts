@@ -9,17 +9,17 @@ describe("loadConfig", () => {
     expect(config.NODE_ENV).toBe("development");
     expect(config.API_PORT).toBe(4000);
     expect(config.SESSION_COOKIE_SECURE).toBeUndefined();
-    expect(config.SCRAPBOOK_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/storage\/dev$/);
+    expect(config.ZAKKA_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/storage\/dev$/);
   });
 
   it("defaults production data to the container mount path", () => {
     const config = loadConfig({ NODE_ENV: "production" });
 
-    expect(config.SCRAPBOOK_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/data\/scrapbook$/);
+    expect(config.ZAKKA_DATA_DIR.replaceAll("\\", "/")).toMatch(/\/data\/zakka$/);
   });
 
   it("leaves session cookie security in auto mode for HTTPS web origins", () => {
-    const config = loadConfig({ NODE_ENV: "production", WEB_ORIGIN: "https://scrapbook.test" });
+    const config = loadConfig({ NODE_ENV: "production", WEB_ORIGIN: "https://zakka.test" });
 
     expect(config.SESSION_COOKIE_SECURE).toBeUndefined();
   });
@@ -32,7 +32,7 @@ describe("loadConfig", () => {
     const localHttpConfig = loadConfig({
       NODE_ENV: "production",
       SESSION_COOKIE_SECURE: "false",
-      WEB_ORIGIN: "https://scrapbook.test",
+      WEB_ORIGIN: "https://zakka.test",
     });
 
     expect(secureConfig.SESSION_COOKIE_SECURE).toBe(true);

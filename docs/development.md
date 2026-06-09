@@ -20,7 +20,7 @@ Copy `.env.example` to `.env` if local settings need to differ from the defaults
 pnpm dev
 pnpm dev:api
 pnpm dev:web
-pnpm --filter @scrapbook/api db:migrate
+pnpm --filter @zakka/api db:migrate
 pnpm format:check
 pnpm lint
 pnpm typecheck
@@ -32,7 +32,7 @@ pnpm release:preview
 
 The API health endpoint is available at `http://127.0.0.1:4000/api/v1/health` when the API dev server is running. The web client runs at `http://127.0.0.1:5173`.
 
-The API applies SQLite migrations on startup. To apply migrations without starting the server, run `pnpm --filter @scrapbook/api db:migrate`.
+The API applies SQLite migrations on startup. To apply migrations without starting the server, run `pnpm --filter @zakka/api db:migrate`.
 
 ## App Screenshots
 
@@ -44,10 +44,10 @@ pnpm screenshots
 
 The screenshot runner starts the Vite web app, mocks the API with representative fixture data, and writes desktop and mobile PNGs for each top-level feature to `docs/screenshots/`.
 
-Screenshot PNGs are generated artifacts and are intentionally ignored by Git. To write them somewhere else, set `SCRAPBOOK_SCREENSHOT_DIR`:
+Screenshot PNGs are generated artifacts and are intentionally ignored by Git. To write them somewhere else, set `ZAKKA_SCREENSHOT_DIR`:
 
 ```sh
-SCRAPBOOK_SCREENSHOT_DIR=/tmp/scrapbook-screenshots pnpm screenshots
+ZAKKA_SCREENSHOT_DIR=/tmp/zakka-screenshots pnpm screenshots
 ```
 
 Pull requests run the App Visual Diffs workflow. It renders screenshots for the merge base and the pull request head, compares the PNGs, uploads the comparison artifact, and updates a pull request comment with Before, After, and Diff images when visual changes are detected.
@@ -60,7 +60,7 @@ Run the local API container with persistent application data:
 docker compose up --build
 ```
 
-The Compose service exposes the web app and API on `http://127.0.0.1:4000` and mounts the `scrapbook-data` Docker volume at `/data/scrapbook` inside the container. That path holds SQLite files, page document JSON files, uploads, variants, previews, and exports.
+The Compose service exposes the web app and API on `http://127.0.0.1:4000` and mounts the `zakka-data` Docker volume at `/data/zakka` inside the container. That path holds SQLite files, page document JSON files, uploads, variants, previews, and exports.
 
 See [Local Data](local-data.md) for backup, restore, and cleanup notes for the SQLite database and managed disk storage directories.
 

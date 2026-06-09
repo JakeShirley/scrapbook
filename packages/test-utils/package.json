@@ -1,5 +1,5 @@
 {
-  "name": "@scrapbook/test-utils",
+  "name": "@zakka/test-utils",
   "version": "0.0.0-development",
   "private": true,
   "type": "module",

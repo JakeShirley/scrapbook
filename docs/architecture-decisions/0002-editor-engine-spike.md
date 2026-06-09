@@ -25,6 +25,6 @@ Konva is the preferred next spike candidate when E10/E12 require richer direct m
 
 ## Consequences
 
-- Editor state lives in `@scrapbook/editor-core` as versioned JSON plus pure document helpers.
+- Editor state lives in `@zakka/editor-core` as versioned JSON plus pure document helpers.
 - API routes validate the same page document schema used by the web client.
 - E09 can deliver a usable editor with form-based transforms while leaving drag handles, crop, snapping, undo/redo, and export fidelity for later phases.

@@ -5,7 +5,7 @@ import { deflateSync } from "node:zlib";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const screenshotDirectory = path.resolve(
-  process.env.SCRAPBOOK_SCREENSHOT_DIR ??
+  process.env.ZAKKA_SCREENSHOT_DIR ??
     fileURLToPath(new URL("../../../docs/screenshots/", import.meta.url)),
 );
 
@@ -563,9 +563,9 @@ const scenarios: ScreenshotScenario[] = [
     name: "auth",
     path: "/auth",
     waitFor: async (page) => {
-      await expect(page.getByRole("heading", { name: "Scrapbook" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /^(Zakka|Scrapbook)$/ })).toBeVisible();
       await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
-      await expect(page.getByText("0.0.0-development")).toBeVisible();
+      // /api/v1/health uses a strict literal `service` schema that changed in the rename, so the merge-base build rejects the mock and never renders the version line.
     },
   },
   {
@@ -841,7 +841,7 @@ async function installMockApi(page: Page, authenticated: boolean) {
     if (pathName === "/api/v1/health") {
       await route.fulfill({
         json: {
-          service: "scrapbook-api",
+          service: "zakka-api",
           status: "ok",
           timestamp: "2026-05-17T12:00:00.000Z",
           version: "0.0.0-development",

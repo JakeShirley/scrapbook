@@ -1,4 +1,4 @@
-import type { PageLayer } from "@scrapbook/editor-core";
+import type { PageLayer } from "@zakka/editor-core";
 
 export type CanvasPoint = { x: number; y: number };
 export type ResizeHandle = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";

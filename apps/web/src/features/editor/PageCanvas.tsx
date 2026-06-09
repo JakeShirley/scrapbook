@@ -20,7 +20,7 @@ import {
   renderPageDocumentSvg,
   type StickerSvg,
   type WashiTapeLayer,
-} from "@scrapbook/editor-core";
+} from "@zakka/editor-core";
 import type {
   CSSProperties,
   DragEvent as ReactDragEvent,
@@ -506,7 +506,7 @@ export function PageCanvas({
 
     let isCancelled = false;
 
-    import("@scrapbook/editor-core/stickers").then(({ getStickerSvg }) => {
+    import("@zakka/editor-core/stickers").then(({ getStickerSvg }) => {
       if (isCancelled) {
         return;
       }

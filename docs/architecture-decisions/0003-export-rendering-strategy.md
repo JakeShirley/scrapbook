@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Scrapbook needs export output before the editor has a dedicated canvas rendering engine. The current editor stores a portable page document JSON model and renders it in the browser with DOM/CSS. Export work must preserve account ownership, avoid mutating source assets, and support both single pages and ordered books.
+Zakka needs export output before the editor has a dedicated canvas rendering engine. The current editor stores a portable page document JSON model and renders it in the browser with DOM/CSS. Export work must preserve account ownership, avoid mutating source assets, and support both single pages and ordered books.
 
 ## Decision
 
@@ -21,4 +21,4 @@ The API converts saved page documents into SVG, embeds account-owned original as
 - Export output is generated from saved page JSON, so users must save editor changes before exporting.
 - Rendering parity is intentionally close enough for the current DOM editor, but advanced CSS-only effects may need explicit SVG support as the editor grows.
 - Export jobs are tracked in SQLite and completed synchronously for now. The repository and route shape can move to a background queue later without changing the client contract.
-- Output files are stored under the `exports/` storage area and can be backed up with the rest of `SCRAPBOOK_DATA_DIR`.
+- Output files are stored under the `exports/` storage area and can be backed up with the rest of `ZAKKA_DATA_DIR`.

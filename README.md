@@ -1,6 +1,6 @@
-# Scrapbook
+# Zakka
 
-Scrapbook is a self-hosted digital scrapbooking web app for creating photo books and scrapbook pages from your own images. It gives you a browser-based workspace for uploading photos, arranging pages, editing books, and exporting finished work while keeping the application data in storage you control.
+Zakka (Japanese: 雑貨 "miscellaneous goods") is a self-hosted digital scrapbooking web app for creating photo books and scrapbook pages from your own images. It gives you a browser-based workspace for uploading photos, arranging pages, editing books, and exporting finished work while keeping the application data in storage you control.
 
 The production build is packaged as a single Docker image. The container runs the API, serves the built web app, applies SQLite migrations on startup, and stores durable data in a mounted data directory.
 
@@ -42,24 +42,24 @@ Open the app at:
 http://localhost:4000
 ```
 
-Docker Compose stores application data in the `scrapbook-data` Docker volume and mounts it at `/data/scrapbook` inside the container.
+Docker Compose stores application data in the `zakka-data` Docker volume and mounts it at `/data/zakka` inside the container.
 
 ## Run The Docker Image
 
 Pull and run the published image:
 
 ```sh
-docker pull ghcr.io/jakeshirley/scrapbook:latest
-docker volume create scrapbook-data
+docker pull ghcr.io/jakeshirley/zakka:latest
+docker volume create zakka-data
 docker run --detach \
-  --name scrapbook \
+  --name zakka \
   --publish 4000:4000 \
   --env NODE_ENV=production \
   --env API_HOST=0.0.0.0 \
   --env API_PORT=4000 \
   --env WEB_ORIGIN=http://localhost:4000 \
-  --volume scrapbook-data:/data/scrapbook \
-  ghcr.io/jakeshirley/scrapbook:latest
+  --volume zakka-data:/data/zakka \
+  ghcr.io/jakeshirley/zakka:latest
 ```
 
 Then visit `http://localhost:4000`.
@@ -72,7 +72,7 @@ curl --fail http://localhost:4000/api/v1/health
 
 ## Configuration
 
-Scrapbook is configured with environment variables.
+Zakka is configured with environment variables.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
@@ -82,16 +82,16 @@ Scrapbook is configured with environment variables.
 | `WEB_ORIGIN` | `http://localhost:5173` | Public browser origin for the deployed app. For Docker on localhost, use `http://localhost:4000`; for LAN access, use the exact local HTTP origin users open in their browser. |
 | `SESSION_COOKIE_SECURE` | Auto-detected per request | Whether browser session cookies require HTTPS. By default, HTTPS requests and requests with `X-Forwarded-Proto: https` receive `Secure` cookies; local HTTP requests do not. |
 
-For a public deployment, set `WEB_ORIGIN` to the HTTPS origin users will open in their browser, such as `https://scrapbook.example.com`.
+For a public deployment, set `WEB_ORIGIN` to the HTTPS origin users will open in their browser, such as `https://zakka.example.com`.
 
 If the app is served by both a local HTTP URL and a remote HTTPS reverse proxy, leave `SESSION_COOKIE_SECURE` unset and configure the proxy to pass `X-Forwarded-Proto`. Browsers keep separate host-only session cookies for the local IP and remote domain.
 
 ## Data And Backups
 
-The data directory contains the SQLite database and all managed files. In Docker this is `/data/scrapbook`.
+The data directory contains the SQLite database and all managed files. In Docker this is `/data/zakka`.
 
 ```text
-/data/scrapbook/
+/data/zakka/
   scrapbook.sqlite
   scrapbook.sqlite-shm
   scrapbook.sqlite-wal
@@ -102,7 +102,7 @@ The data directory contains the SQLite database and all managed files. In Docker
   exports/
 ```
 
-Back up the entire data directory, not only the SQLite file. For Docker, back up the volume mounted at `/data/scrapbook`. Stop the container before filesystem backups so SQLite and stored files are captured together.
+Back up the entire data directory, not only the SQLite file. For Docker, back up the volume mounted at `/data/zakka`. Stop the container before filesystem backups so SQLite and stored files are captured together.
 
 To upgrade, pull the new image, stop the old container, and start the new one with the same data volume. Migrations run automatically on startup.
 
@@ -148,7 +148,7 @@ pnpm build
 Apply database migrations without starting the API:
 
 ```sh
-pnpm --filter @scrapbook/api db:migrate
+pnpm --filter @zakka/api db:migrate
 ```
 
 ## Project Layout

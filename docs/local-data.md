@@ -1,11 +1,11 @@
 # Local Data
 
-The API stores durable local data under `SCRAPBOOK_DATA_DIR`. The default is `./storage/dev`, or `/data/scrapbook` when `NODE_ENV=production`; Docker Compose stores container data at `/data/scrapbook` backed by the `scrapbook-data` volume.
+The API stores durable local data under `ZAKKA_DATA_DIR`. The default is `./storage/dev`, or `/data/zakka` when `NODE_ENV=production`; Docker Compose stores container data at `/data/zakka` backed by the `zakka-data` volume.
 
 ## Layout
 
 ```text
-SCRAPBOOK_DATA_DIR/
+ZAKKA_DATA_DIR/
   scrapbook.sqlite
   scrapbook.sqlite-shm
   scrapbook.sqlite-wal
@@ -46,21 +46,21 @@ Page create, list, detail, patch, duplicate, and delete routes all resolve recor
 The API runs migrations during startup before accepting requests. To migrate without starting the server, run:
 
 ```sh
-pnpm --filter @scrapbook/api db:migrate
+pnpm --filter @zakka/api db:migrate
 ```
 
 Migrations are idempotent and recorded in the `schema_migrations` table.
 
 ## Backup
 
-Stop the API before making a filesystem backup so SQLite and file storage are captured together. Back up the entire `SCRAPBOOK_DATA_DIR`, including `scrapbook.sqlite`, any `scrapbook.sqlite-wal` or `scrapbook.sqlite-shm` files, `documents/`, and the storage directories.
+Stop the API before making a filesystem backup so SQLite and file storage are captured together. Back up the entire `ZAKKA_DATA_DIR`, including `scrapbook.sqlite`, any `scrapbook.sqlite-wal` or `scrapbook.sqlite-shm` files, `documents/`, and the storage directories.
 
-For Docker Compose, stop the service and archive the `scrapbook-data` volume contents from a temporary container or from Docker Desktop's volume tooling.
+For Docker Compose, stop the service and archive the `zakka-data` volume contents from a temporary container or from Docker Desktop's volume tooling.
 
 ## Restore
 
-Stop the API, replace the current `SCRAPBOOK_DATA_DIR` with the backed-up directory, then start the API again. Startup migrations will apply any schema updates that were added after the backup was taken.
+Stop the API, replace the current `ZAKKA_DATA_DIR` with the backed-up directory, then start the API again. Startup migrations will apply any schema updates that were added after the backup was taken.
 
 ## Cleanup
 
-Local development data is ignored by Git. To reset local state, stop the API and remove `storage/dev` or point `SCRAPBOOK_DATA_DIR` at a fresh directory. For Docker Compose, remove the `scrapbook-data` volume only when you intentionally want to delete all local application data.
+Local development data is ignored by Git. To reset local state, stop the API and remove `storage/dev` or point `ZAKKA_DATA_DIR` at a fresh directory. For Docker Compose, remove the `zakka-data` volume only when you intentionally want to delete all local application data.

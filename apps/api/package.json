@@ -1,5 +1,5 @@
 {
-  "name": "@scrapbook/api",
+  "name": "@zakka/api",
   "version": "0.0.0-development",
   "private": true,
   "type": "module",
@@ -16,10 +16,10 @@
   "dependencies": {
     "@hono/node-server": "2.0.2",
     "@hono/zod-openapi": "1.4.0",
-    "@scrapbook/api-contract": "workspace:*",
-    "@scrapbook/config": "workspace:*",
-    "@scrapbook/domain": "workspace:*",
-    "@scrapbook/editor-core": "workspace:*",
+    "@zakka/api-contract": "workspace:*",
+    "@zakka/config": "workspace:*",
+    "@zakka/domain": "workspace:*",
+    "@zakka/editor-core": "workspace:*",
     "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.45.2",
     "exifr": "^7.1.3",
@@ -28,7 +28,7 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "@scrapbook/test-utils": "workspace:*",
+    "@zakka/test-utils": "workspace:*",
     "@types/better-sqlite3": "^7.6.13"
   }
 }

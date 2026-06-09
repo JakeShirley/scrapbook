@@ -11,7 +11,7 @@ jobs:
     name: Build And Smoke Test
     runs-on: ubuntu-latest
     env:
-      SCRAPBOOK_SMOKE_VERSION: 0.0.0-smoke-test
+      ZAKKA_SMOKE_VERSION: 0.0.0-smoke-test
 
     steps:
       - name: Check out repository
@@ -25,38 +25,38 @@ jobs:
         with:
           context: .
           build-args: |
-            SCRAPBOOK_VERSION=${{ env.SCRAPBOOK_SMOKE_VERSION }}
+            ZAKKA_VERSION=${{ env.ZAKKA_SMOKE_VERSION }}
           load: true
           target: api
-          tags: scrapbook:smoke-test
+          tags: zakka:smoke-test
 
       - name: Start container
         run: |
           docker run --detach --rm \
-            --name scrapbook-smoke-test \
+            --name zakka-smoke-test \
             --publish 4000:4000 \
             --env NODE_ENV=production \
             --env API_HOST=0.0.0.0 \
             --env API_PORT=4000 \
             --env WEB_ORIGIN=http://127.0.0.1:4000 \
-            scrapbook:smoke-test
+            zakka:smoke-test
 
       - name: Check API health
         run: |
           for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:4000/api/v1/health > /tmp/scrapbook-health.json; then
-              cat /tmp/scrapbook-health.json
-              node -e 'const fs = require("node:fs"); const health = JSON.parse(fs.readFileSync("/tmp/scrapbook-health.json", "utf8")); if (health.version !== process.env.SCRAPBOOK_SMOKE_VERSION) { throw new Error(`Expected version ${process.env.SCRAPBOOK_SMOKE_VERSION}, received ${health.version}`); }'
+            if curl --fail --silent http://127.0.0.1:4000/api/v1/health > /tmp/zakka-health.json; then
+              cat /tmp/zakka-health.json
+              node -e 'const fs = require("node:fs"); const health = JSON.parse(fs.readFileSync("/tmp/zakka-health.json", "utf8")); if (health.version !== process.env.ZAKKA_SMOKE_VERSION) { throw new Error(`Expected version ${process.env.ZAKKA_SMOKE_VERSION}, received ${health.version}`); }'
               exit 0
             fi
             sleep 1
           done
-          docker logs scrapbook-smoke-test
+          docker logs zakka-smoke-test
           exit 1
 
       - name: Check web shell
-        run: curl --fail --silent http://127.0.0.1:4000/ > /tmp/scrapbook-index.html
+        run: curl --fail --silent http://127.0.0.1:4000/ > /tmp/zakka-index.html
 
       - name: Stop container
         if: always()
-        run: docker stop scrapbook-smoke-test || true
+        run: docker stop zakka-smoke-test || true

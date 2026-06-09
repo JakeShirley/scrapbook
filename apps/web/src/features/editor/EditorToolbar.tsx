@@ -1,5 +1,5 @@
 import { Field, Input } from "@fluentui/react-components";
-import type { PageDocument } from "@scrapbook/editor-core";
+import type { PageDocument } from "@zakka/editor-core";
 
 import type { EditorSaveStatus } from "./editorTypes";
 

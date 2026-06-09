@@ -123,8 +123,8 @@ Goal: define runtime configuration early and make validation automatic.
 | E03.1 | Add typed runtime config | `Done` | E02.3 | `packages/config` | Runtime config validates local API host, port, web origin, and data directory; production secrets are deferred. |
 | E03.2 | Add environment examples | `Done` | E03.1 | `.env.example` | Supported initial variables have safe placeholders. |
 | E03.3 | Document configuration | `Done` | E03.2 | `docs/configuration.md` | Variables include default, required status, and secret status. |
-| E03.4 | Define local data layout | `Done` | E03.1 | `SCRAPBOOK_DATA_DIR` convention | SQLite, uploads, variants, previews, and exports will root under the configured data directory. |
-| E03.5 | Add local Docker shell | `Done` | E02.6, E03.1 | `Dockerfile`, `docker-compose.yml` | API container exposes port 4000 and mounts persistent application data at `/data/scrapbook`. |
+| E03.4 | Define local data layout | `Done` | E03.1 | `ZAKKA_DATA_DIR` convention | SQLite, uploads, variants, previews, and exports will root under the configured data directory. |
+| E03.5 | Add local Docker shell | `Done` | E02.6, E03.1 | `Dockerfile`, `docker-compose.yml` | API container exposes port 4000 and mounts persistent application data at `/data/zakka`. |
 | E03.6 | Add initial GitHub CI | `Done` | E02.6 | `.github/workflows/ci.yml` | Pull requests run install, format, lint, typecheck, tests, and build. |
 | E03.7 | Configure semantic-release skeleton | `Done` | E03.6 | `.releaserc.json`, release preview workflow | Release preview calculates releases without changing checked-in versions, publishing, or tagging. |
 
@@ -147,7 +147,7 @@ Goal: establish the documented API boundary before feature routes expand.
 | E04.2 | Add request infrastructure | `In progress` | E04.1 | Request IDs and basic error boundary | Unexpected errors use the standard error envelope and request IDs are returned; structured request logging is still pending. |
 | E04.3 | Add API contract package | `Done` | E01.2, E04.1 | `packages/api-contract` | Initial schemas can be shared by server and client tooling. |
 | E04.4 | Add health endpoint | `Done` | E04.1, E04.3 | `GET /api/v1/health` | Health route reports readiness without leaking secrets and has integration coverage. |
-| E04.5 | Generate OpenAPI document | `Done` | E04.3, E04.4 | Runtime OpenAPI 3.1 output | `/api/v1/openapi.json` is available and `pnpm --filter @scrapbook/api openapi:check` passes. |
+| E04.5 | Generate OpenAPI document | `Done` | E04.3, E04.4 | Runtime OpenAPI 3.1 output | `/api/v1/openapi.json` is available and `pnpm --filter @zakka/api openapi:check` passes. |
 | E04.6 | Add API integration tests | `Done` | E04.4 | Initial app tests | Tests use in-memory Hono requests and no persistent state. |
 | E04.7 | Add API contract workflow | `Not started` | E04.5 | `api-contract.yml` or CI job | Route/schema drift fails CI. |
 

@@ -106,7 +106,7 @@ jobs:
         id: metadata
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/jakeshirley/zakka
           tags: |
             type=raw,value=${{ steps.release-version.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -120,7 +120,7 @@ jobs:
         with:
           context: .
           build-args: |
-            SCRAPBOOK_VERSION=${{ steps.release-version.outputs.version }}
+            ZAKKA_VERSION=${{ steps.release-version.outputs.version }}
           push: true
           target: api
           tags: ${{ steps.metadata.outputs.tags }}
@@ -132,6 +132,6 @@ jobs:
         if: steps.release-version.outputs.published == 'true'
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ghcr.io/jakeshirley/zakka
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true

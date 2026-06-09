@@ -1,4 +1,4 @@
-import type { PageLayer } from "@scrapbook/editor-core";
+import type { PageLayer } from "@zakka/editor-core";
 
 import type { Asset, PageDetail } from "../../types";
 import type { CanvasPoint } from "../editor/editorTypes";

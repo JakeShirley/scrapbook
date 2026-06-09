@@ -1,4 +1,4 @@
-import type { WashiTapeLayer } from "@scrapbook/editor-core";
+import type { WashiTapeLayer } from "@zakka/editor-core";
 import { useId } from "react";
 
 export const washiTapeOutlineOptions: WashiTapeLayer["outline"][] = [

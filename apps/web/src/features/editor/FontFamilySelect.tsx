@@ -1,4 +1,4 @@
-import { editorFontDefinitions } from "@scrapbook/editor-core";
+import { editorFontDefinitions } from "@zakka/editor-core";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 

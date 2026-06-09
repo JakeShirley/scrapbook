@@ -43,7 +43,7 @@ if (!owner || !repo) {
   throw new Error(`Repository must be in owner/name form: ${repository}`);
 }
 
-const marker = "<!-- scrapbook-app-visual-diffs -->";
+const marker = "<!-- zakka-app-visual-diffs -->";
 const metadata = JSON.parse(
   await readFile(path.join(screenshotsDirectory, "metadata.json"), "utf8"),
 ) as Metadata;

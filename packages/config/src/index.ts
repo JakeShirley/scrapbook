@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 const defaultDataDirForEnvironment = (nodeEnv: "development" | "test" | "production") =>
-  nodeEnv === "production" ? "/data/scrapbook" : "./storage/dev";
+  nodeEnv === "production" ? "/data/zakka" : "./storage/dev";
 
 const booleanEnvironmentSchema = z.enum(["true", "false"]).transform((value) => value === "true");
 
@@ -14,13 +14,11 @@ const runtimeConfigSchema = z
     API_PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
     WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
     SESSION_COOKIE_SECURE: booleanEnvironmentSchema.optional(),
-    SCRAPBOOK_DATA_DIR: z.string().min(1).optional(),
+    ZAKKA_DATA_DIR: z.string().min(1).optional(),
   })
   .transform((config) => ({
     ...config,
-    SCRAPBOOK_DATA_DIR: resolve(
-      config.SCRAPBOOK_DATA_DIR ?? defaultDataDirForEnvironment(config.NODE_ENV),
-    ),
+    ZAKKA_DATA_DIR: resolve(config.ZAKKA_DATA_DIR ?? defaultDataDirForEnvironment(config.NODE_ENV)),
   }));
 
 export type RuntimeConfig = z.infer<typeof runtimeConfigSchema>;

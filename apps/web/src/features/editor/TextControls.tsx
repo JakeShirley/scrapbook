@@ -1,4 +1,4 @@
-import type { PageLayer } from "@scrapbook/editor-core";
+import type { PageLayer } from "@zakka/editor-core";
 import { useRef } from "react";
 
 import { NumericInput } from "../../components/NumericInput";

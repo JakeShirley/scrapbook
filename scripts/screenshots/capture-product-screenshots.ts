@@ -31,13 +31,13 @@ function escapeRegex(value: string) {
 function runPlaywright(grep: string) {
   return new Promise<void>((resolve, reject) => {
     const quotedGrep = JSON.stringify(grep);
-    const command = `pnpm --filter @scrapbook/web screenshots:capture --grep ${quotedGrep}`;
+    const command = `pnpm --filter @zakka/web screenshots:capture --grep ${quotedGrep}`;
 
     const child = spawn(command, {
       cwd: repoRoot,
       env: {
         ...process.env,
-        SCRAPBOOK_SCREENSHOT_DIR: outputDirectory,
+        ZAKKA_SCREENSHOT_DIR: outputDirectory,
       },
       shell: true,
       stdio: "inherit",

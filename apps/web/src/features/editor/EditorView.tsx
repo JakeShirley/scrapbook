@@ -21,7 +21,7 @@ import {
   updateCanvas,
   updateLayer,
   type WashiTapeLayer,
-} from "@scrapbook/editor-core";
+} from "@zakka/editor-core";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 

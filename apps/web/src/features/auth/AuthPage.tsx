@@ -67,10 +67,10 @@ export function AuthPage({
       <section className="auth-panel" aria-labelledby="auth-heading">
         <div className="brand-block auth-brand">
           <div className="brand-mark" aria-hidden="true">
-            S
+            Z
           </div>
           <div>
-            <h1 id="auth-heading">Scrapbook</h1>
+            <h1 id="auth-heading">Zakka</h1>
             {version ? <p>{version}</p> : null}
           </div>
         </div>
