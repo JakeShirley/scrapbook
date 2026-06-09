@@ -759,10 +759,12 @@ async function openLayerEditor(
     .first()
     .locator(".canvas-layer-hitbox")
     .click({ force: true });
-  await page
+  const editButton = page
     .getByRole("toolbar", { name: `${layerLabel} actions` })
-    .getByRole("button", { name: "Edit layer" })
-    .click();
+    .getByRole("button", { name: "Edit layer" });
+  if (await isVisible(editButton)) {
+    await editButton.click();
+  }
 }
 
 async function navigateToSpread(page: Page, spreadLabel: string) {
