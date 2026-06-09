@@ -2877,8 +2877,8 @@ textarea:focus-visible {
 }
 
 .text-effects-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
