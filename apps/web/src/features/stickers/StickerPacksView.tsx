@@ -16,6 +16,7 @@ import { apiClient } from "../../apiClient";
 import { Panel, WorkspaceHeader } from "../../components/layout";
 import { getErrorMessage } from "../../lib/errors";
 import { formatBytes } from "../../lib/format";
+import { getStickerUsage, subscribeStickerUsage } from "../../lib/stickerUsage";
 import type { CustomSticker, StickerPack } from "../../types";
 import {
   FAVORITES_PACK_ID,
@@ -41,10 +42,41 @@ const supportedStickerMimeTypes = new Set([
 const supportedStickerAccept =
   "image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg";
 
+type SortMode = "used" | "added" | "name";
+
+const sortModeLabels: Record<SortMode, string> = {
+  used: "Recently used",
+  added: "Date added (newest)",
+  name: "Name (A\u2013Z)",
+};
+
+const sortStickers = (
+  stickers: CustomSticker[],
+  mode: SortMode,
+  usage: Record<string, number>,
+): CustomSticker[] => {
+  if (mode === "name") {
+    return [...stickers].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+  }
+  if (mode === "used") {
+    return [...stickers].sort((a, b) => {
+      const aUsed = usage[`custom:${a.id}`] ?? 0;
+      const bUsed = usage[`custom:${b.id}`] ?? 0;
+      if (aUsed !== bUsed) return bUsed - aUsed;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }
+  return [...stickers].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+};
+
 export function StickerPacksView() {
   const [packs, setPacks] = useState<StickerPack[]>([]);
   const [stickers, setStickers] = useState<CustomSticker[]>([]);
   const [selectedPackId, setSelectedPackId] = useState<StickerPackSelection>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("used");
+  const [stickerUsage, setStickerUsage] = useState<Record<string, number>>(() => getStickerUsage());
   const [isLoading, setIsLoading] = useState(true);
   const [isStickersLoading, setIsStickersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +139,8 @@ export function StickerPacksView() {
   useEffect(() => {
     void loadStickers(selectedPackId);
   }, [selectedPackId, loadStickers]);
+
+  useEffect(() => subscribeStickerUsage(setStickerUsage), []);
 
   const uploadStickers = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.currentTarget.files ?? []);
@@ -225,8 +259,13 @@ export function StickerPacksView() {
   };
 
   const visibleStickers = useMemo(
-    () => (isFavoritesView ? stickers.filter((sticker) => sticker.isFavorite) : stickers),
-    [isFavoritesView, stickers],
+    () =>
+      sortStickers(
+        isFavoritesView ? stickers.filter((sticker) => sticker.isFavorite) : stickers,
+        sortMode,
+        stickerUsage,
+      ),
+    [isFavoritesView, stickers, sortMode, stickerUsage],
   );
   const favoriteCount = useMemo(
     () => stickers.reduce((total, sticker) => total + (sticker.isFavorite ? 1 : 0), 0),
@@ -358,53 +397,71 @@ export function StickerPacksView() {
             </p>
           ) : null}
           {!isLoading && visibleStickers.length > 0 ? (
-            <div className="asset-grid sticker-pack-grid">
-              {visibleStickers.map((sticker) => {
-                const sourcePack = packs.find((pack) => pack.id === sticker.packId);
-                return (
-                  <div className="asset-tile-wrap" key={sticker.id}>
-                    <div className="asset-tile sticker-tile" title={sticker.name}>
-                      <img
-                        src={sticker.contentUrl}
-                        alt={sticker.name}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span className="asset-tile-copy">
-                        <span>{sticker.name}</span>
-                        <span>
-                          {sourcePack ? `${sourcePack.title} / ` : ""}
-                          {formatBytes(sticker.byteSize)}
+            <>
+              <div className="library-sort-toolbar">
+                <label htmlFor="sticker-pack-sort">
+                  <span>Sort by</span>
+                  <select
+                    id="sticker-pack-sort"
+                    value={sortMode}
+                    onChange={(event) => setSortMode(event.currentTarget.value as SortMode)}
+                  >
+                    {(Object.keys(sortModeLabels) as SortMode[]).map((mode) => (
+                      <option key={mode} value={mode}>
+                        {sortModeLabels[mode]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="asset-grid sticker-pack-grid">
+                {visibleStickers.map((sticker) => {
+                  const sourcePack = packs.find((pack) => pack.id === sticker.packId);
+                  return (
+                    <div className="asset-tile-wrap" key={sticker.id}>
+                      <div className="asset-tile sticker-tile" title={sticker.name}>
+                        <img
+                          src={sticker.contentUrl}
+                          alt={sticker.name}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <span className="asset-tile-copy">
+                          <span>{sticker.name}</span>
+                          <span>
+                            {sourcePack ? `${sourcePack.title} / ` : ""}
+                            {formatBytes(sticker.byteSize)}
+                          </span>
                         </span>
-                      </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="asset-tile-favorite"
+                        aria-label={
+                          sticker.isFavorite
+                            ? `Remove ${sticker.name} from favorites`
+                            : `Add ${sticker.name} to favorites`
+                        }
+                        aria-pressed={sticker.isFavorite}
+                        title={sticker.isFavorite ? "Unfavorite sticker" : "Favorite sticker"}
+                        onClick={() => toggleFavorite(sticker)}
+                      >
+                        {sticker.isFavorite ? <StarFilled /> : <StarRegular />}
+                      </button>
+                      <button
+                        type="button"
+                        className="asset-tile-remove"
+                        aria-label={`Remove ${sticker.name}`}
+                        title="Remove sticker"
+                        onClick={() => removeSticker(sticker)}
+                      >
+                        <DismissRegular />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="asset-tile-favorite"
-                      aria-label={
-                        sticker.isFavorite
-                          ? `Remove ${sticker.name} from favorites`
-                          : `Add ${sticker.name} to favorites`
-                      }
-                      aria-pressed={sticker.isFavorite}
-                      title={sticker.isFavorite ? "Unfavorite sticker" : "Favorite sticker"}
-                      onClick={() => toggleFavorite(sticker)}
-                    >
-                      {sticker.isFavorite ? <StarFilled /> : <StarRegular />}
-                    </button>
-                    <button
-                      type="button"
-                      className="asset-tile-remove"
-                      aria-label={`Remove ${sticker.name}`}
-                      title="Remove sticker"
-                      onClick={() => removeSticker(sticker)}
-                    >
-                      <DismissRegular />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           ) : null}
         </Panel>
       </section>
