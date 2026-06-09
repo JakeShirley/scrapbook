@@ -1,4 +1,4 @@
-import type { EntityKind, OpaqueId } from "@scrapbook/domain";
+import type { EntityKind, OpaqueId } from "@zakka/domain";
 
 type InternalEntityKind =
   | "authIdentity"

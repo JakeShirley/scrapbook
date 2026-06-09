@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-data_dir="${SCRAPBOOK_DATA_DIR:-/data/scrapbook}"
+data_dir="${ZAKKA_DATA_DIR:-/data/zakka}"
 
 if [ "$(id -u)" = "0" ]; then
   mkdir -p "$data_dir"

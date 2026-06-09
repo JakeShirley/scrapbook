@@ -1,4 +1,4 @@
-import type { ExportPreset } from "@scrapbook/api-contract";
+import type { ExportPreset } from "@zakka/api-contract";
 
 import { checksumSha256 } from "./checksums.js";
 import { type RenderedRasterImage, renderSvgRasterImage } from "./raster.js";

@@ -1,12 +1,12 @@
-import type { ExportPreset } from "@scrapbook/api-contract";
+import type { ExportPreset } from "@zakka/api-contract";
 import {
   isCustomStickerId,
   type PageDocument,
   type PhotoLayer,
   renderPageDocumentSvg,
   type WashiTapeLayer,
-} from "@scrapbook/editor-core";
-import { getStickerSvg } from "@scrapbook/editor-core/stickers";
+} from "@zakka/editor-core";
+import { getStickerSvg } from "@zakka/editor-core/stickers";
 import sharp from "sharp";
 
 import { createSharpInputBuffer } from "../image-decoding.js";
@@ -78,7 +78,7 @@ const createImageDataUri = async (input: {
 };
 
 export const parsePageDocument = async (page: PageRecord): Promise<PageDocument> => {
-  const { pageDocumentSchema } = await import("@scrapbook/editor-core");
+  const { pageDocumentSchema } = await import("@zakka/editor-core");
 
   return pageDocumentSchema.parse(JSON.parse(page.documentJson));
 };

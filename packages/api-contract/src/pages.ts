@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { pageDocumentSchema } from "@scrapbook/editor-core";
+import { pageDocumentSchema } from "@zakka/editor-core";
 
 import { errorResponseSchema } from "./shared.js";
 

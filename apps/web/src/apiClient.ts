@@ -49,7 +49,7 @@ import {
   type StickerPackResponse,
   stickerPackListResponseSchema,
   stickerPackResponseSchema,
-} from "@scrapbook/api-contract";
+} from "@zakka/api-contract";
 
 export class ApiClientError extends Error {
   constructor(

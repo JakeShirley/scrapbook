@@ -9,7 +9,7 @@ import {
   SettingsRegular,
   SignOutRegular,
 } from "@fluentui/react-icons";
-import { editorFontFaceCss } from "@scrapbook/editor-core";
+import { editorFontFaceCss } from "@zakka/editor-core";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import {
@@ -199,10 +199,10 @@ function ProtectedShell({
       >
         <div className="brand-block">
           <div className="brand-mark" aria-hidden="true">
-            S
+            Z
           </div>
           <div className="sidebar-copy">
-            <h1>Scrapbook</h1>
+            <h1>Zakka</h1>
             <p>{session.account.displayName}</p>
           </div>
         </div>
@@ -258,7 +258,7 @@ function ProtectedShell({
       </aside>
       {isChangelogOpen ? <ChangelogModal onClose={() => setIsChangelogOpen(false)} /> : null}
 
-      <section className="workspace" aria-label="Scrapbook workspace">
+      <section className="workspace" aria-label="Zakka workspace">
         <Routes>
           <Route index element={<Navigate to="/books" replace />} />
           <Route path="library" element={<LibraryView />} />

@@ -7,10 +7,10 @@ export function LoadingScreen() {
   return (
     <main className="loading-screen" aria-busy="true">
       <div className="brand-mark" aria-hidden="true">
-        S
+        Z
       </div>
       <Spinner size="small" />
-      <p>Opening Scrapbook</p>
+      <p>Opening Zakka</p>
     </main>
   );
 }

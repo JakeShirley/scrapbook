@@ -1,5 +1,5 @@
-import { createTimestamp, type ISODateTime } from "@scrapbook/domain";
-import { createPageDocument } from "@scrapbook/editor-core";
+import { createTimestamp, type ISODateTime } from "@zakka/domain";
+import { createPageDocument } from "@zakka/editor-core";
 import { and, asc, desc, eq, gt, isNull, sql } from "drizzle-orm";
 
 import type { AppDatabase } from "./database.js";

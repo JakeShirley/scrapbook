@@ -3,7 +3,7 @@ import {
   createPhotoLayer,
   createTextLayer,
   type PageDocument,
-} from "@scrapbook/editor-core";
+} from "@zakka/editor-core";
 import { describe, expect, it } from "vitest";
 
 import type { PageDetail } from "../../types";

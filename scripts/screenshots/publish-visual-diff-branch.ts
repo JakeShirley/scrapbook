@@ -9,7 +9,7 @@ const screenshotsDirectory = getRequiredArg(args, "screenshots-dir");
 const githubOutputPath = args.get("github-output") ?? process.env.GITHUB_OUTPUT;
 const publishWorktreeDirectory =
   args.get("worktree-dir") ??
-  path.join(os.tmpdir(), `scrapbook-visual-diff-publish-${pullRequestNumber}`);
+  path.join(os.tmpdir(), `zakka-visual-diff-publish-${pullRequestNumber}`);
 const branch = `app-visual-diffs-pr-${pullRequestNumber}`;
 
 await rm(publishWorktreeDirectory, { force: true, recursive: true });

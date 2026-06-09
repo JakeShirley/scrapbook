@@ -15,7 +15,7 @@ The `App Visual Diffs` workflow (`.github/workflows/app-visual-diffs.yml`) runs 
 - In `waitFor`, assert only elements that exist in both merge-base and HEAD for existing pages.
 - Put feature-specific behavior in `prepare`, guard with `isVisible(...)`, and exit early when the new affordance is absent.
 - For new feature routes, keep screenshot API mocks falsey-tolerant so smaller merge-base request sets still resolve.
-- Before publishing screenshot scenario changes, run a local merge-base sanity check using a worktree server (port 5174) and `pnpm --filter @scrapbook/web screenshots:capture -g <scenario>`.
+- Before publishing screenshot scenario changes, run a local merge-base sanity check using a worktree server (port 5174) and `pnpm --filter @zakka/web screenshots:capture -g <scenario>`.
 
 ## API, Schema, and Migration Rules
 

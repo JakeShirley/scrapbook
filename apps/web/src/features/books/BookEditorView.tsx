@@ -16,7 +16,7 @@ import {
   updateCanvas,
   updateLayer,
   type WashiTapeLayer,
-} from "@scrapbook/editor-core";
+} from "@zakka/editor-core";
 import type { DragEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";

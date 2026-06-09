@@ -3,7 +3,7 @@ import {
   TextAlignLeftRegular,
   TextAlignRightRegular,
 } from "@fluentui/react-icons";
-import type { PageLayer } from "@scrapbook/editor-core";
+import type { PageLayer } from "@zakka/editor-core";
 import type { ReactNode } from "react";
 
 type TextAlignment = Extract<PageLayer, { kind: "text" }>["align"];

@@ -7,8 +7,8 @@ import {
   createWashiTapeLayer,
   type PageDocument,
   type PhotoLayer,
-} from "@scrapbook/editor-core";
-import { makeFixedClock } from "@scrapbook/test-utils";
+} from "@zakka/editor-core";
+import { makeFixedClock } from "@zakka/test-utils";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 

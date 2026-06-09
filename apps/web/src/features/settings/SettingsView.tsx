@@ -1,6 +1,6 @@
 import { Button, Spinner, Tab, TabList } from "@fluentui/react-components";
 import { ArrowClockwiseRegular } from "@fluentui/react-icons";
-import type { ServerLogEntryResponse, ServerLogLevel } from "@scrapbook/api-contract";
+import type { ServerLogEntryResponse, ServerLogLevel } from "@zakka/api-contract";
 import { useCallback, useEffect, useState } from "react";
 
 import { apiClient } from "../../apiClient";

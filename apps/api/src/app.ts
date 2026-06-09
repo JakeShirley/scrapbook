@@ -87,13 +87,13 @@ import {
   stickerPackStickerRemoveRoute,
   stickerPackStickerUploadRoute,
   type StickerPackResponse,
-} from "@scrapbook/api-contract";
+} from "@zakka/api-contract";
 import {
   createBookSpreads,
   createPageDocument,
   type PageDocument,
   pageDocumentSchema,
-} from "@scrapbook/editor-core";
+} from "@zakka/editor-core";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
@@ -463,7 +463,7 @@ const slugifyDownloadName = (value: string): string => {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return slug.length > 0 ? slug.slice(0, 80) : "scrapbook-export";
+  return slug.length > 0 ? slug.slice(0, 80) : "zakka-export";
 };
 
 const getExportContentType = (exportJob: ExportJobRecord): string => {
@@ -484,7 +484,7 @@ const getExportDownloadFilename = (
 ): string => {
   if (exportJob.bookId) {
     const book = repositories.books.findByIdForAccount(exportJob.accountId, exportJob.bookId);
-    const name = slugifyDownloadName(book?.title ?? "scrapbook-book");
+    const name = slugifyDownloadName(book?.title ?? "zakka-book");
 
     return exportJob.format === "png" ? `${name}-png-pages.zip` : `${name}.${exportJob.format}`;
   }
@@ -492,7 +492,7 @@ const getExportDownloadFilename = (
   const page = exportJob.pageId
     ? repositories.pages.findByIdForAccount(exportJob.accountId, exportJob.pageId)
     : null;
-  const name = slugifyDownloadName(page?.title ?? "scrapbook-page");
+  const name = slugifyDownloadName(page?.title ?? "zakka-page");
 
   return `${name}.${exportJob.format === "jpeg" ? "jpg" : exportJob.format}`;
 };
@@ -652,7 +652,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
   app.openapi(healthRoute, (context) => {
     const body = healthResponseSchema.parse({
       status: "ok",
-      service: "scrapbook-api",
+      service: "zakka-api",
       version: packageVersion,
       timestamp: new Date().toISOString(),
     });
@@ -2544,7 +2544,7 @@ export const createApp = (createOptions: CreateAppOptions = {}) => {
   app.doc("/api/v1/openapi.json", {
     openapi: "3.1.0",
     info: {
-      title: "Scrapbook API",
+      title: "Zakka API",
       version: packageVersion,
     },
   });

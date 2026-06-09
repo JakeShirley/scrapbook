@@ -42,11 +42,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm --filter @scrapbook/web exec playwright install --with-deps chromium
+        run: pnpm --filter @zakka/web exec playwright install --with-deps chromium
 
       - name: Generate pull request screenshots
         env:
-          SCRAPBOOK_SCREENSHOT_DIR: ${{ runner.temp }}/scrapbook-screenshots/after
+          ZAKKA_SCREENSHOT_DIR: ${{ runner.temp }}/zakka-screenshots/after
         run: pnpm screenshots
 
       - name: Resolve merge base
@@ -70,9 +70,9 @@ jobs:
       - name: Generate merge-base screenshots
         if: ${{ github.event_name == 'pull_request' }}
         env:
-          AFTER_OUT_DIR: ${{ runner.temp }}/scrapbook-screenshots/after
-          BEFORE_OUT_DIR: ${{ runner.temp }}/scrapbook-screenshots/before
-          BEFORE_SOURCE_DIR: ${{ runner.temp }}/scrapbook-before-src
+          AFTER_OUT_DIR: ${{ runner.temp }}/zakka-screenshots/after
+          BEFORE_OUT_DIR: ${{ runner.temp }}/zakka-screenshots/before
+          BEFORE_SOURCE_DIR: ${{ runner.temp }}/zakka-before-src
           MERGE_BASE_SHA: ${{ steps.base.outputs.sha }}
         run: |
           git worktree add "$BEFORE_SOURCE_DIR" "$MERGE_BASE_SHA"
@@ -83,35 +83,35 @@ jobs:
           pushd "$BEFORE_SOURCE_DIR"
           corepack enable pnpm
           pnpm install --frozen-lockfile
-          pnpm --filter @scrapbook/editor-core build
-          pnpm --filter @scrapbook/api-contract build
+          pnpm --filter './packages/editor-core' build
+          pnpm --filter './packages/api-contract' build
           if [ -f scripts/generate-changelog.mjs ]; then
             pnpm run generate:changelog
           fi
           popd
-          SCRAPBOOK_SCREENSHOT_WORKSPACE_ROOT="$BEFORE_SOURCE_DIR" SCRAPBOOK_SCREENSHOT_DIR="$BEFORE_OUT_DIR" pnpm screenshots:capture
+          ZAKKA_SCREENSHOT_WORKSPACE_ROOT="$BEFORE_SOURCE_DIR" ZAKKA_SCREENSHOT_DIR="$BEFORE_OUT_DIR" pnpm screenshots:capture
           cleanup
           trap - EXIT
 
       - name: Use pull request screenshots as workflow-dispatch baseline
         if: ${{ github.event_name != 'pull_request' }}
         run: |
-          mkdir -p "${{ runner.temp }}/scrapbook-screenshots/before"
-          cp -R "${{ runner.temp }}/scrapbook-screenshots/after"/. "${{ runner.temp }}/scrapbook-screenshots/before"/
+          mkdir -p "${{ runner.temp }}/zakka-screenshots/before"
+          cp -R "${{ runner.temp }}/zakka-screenshots/after"/. "${{ runner.temp }}/zakka-screenshots/before"/
 
       - name: Compare screenshots
         id: compare
         run: >
           pnpm screenshots:compare
-          --before "${{ runner.temp }}/scrapbook-screenshots/before"
-          --after "${{ runner.temp }}/scrapbook-screenshots/after"
-          --out "${{ runner.temp }}/scrapbook-screenshots/comparison"
+          --before "${{ runner.temp }}/zakka-screenshots/before"
+          --after "${{ runner.temp }}/zakka-screenshots/after"
+          --out "${{ runner.temp }}/zakka-screenshots/comparison"
 
       - name: Upload visual diff artifact
         uses: actions/upload-artifact@v6
         with:
           name: app-visual-diffs
-          path: ${{ runner.temp }}/scrapbook-screenshots/comparison
+          path: ${{ runner.temp }}/zakka-screenshots/comparison
           if-no-files-found: error
           retention-days: 30
 

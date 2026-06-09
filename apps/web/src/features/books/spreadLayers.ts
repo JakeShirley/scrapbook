@@ -5,7 +5,7 @@ import {
   type PageLayer,
   reorderLayer,
   updateLayer,
-} from "@scrapbook/editor-core";
+} from "@zakka/editor-core";
 
 import type { PageDetail } from "../../types";
 

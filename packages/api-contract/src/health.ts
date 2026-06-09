@@ -5,7 +5,7 @@ import { errorResponseSchema } from "./shared.js";
 export const healthResponseSchema = z
   .object({
     status: z.literal("ok").openapi({ example: "ok" }),
-    service: z.literal("scrapbook-api").openapi({ example: "scrapbook-api" }),
+    service: z.literal("zakka-api").openapi({ example: "zakka-api" }),
     version: z.string().openapi({ example: "0.0.0-development" }),
     timestamp: z.string().datetime().openapi({ example: "2026-05-17T12:00:00.000Z" }),
   })

@@ -3,7 +3,7 @@ import {
   type PageLayer,
   type PhotoLayer,
   type TextLayer,
-} from "@scrapbook/editor-core";
+} from "@zakka/editor-core";
 
 import type { CanvasPoint, ResizeHandle } from "./editorTypes";
 

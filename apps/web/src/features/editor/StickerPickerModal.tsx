@@ -1,6 +1,6 @@
 import { Button, Field, Input } from "@fluentui/react-components";
 import { AddRegular, StarFilled, StarRegular } from "@fluentui/react-icons";
-import type { StickerDefinition, StickerId } from "@scrapbook/editor-core";
+import type { StickerDefinition, StickerId } from "@zakka/editor-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { apiClient } from "../../apiClient";
@@ -9,7 +9,7 @@ import { getErrorMessage } from "../../lib/errors";
 import { getStickerUsage, recordStickerUsage, subscribeStickerUsage } from "../../lib/stickerUsage";
 import type { CustomSticker, StickerPack } from "../../types";
 
-type StickerLibraryModule = typeof import("@scrapbook/editor-core/stickers");
+type StickerLibraryModule = typeof import("@zakka/editor-core/stickers");
 
 const pageSize = 120;
 
@@ -144,7 +144,7 @@ export function StickerPickerModal({
   useEffect(() => {
     let isCancelled = false;
 
-    import("@scrapbook/editor-core/stickers").then((loadedStickerLibrary) => {
+    import("@zakka/editor-core/stickers").then((loadedStickerLibrary) => {
       if (!isCancelled) {
         setStickerLibrary(loadedStickerLibrary);
       }

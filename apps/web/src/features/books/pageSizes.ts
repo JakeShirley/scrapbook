@@ -1,4 +1,4 @@
-import { commonBookPageSizes, defaultBookPageSize } from "@scrapbook/api-contract";
+import { commonBookPageSizes, defaultBookPageSize } from "@zakka/api-contract";
 
 export { commonBookPageSizes, defaultBookPageSize };
 

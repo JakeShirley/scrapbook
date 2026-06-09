@@ -1,5 +1,5 @@
 {
-  "name": "@scrapbook/api-contract",
+  "name": "@zakka/api-contract",
   "version": "0.0.0-development",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "1.4.0",
-    "@scrapbook/editor-core": "workspace:*",
+    "@zakka/editor-core": "workspace:*",
     "zod": "4.4.3"
   }
 }

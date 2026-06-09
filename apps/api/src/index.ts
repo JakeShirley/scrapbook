@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { loadConfig } from "@scrapbook/config";
+import { loadConfig } from "@zakka/config";
 
 import { createApp } from "./app.js";
 import { createDatabaseConnection } from "./persistence/database.js";
@@ -9,11 +9,11 @@ import { createDiskStorage } from "./storage/disk.js";
 
 const config = loadConfig();
 const databaseConnection = createDatabaseConnection({
-  dataDir: config.SCRAPBOOK_DATA_DIR,
+  dataDir: config.ZAKKA_DATA_DIR,
   migrate: true,
 });
-const storage = createDiskStorage({ rootDir: config.SCRAPBOOK_DATA_DIR });
-const pageDocuments = createPageDocumentStore({ rootDir: config.SCRAPBOOK_DATA_DIR });
+const storage = createDiskStorage({ rootDir: config.ZAKKA_DATA_DIR });
+const pageDocuments = createPageDocumentStore({ rootDir: config.ZAKKA_DATA_DIR });
 await storage.ensureReady();
 
 const staticAssetsDir = process.env.WEB_ASSETS_DIR;
@@ -33,7 +33,7 @@ const server = serve(
     port: config.API_PORT,
   },
   (info) => {
-    console.log(`Scrapbook API listening on http://${info.address}:${info.port}`);
+    console.log(`Zakka API listening on http://${info.address}:${info.port}`);
   },
 );
 
