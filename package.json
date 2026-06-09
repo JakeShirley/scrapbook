@@ -5,7 +5,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/JakeShirley/scrapbook.git"
+    "url": "https://github.com/JakeShirley/zakka.git"
   },
   "packageManager": "pnpm@11.1.2",
   "engines": {
