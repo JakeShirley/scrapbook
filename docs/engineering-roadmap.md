@@ -2,9 +2,7 @@
 
 _Last updated: 2026-05-20_
 
-This document turns the product roadmap into an execution tracker for engineers and future LLM agents. Keep it current as implementation lands so the next useful task is obvious without rediscovering project intent.
-
-Related context: [docs/product-roadmap.md](product-roadmap.md)
+This document is an execution tracker for engineers and future LLM agents. Keep it current as implementation lands so the next useful task is obvious without rediscovering project intent.
 
 Current product reference set: Canva, MyMemories Suite, Shutterfly, and Forever Artisan. Use these as comparison points for scrapbook editing, photo-book ordering, gallery/library behavior, and print-oriented workflows without assuming any single product defines the whole target experience.
 
@@ -13,7 +11,6 @@ Current product reference set: Canva, MyMemories Suite, Shutterfly, and Forever 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Local Git repo | `Done` | Repository exists on `main`. |
-| Product roadmap | `Done` | Product, API, auth, GitHub, Docker, and release direction documented. |
 | Engineering roadmap | `In progress` | Tracks implementation status as application engineering begins. |
 | Application code | `In progress` | Validated monorepo scaffold, starter API, SQLite persistence/storage foundation, file-backed page document storage, email/password auth endpoints, config package, API contract package, domain package, test utilities, authenticated web shell, asset upload/library flow, page document model, page CRUD API, basic editor flow, non-destructive photo editing metadata/controls, scrapbook embellishment layers, ordered book management, and PNG/JPEG exports exist. |
 | GitHub remote | `Done` | Changes are being pushed to the GitHub `gh` remote on `main`. |
@@ -78,12 +75,12 @@ Goal: settle enough decisions to scaffold without over-designing.
 
 | ID | Task | Status | Depends on | Deliverable | Acceptance |
 | --- | --- | --- | --- | --- | --- |
-| E01.1 | Choose initial API framework | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Hono chosen; decision covers OpenAPI generation, uploads, testing, and Docker runtime. |
+| E01.1 | Choose initial API framework | `Done` | — | `docs/architecture-decisions/0001-initial-application-stack.md` | Hono chosen; decision covers OpenAPI generation, uploads, testing, and Docker runtime. |
 | E01.2 | Choose schema and OpenAPI tooling | `Done` | E01.1 | `docs/architecture-decisions/0001-initial-application-stack.md` | Zod and `@hono/zod-openapi` chosen for runtime validation and OpenAPI generation. |
-| E01.3 | Choose SQLite query layer | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Drizzle chosen; decision covers migrations, type inference, and SQLite test ergonomics. |
-| E01.4 | Choose web scaffold/router | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Vite, React, and React Router chosen for SPA behavior, Docker serving, and API separation. |
-| E01.5 | Choose initial auth sequence | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | Email/password starts first; passkeys and native token flow are deferred until session foundation exists. |
-| E01.6 | Choose editor spike candidates | `Done` | Product roadmap | `docs/architecture-decisions/0001-initial-application-stack.md` | `tldraw`, Konva, and Fabric.js are initial spike candidates. |
+| E01.3 | Choose SQLite query layer | `Done` | — | `docs/architecture-decisions/0001-initial-application-stack.md` | Drizzle chosen; decision covers migrations, type inference, and SQLite test ergonomics. |
+| E01.4 | Choose web scaffold/router | `Done` | — | `docs/architecture-decisions/0001-initial-application-stack.md` | Vite, React, and React Router chosen for SPA behavior, Docker serving, and API separation. |
+| E01.5 | Choose initial auth sequence | `Done` | — | `docs/architecture-decisions/0001-initial-application-stack.md` | Email/password starts first; passkeys and native token flow are deferred until session foundation exists. |
+| E01.6 | Choose editor spike candidates | `Done` | — | `docs/architecture-decisions/0001-initial-application-stack.md` | `tldraw`, Konva, and Fabric.js are initial spike candidates. |
 | E01.7 | Add repository operating docs | `Done` | E01.1-E01.6 | `docs/development.md` draft | Branch, commit, validation, and roadmap-update rules are documented. |
 
 Next task: `E06.4`.
@@ -408,7 +405,7 @@ Keep this table current as scripts are added.
 
 ## Handoff Notes For Future LLM Sessions
 
-- Start by reading this file and [docs/product-roadmap.md](product-roadmap.md).
+- Start by reading this file.
 - Run `git status --short` before editing.
 - Pick the earliest `Not started` task whose dependencies are complete unless the user asks otherwise.
 - If implementation has started, inspect the relevant package before assuming structure.
