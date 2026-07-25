@@ -871,6 +871,42 @@ describe("page document helpers", () => {
     expect(svg).toContain('data-frame-detail="paper-fiber"');
   });
 
+  it("keeps the frame background transparent outside a non-rectangular photo mask", () => {
+    const maskedFramedPhoto = createPhotoLayer({
+      assetId: "asset_masked_frame",
+      id: "photo_masked_frame",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 400,
+      border: { color: "#ffffff", framePreset: "none", radius: 0, style: "solid", width: 24 },
+      mask: { shape: "ellipse", inset: 0, feather: 0 },
+    });
+    const maskedMatPhoto = createPhotoLayer({
+      assetId: "asset_masked_mat",
+      id: "photo_masked_mat",
+      x: 400,
+      y: 0,
+      width: 400,
+      height: 400,
+      border: { color: "#ffffff", framePreset: "mat", radius: 0, style: "solid", width: 0 },
+      mask: { shape: "diamond", inset: 0, feather: 0 },
+    });
+    const document = createPageDocument({
+      canvas: { width: 800, height: 400 },
+      layers: [maskedFramedPhoto, maskedMatPhoto],
+    });
+    const svg = renderPageDocumentSvg(document, {
+      resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    expect(svg).toContain('<ellipse data-frame-preset="none"');
+    expect(svg).toContain('<polygon data-frame-preset="mat"');
+    expect(svg).not.toContain("<rect data-frame-preset=");
+    expect(svg).toContain('id="photo_frameclip_0"');
+    expect(svg).toContain('<polygon data-frame-detail="mat-window"');
+  });
+
   it("renders an optional photo drop shadow that follows the frame outline", () => {
     const framedPhoto = createPhotoLayer({
       assetId: "asset_framed",
