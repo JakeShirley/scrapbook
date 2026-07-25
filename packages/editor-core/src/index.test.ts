@@ -871,6 +871,69 @@ describe("page document helpers", () => {
     expect(svg).toContain('data-frame-detail="paper-fiber"');
   });
 
+  it("keeps the area outside a shape mask transparent, including the photo frame", () => {
+    const shapedPhoto = createPhotoLayer({
+      assetId: "asset_shaped",
+      id: "photo_shaped",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 400,
+      border: { color: "#ffffff", framePreset: "none", radius: 0, style: "solid", width: 24 },
+      mask: { shape: "ellipse", inset: 0, feather: 0 },
+    });
+    const plainPhoto = createPhotoLayer({
+      assetId: "asset_plain",
+      id: "photo_plain",
+      x: 500,
+      y: 0,
+      width: 400,
+      height: 400,
+      border: { color: "#ffffff", framePreset: "none", radius: 0, style: "solid", width: 24 },
+    });
+    const document = createPageDocument({
+      canvas: { width: 1000, height: 400 },
+      layers: [shapedPhoto, plainPhoto],
+    });
+    const svg = renderPageDocumentSvg(document, {
+      resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    expect(svg).toContain('<clipPath id="photo_frameclip_0"><ellipse');
+    expect(svg).toContain('data-photo-mask-clip="ellipse" clip-path="url(#photo_frameclip_0)"');
+    // The frame background paints the full layer rect, so it must sit inside the mask clip.
+    expect(svg.indexOf('data-photo-mask-clip="ellipse"')).toBeLessThan(
+      svg.indexOf('data-frame-preset="none"'),
+    );
+    // Rectangular masks keep the original, unclipped output.
+    expect(svg).not.toContain('id="photo_frameclip_1"');
+    expect(svg).not.toContain('data-photo-mask-clip="rectangle"');
+  });
+
+  it("clips a framed photo's mat window and outline to the mask shape", () => {
+    const photo = createPhotoLayer({
+      assetId: "asset_mat",
+      id: "photo_mat",
+      x: 0,
+      y: 0,
+      width: 400,
+      height: 400,
+      border: { color: "#ffffff", framePreset: "mat", radius: 0, style: "solid", width: 40 },
+      mask: { shape: "diamond", inset: 0, feather: 0 },
+    });
+    const document = createPageDocument({
+      canvas: { width: 400, height: 400 },
+      layers: [photo],
+    });
+    const svg = renderPageDocumentSvg(document, {
+      resolvePhotoHref: (layer) => `/assets/${layer.assetId}/content`,
+    });
+
+    expect(svg).toContain('<clipPath id="photo_frameclip_0"><polygon');
+    expect(svg).toContain('<polygon data-frame-detail="mat-window"');
+    expect(svg).not.toContain('<rect data-frame-detail="mat-window"');
+  });
+
   it("renders an optional photo drop shadow that follows the frame outline", () => {
     const framedPhoto = createPhotoLayer({
       assetId: "asset_framed",

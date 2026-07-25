@@ -753,16 +753,21 @@ export const getPhotoFrameLayout = (layer: PhotoLayer): PhotoFrameLayout => {
   }
 };
 
-const photoClipPath = (layer: PhotoLayer, clipId: string, imageFrame: PhotoFrameRect): string => {
-  const inset = layer.mask.inset;
+const photoMaskShapeSvg = (
+  shape: PhotoLayer["mask"]["shape"],
+  rect: PhotoFrameRect,
+  inset: number,
+  attributes = "",
+): string => {
+  const extra = attributes ? ` ${attributes}` : "";
 
-  switch (layer.mask.shape) {
+  switch (shape) {
     case "rectangle":
-      return `<clipPath id="${clipId}"><rect x="${imageFrame.x + imageFrame.width * inset}" y="${imageFrame.y + imageFrame.height * inset}" width="${imageFrame.width * (1 - inset * 2)}" height="${imageFrame.height * (1 - inset * 2)}" rx="${imageFrame.radius}" /></clipPath>`;
+      return `<rect${extra} x="${rect.x + rect.width * inset}" y="${rect.y + rect.height * inset}" width="${rect.width * (1 - inset * 2)}" height="${rect.height * (1 - inset * 2)}" rx="${rect.radius}" />`;
     case "ellipse":
-      return `<clipPath id="${clipId}"><ellipse cx="${imageFrame.x + imageFrame.width / 2}" cy="${imageFrame.y + imageFrame.height / 2}" rx="${imageFrame.width * (0.5 - inset)}" ry="${imageFrame.height * (0.5 - inset)}" /></clipPath>`;
+      return `<ellipse${extra} cx="${rect.x + rect.width / 2}" cy="${rect.y + rect.height / 2}" rx="${rect.width * (0.5 - inset)}" ry="${rect.height * (0.5 - inset)}" />`;
     case "arch":
-      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(imageFrame, [
+      return `<polygon${extra} points="${layerPolygon(rect, [
         [inset, 1],
         [inset, 0.36],
         [0.18, 0.08],
@@ -770,16 +775,16 @@ const photoClipPath = (layer: PhotoLayer, clipId: string, imageFrame: PhotoFrame
         [0.82, 0.08],
         [1 - inset, 0.36],
         [1 - inset, 1],
-      ])}" /></clipPath>`;
+      ])}" />`;
     case "diamond":
-      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(imageFrame, [
+      return `<polygon${extra} points="${layerPolygon(rect, [
         [0.5, inset],
         [1 - inset, 0.5],
         [0.5, 1 - inset],
         [inset, 0.5],
-      ])}" /></clipPath>`;
+      ])}" />`;
     case "ticket":
-      return `<clipPath id="${clipId}"><polygon points="${layerPolygon(imageFrame, [
+      return `<polygon${extra} points="${layerPolygon(rect, [
         [inset, inset],
         [0.42, inset],
         [0.5, 0.1],
@@ -796,9 +801,27 @@ const photoClipPath = (layer: PhotoLayer, clipId: string, imageFrame: PhotoFrame
         [inset, 0.58],
         [0.1, 0.5],
         [inset, 0.42],
-      ])}" /></clipPath>`;
+      ])}" />`;
   }
 };
+
+// A non-rectangular (or inset) mask should cut the whole photo object, so anything
+// painted behind the image — frame backgrounds, textures, borders — stays transparent
+// outside the shape instead of leaving a visible rectangle.
+const photoMaskCutsFrame = (layer: PhotoLayer): boolean =>
+  layer.mask.shape !== "rectangle" || layer.mask.inset > 0;
+
+const photoClipPath = (layer: PhotoLayer, clipId: string, imageFrame: PhotoFrameRect): string =>
+  `<clipPath id="${clipId}">${photoMaskShapeSvg(layer.mask.shape, imageFrame, layer.mask.inset)}</clipPath>`;
+
+const photoFrameClipPath = (
+  layer: PhotoLayer,
+  clipId: string,
+  outerFrame: PhotoFrameRect,
+): string =>
+  photoMaskCutsFrame(layer)
+    ? `<clipPath id="${clipId}">${photoMaskShapeSvg(layer.mask.shape, outerFrame, layer.mask.inset)}</clipPath>`
+    : "";
 
 const defaultPhotoFrameColor = "#ffffff";
 
@@ -885,58 +908,20 @@ const photoSilhouetteShapeSvg = (
 ): string => {
   const hasVisibleFrame = layer.border.framePreset !== "none" || layer.border.width > 0;
 
-  if (hasVisibleFrame) {
+  if (hasVisibleFrame && !photoMaskCutsFrame(layer)) {
     const outer = layout.outer;
 
     return `<rect data-photo-shadow-shape="frame" x="${outer.x}" y="${outer.y}" width="${outer.width}" height="${outer.height}" rx="${outer.radius}" fill="${fill}" />`;
   }
 
-  const inset = layer.mask.inset;
-  const imageFrame = layout.image;
-  const shapeAttribute = `data-photo-shadow-shape="mask-${layer.mask.shape}"`;
+  const silhouetteFrame = hasVisibleFrame ? layout.outer : layout.image;
 
-  switch (layer.mask.shape) {
-    case "rectangle":
-      return `<rect ${shapeAttribute} x="${imageFrame.x + imageFrame.width * inset}" y="${imageFrame.y + imageFrame.height * inset}" width="${imageFrame.width * (1 - inset * 2)}" height="${imageFrame.height * (1 - inset * 2)}" rx="${imageFrame.radius}" fill="${fill}" />`;
-    case "ellipse":
-      return `<ellipse ${shapeAttribute} cx="${imageFrame.x + imageFrame.width / 2}" cy="${imageFrame.y + imageFrame.height / 2}" rx="${imageFrame.width * (0.5 - inset)}" ry="${imageFrame.height * (0.5 - inset)}" fill="${fill}" />`;
-    case "arch":
-      return `<polygon ${shapeAttribute} points="${layerPolygon(imageFrame, [
-        [inset, 1],
-        [inset, 0.36],
-        [0.18, 0.08],
-        [0.5, 0],
-        [0.82, 0.08],
-        [1 - inset, 0.36],
-        [1 - inset, 1],
-      ])}" fill="${fill}" />`;
-    case "diamond":
-      return `<polygon ${shapeAttribute} points="${layerPolygon(imageFrame, [
-        [0.5, inset],
-        [1 - inset, 0.5],
-        [0.5, 1 - inset],
-        [inset, 0.5],
-      ])}" fill="${fill}" />`;
-    case "ticket":
-      return `<polygon ${shapeAttribute} points="${layerPolygon(imageFrame, [
-        [inset, inset],
-        [0.42, inset],
-        [0.5, 0.1],
-        [0.58, inset],
-        [1 - inset, inset],
-        [1 - inset, 0.42],
-        [0.9, 0.5],
-        [1 - inset, 0.58],
-        [1 - inset, 1 - inset],
-        [0.58, 1 - inset],
-        [0.5, 0.9],
-        [0.42, 1 - inset],
-        [inset, 1 - inset],
-        [inset, 0.58],
-        [0.1, 0.5],
-        [inset, 0.42],
-      ])}" fill="${fill}" />`;
-  }
+  return photoMaskShapeSvg(
+    layer.mask.shape,
+    silhouetteFrame,
+    layer.mask.inset,
+    `data-photo-shadow-shape="mask-${layer.mask.shape}" fill="${fill}"`,
+  );
 };
 
 const renderPhotoShadowFilterSvg = (layer: PhotoLayer, filterId: string): string => {
@@ -1003,6 +988,34 @@ const renderPhotoFrameBackgroundSvg = (layer: PhotoLayer, layout: PhotoFrameLayo
   }
 };
 
+const photoWindowOutlineSvg = (
+  layer: PhotoLayer,
+  layout: PhotoFrameLayout,
+  detail: string,
+  strokeAttributes: string,
+): string =>
+  photoMaskShapeSvg(
+    layer.mask.shape,
+    layout.image,
+    layer.mask.inset,
+    `data-frame-detail="${detail}" fill="none" ${strokeAttributes}`,
+  );
+
+const photoOuterOutlineSvg = (
+  layer: PhotoLayer,
+  layout: PhotoFrameLayout,
+  strokeWidth: number,
+  strokeAttributes: string,
+): string =>
+  photoMaskCutsFrame(layer)
+    ? photoMaskShapeSvg(
+        layer.mask.shape,
+        layout.outer,
+        layer.mask.inset,
+        `fill="none" ${strokeAttributes} stroke-width="${strokeWidth * 2}"`,
+      )
+    : `<rect ${rectSvg(layout.outer)} fill="none" ${strokeAttributes} stroke-width="${strokeWidth}" />`;
+
 const renderPhotoFrameOverlaySvg = (layer: PhotoLayer, layout: PhotoFrameLayout): string => {
   const dasharray = borderStrokeDasharray(layer.border.style);
   const shortestSide = Math.min(layer.width, layer.height);
@@ -1012,19 +1025,26 @@ const renderPhotoFrameOverlaySvg = (layer: PhotoLayer, layout: PhotoFrameLayout)
 
   switch (layer.border.framePreset) {
     case "none":
-      return `<rect x="${layer.x + frameInset}" y="${layer.y + frameInset}" width="${Math.max(0, layer.width - layer.border.width)}" height="${Math.max(0, layer.height - layer.border.width)}" rx="${layer.border.radius}" fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${layer.border.width}" stroke-dasharray="${dasharray}" />`;
+      return photoMaskCutsFrame(layer)
+        ? photoMaskShapeSvg(
+            layer.mask.shape,
+            layout.outer,
+            layer.mask.inset,
+            `fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${layer.border.width * 2}" stroke-dasharray="${dasharray}"`,
+          )
+        : `<rect x="${layer.x + frameInset}" y="${layer.y + frameInset}" width="${Math.max(0, layer.width - layer.border.width)}" height="${Math.max(0, layer.height - layer.border.width)}" rx="${layer.border.radius}" fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${layer.border.width}" stroke-dasharray="${dasharray}" />`;
     case "mat":
-      return `<rect data-frame-detail="mat-window" ${rectSvg(layout.image)} fill="none" stroke="#202426" stroke-opacity="0.12" stroke-width="${apertureStrokeWidth}" /><rect ${rectSvg(layout.outer)} fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${outerStrokeWidth}" stroke-dasharray="${dasharray}" opacity="${layer.border.width > 0 ? 0.7 : 0}" />`;
+      return `${photoWindowOutlineSvg(layer, layout, "mat-window", `stroke="#202426" stroke-opacity="0.12" stroke-width="${apertureStrokeWidth}"`)}${photoOuterOutlineSvg(layer, layout, outerStrokeWidth, `stroke="${escapeXml(layer.border.color)}" stroke-dasharray="${dasharray}" opacity="${layer.border.width > 0 ? 0.7 : 0}"`)}`;
     case "polaroid": {
       const captionLineY = layer.y + layer.height - layout.insets.bottom * 0.42;
       const captionInset = Math.max(layout.insets.left, shortestSide * 0.05);
 
-      return `<rect data-frame-detail="polaroid-window" ${rectSvg(layout.image)} fill="none" stroke="#202426" stroke-opacity="0.1" stroke-width="${apertureStrokeWidth}" /><path data-frame-detail="polaroid-caption" d="M ${layer.x + captionInset} ${captionLineY} L ${layer.x + layer.width - captionInset} ${captionLineY}" stroke="#202426" stroke-opacity="0.12" stroke-width="${Math.max(1, shortestSide * 0.006)}" stroke-linecap="round" />`;
+      return `${photoWindowOutlineSvg(layer, layout, "polaroid-window", `stroke="#202426" stroke-opacity="0.1" stroke-width="${apertureStrokeWidth}"`)}<path data-frame-detail="polaroid-caption" d="M ${layer.x + captionInset} ${captionLineY} L ${layer.x + layer.width - captionInset} ${captionLineY}" stroke="#202426" stroke-opacity="0.12" stroke-width="${Math.max(1, shortestSide * 0.006)}" stroke-linecap="round" />`;
     }
     case "film":
-      return `<rect data-frame-detail="film-window" ${rectSvg(layout.image)} fill="none" stroke="#ffffff" stroke-opacity="0.28" stroke-width="${apertureStrokeWidth}" /><rect ${rectSvg(layout.outer)} fill="none" stroke="#000000" stroke-opacity="0.18" stroke-width="${Math.max(1, shortestSide * 0.006)}" />`;
+      return `${photoWindowOutlineSvg(layer, layout, "film-window", `stroke="#ffffff" stroke-opacity="0.28" stroke-width="${apertureStrokeWidth}"`)}${photoOuterOutlineSvg(layer, layout, Math.max(1, shortestSide * 0.006), `stroke="#000000" stroke-opacity="0.18"`)}`;
     case "paper":
-      return `<rect data-frame-detail="paper-window" ${rectSvg(layout.image)} fill="none" stroke="#202426" stroke-opacity="0.1" stroke-width="${apertureStrokeWidth}" /><rect ${rectSvg(layout.outer)} fill="none" stroke="${escapeXml(layer.border.color)}" stroke-width="${Math.max(1, shortestSide * 0.01)}" stroke-dasharray="${Math.max(4, shortestSide * 0.035)} ${Math.max(5, shortestSide * 0.028)}" stroke-linecap="round" opacity="0.62" />`;
+      return `${photoWindowOutlineSvg(layer, layout, "paper-window", `stroke="#202426" stroke-opacity="0.1" stroke-width="${apertureStrokeWidth}"`)}${photoOuterOutlineSvg(layer, layout, Math.max(1, shortestSide * 0.01), `stroke="${escapeXml(layer.border.color)}" stroke-dasharray="${Math.max(4, shortestSide * 0.035)} ${Math.max(5, shortestSide * 0.028)}" stroke-linecap="round" opacity="0.62"`)}`;
   }
 };
 
@@ -1722,6 +1742,9 @@ const renderPhotoLayerSvg = (
   const clipId = idPrefix
     ? createSvgId(idPrefix, "photo", "clip", index)
     : createSvgId("photo", "clip", index);
+  const frameClipId = idPrefix
+    ? createSvgId(idPrefix, "photo", "frameclip", index)
+    : createSvgId("photo", "frameclip", index);
   const shadowFilterId = idPrefix
     ? createSvgId(idPrefix, "photo", "shadow", index)
     : createSvgId("photo", "shadow", index);
@@ -1753,9 +1776,15 @@ const renderPhotoLayerSvg = (
     ? `<image data-photo-pan-preview="true" href="${escapedHref}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="${preserveAspect}" opacity="0.35" transform="${imageTransform}" pointer-events="none" />`
     : "";
 
+  const frameClipDef = photoFrameClipPath(layer, frameClipId, frameLayout.outer);
+  const frameContent = `${renderPhotoFrameBackgroundSvg(layer, frameLayout)}${fullPhotoPreview}<g clip-path="url(#${clipId})"><image href="${escapedHref}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="${preserveAspect}" transform="${imageTransform}" /></g>${renderPhotoFrameOverlaySvg(layer, frameLayout)}`;
+  const maskedFrameContent = frameClipDef
+    ? `<g data-photo-mask-clip="${layer.mask.shape}" clip-path="url(#${frameClipId})">${frameContent}</g>`
+    : frameContent;
+
   return {
-    defs: `${photoClipPath(layer, clipId, frameLayout.image)}${shadowFilter}`,
-    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${shadowBody}${renderPhotoFrameBackgroundSvg(layer, frameLayout)}${fullPhotoPreview}<g clip-path="url(#${clipId})"><image href="${escapedHref}" x="${imageX}" y="${imageY}" width="${imageWidth}" height="${imageHeight}" preserveAspectRatio="${preserveAspect}" transform="${imageTransform}" /></g>${renderPhotoFrameOverlaySvg(layer, frameLayout)}</g>`,
+    defs: `${photoClipPath(layer, clipId, frameLayout.image)}${frameClipDef}${shadowFilter}`,
+    body: `<g opacity="${layer.opacity}" transform="${layerTransform(layer)}">${shadowBody}${maskedFrameContent}</g>`,
   };
 };
 
