@@ -549,7 +549,17 @@ export function PageCanvas({
   }, [editingTextLayerId, primarySelectedLayerId]);
 
   useEffect(() => {
-    if (editingTextLayerId && (activeTransform || activeGroupTransform)) {
+    if (!editingTextLayerId) return;
+    if (activeGroupTransform) {
+      setEditingTextLayerId(null);
+      return;
+    }
+    // Resizing the box that is being typed into is supported, so only bail out of
+    // inline editing for transforms that would move the caret out from under the pointer.
+    if (
+      activeTransform &&
+      (activeTransform.layerId !== editingTextLayerId || activeTransform.mode !== "resize")
+    ) {
       setEditingTextLayerId(null);
     }
   }, [activeGroupTransform, activeTransform, editingTextLayerId]);
@@ -836,6 +846,10 @@ export function PageCanvas({
     setActiveTransformUpdate(null);
     suppressNextClickRef.current = true;
 
+    if (editingTextLayerId === transform.layerId) {
+      inlineTextEditorRef.current?.focus({ preventScroll: true });
+    }
+
     if (onTransformEnd) {
       onTransformEnd(transform.layerId, update);
       return;
@@ -1055,6 +1069,7 @@ export function PageCanvas({
           transform: `rotate(${selectionFrame.rotation}deg)`,
         };
         const layerLabel = `${formatLayerKindLabel(layer.kind)} layer`;
+        const isInlineEditingText = editingTextLayerId === layer.id && layer.kind === "text";
         return (
           <div
             key={isPreview ? `${interactiveLayer.sourcePageId}:${layer.id}` : layer.id}
@@ -1137,17 +1152,19 @@ export function PageCanvas({
             />
             <div className="canvas-selection-frame" style={selectionFrameStyle}>
               <span className="canvas-layer-content" />
-              {isSelected && !layer.locked && editingTextLayerId !== layer.id ? (
+              {isSelected && !layer.locked ? (
                 <>
-                  <button
-                    type="button"
-                    aria-label="Rotate layer"
-                    className="transform-rotate-handle"
-                    title="Rotate"
-                    onPointerDown={(event) => startTransform(event, layer, "rotate")}
-                  >
-                    <ArrowClockwiseRegular />
-                  </button>
+                  {isInlineEditingText ? null : (
+                    <button
+                      type="button"
+                      aria-label="Rotate layer"
+                      className="transform-rotate-handle"
+                      title="Rotate"
+                      onPointerDown={(event) => startTransform(event, layer, "rotate")}
+                    >
+                      <ArrowClockwiseRegular />
+                    </button>
+                  )}
                   {resizeHandles.map(({ handle, label }) => {
                     const photoLabel = layer.kind === "photo" ? photoHandleLabels[handle] : null;
                     const handleLabel = photoLabel ?? label;
@@ -1207,7 +1224,7 @@ export function PageCanvas({
                   ) : null}
                 </>
               ) : null}
-              {editingTextLayerId === layer.id && layer.kind === "text" ? (
+              {isInlineEditingText ? (
                 <textarea
                   ref={inlineTextEditorRef}
                   aria-label="Edit text"
