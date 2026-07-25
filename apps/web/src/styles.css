@@ -70,6 +70,20 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+.rich-text-editor {
+  cursor: text;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rich-text-editor:focus {
+  outline: none;
+}
+
+.rich-text-editor .rich-text-line {
+  min-height: 1em;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1788,7 +1802,8 @@ textarea:focus-visible {
 .editor-toolbar input,
 .inspector-form input,
 .inspector-form select,
-.inspector-form textarea {
+.inspector-form textarea,
+.inspector-form .rich-text-editor {
   width: 100%;
   min-height: 34px;
   border: 1px solid #cbd2cf;
@@ -1808,6 +1823,18 @@ textarea:focus-visible {
   min-height: 84px;
   padding: 8px 9px;
   resize: vertical;
+}
+
+.inspector-form .rich-text-editor {
+  min-height: 84px;
+  max-height: 220px;
+  padding: 8px 9px;
+  overflow: auto;
+}
+
+.inspector-form .rich-text-editor:focus-visible {
+  outline: 2px solid var(--sb-brand);
+  outline-offset: 2px;
 }
 
 .save-badge {
@@ -4310,6 +4337,7 @@ body {
 .inspector-form input,
 .inspector-form select,
 .inspector-form textarea,
+.inspector-form .rich-text-editor,
 .fui-Input,
 .fui-Select,
 .fui-Textarea {
@@ -4327,6 +4355,7 @@ body {
 .inspector-form input:hover,
 .inspector-form select:hover,
 .inspector-form textarea:hover,
+.inspector-form .rich-text-editor:hover,
 .fui-Input:hover,
 .fui-Select:hover,
 .fui-Textarea:hover {
@@ -4479,14 +4508,16 @@ body {
 
 .editor-edit-pane-body .inspector-form input,
 .editor-edit-pane-body .inspector-form select,
-.editor-edit-pane-body .inspector-form textarea {
+.editor-edit-pane-body .inspector-form textarea,
+.editor-edit-pane-body .inspector-form .rich-text-editor {
   min-height: 26px;
   border-radius: 5px;
   padding: 0 7px;
   font-size: 0.8rem;
 }
 
-.editor-edit-pane-body .inspector-form textarea {
+.editor-edit-pane-body .inspector-form textarea,
+.editor-edit-pane-body .inspector-form .rich-text-editor {
   min-height: 96px;
   padding-block: 5px;
 }

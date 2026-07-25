@@ -33,6 +33,7 @@ import type { Asset } from "../../types";
 import { assetDragMimeType } from "./AssetRail";
 import type { ActiveTransform, CanvasPoint, ResizeHandle, TransformMode } from "./editorTypes";
 import { FontFamilySelect } from "./FontFamilySelect";
+import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor";
 import { TextAlignmentControl } from "./TextAlignmentControl";
 import {
   applyGroupMove,
@@ -293,7 +294,7 @@ export function PageCanvas({
   const canvasRef = useRef<HTMLFieldSetElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const renderSurfaceRef = useRef<HTMLDivElement>(null);
-  const inlineTextEditorRef = useRef<HTMLTextAreaElement | null>(null);
+  const inlineTextEditorRef = useRef<RichTextEditorHandle | null>(null);
   const textTransformPreviewRef = useRef<{
     group: SVGGElement;
     localGroup: SVGGElement;
@@ -566,11 +567,7 @@ export function PageCanvas({
 
   useEffect(() => {
     if (!editingTextLayerId) return;
-    const textarea = inlineTextEditorRef.current;
-    if (!textarea) return;
-    textarea.focus();
-    const valueLength = textarea.value.length;
-    textarea.setSelectionRange(valueLength, valueLength);
+    inlineTextEditorRef.current?.focus({ placeCaretAtEnd: true });
   }, [editingTextLayerId]);
 
   useLayoutEffect(() => {
@@ -847,7 +844,7 @@ export function PageCanvas({
     suppressNextClickRef.current = true;
 
     if (editingTextLayerId === transform.layerId) {
-      inlineTextEditorRef.current?.focus({ preventScroll: true });
+      inlineTextEditorRef.current?.focus();
     }
 
     if (onTransformEnd) {
@@ -1225,9 +1222,9 @@ export function PageCanvas({
                 </>
               ) : null}
               {isInlineEditingText ? (
-                <textarea
+                <RichTextEditor
                   ref={inlineTextEditorRef}
-                  aria-label="Edit text"
+                  ariaLabel="Edit text"
                   className="canvas-inline-text-editor"
                   spellCheck
                   value={layer.text}
@@ -1242,9 +1239,9 @@ export function PageCanvas({
                     if (next && canvasRef.current?.contains(next)) return;
                     setEditingTextLayerId(null);
                   }}
-                  onChange={(event) =>
+                  onChange={(text) =>
                     changeLayer(layer.id, {
-                      text: event.currentTarget.value,
+                      text,
                     } as Partial<PageLayer>)
                   }
                   onKeyDown={(event) => {
