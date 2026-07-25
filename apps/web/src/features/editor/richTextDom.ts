@@ -1,4 +1,4 @@
-import type { RichTextParagraph, RichTextRun } from "@zakka/editor-core";
+import { annotateInlineMarkdown } from "@zakka/editor-core";
 
 export type RichTextSelection = {
   start: number;
@@ -8,44 +8,16 @@ export type RichTextSelection = {
 export const richTextLineClassName = "rich-text-line";
 
 const blockTagNames = new Set(["DIV", "P", "LI", "SECTION", "ARTICLE", "BLOCKQUOTE", "PRE"]);
-const boldTagNames = new Set(["STRONG", "B"]);
-const italicTagNames = new Set(["EM", "I"]);
 
-type ParagraphSink = {
-  paragraphs: RichTextRun[][];
+type TextSink = {
+  chunks: string[];
   pendingBreaks: number;
   started: boolean;
 };
 
-const appendRun = (runs: RichTextRun[], text: string, bold: boolean, italic: boolean): void => {
-  const previous = runs[runs.length - 1];
-  if (previous && previous.bold === bold && previous.italic === italic) {
-    previous.text += text;
-    return;
-  }
-
-  runs.push({ text, bold, italic });
-};
-
-const flushBreaks = (sink: ParagraphSink): void => {
-  for (let index = 0; index < sink.pendingBreaks; index += 1) {
-    sink.paragraphs.push([]);
-  }
+const flushBreaks = (sink: TextSink): void => {
+  for (let index = 0; index < sink.pendingBreaks; index += 1) sink.chunks.push("\n");
   sink.pendingBreaks = 0;
-};
-
-const pushText = (sink: ParagraphSink, text: string, bold: boolean, italic: boolean): void => {
-  if (text.length === 0) return;
-
-  flushBreaks(sink);
-  const current = sink.paragraphs[sink.paragraphs.length - 1];
-  if (current) appendRun(current, text, bold, italic);
-  sink.started = true;
-};
-
-const pushBreak = (sink: ParagraphSink): void => {
-  sink.pendingBreaks += 1;
-  sink.started = true;
 };
 
 // Browsers keep a trailing <br> inside an otherwise empty block so the caret has
@@ -53,90 +25,80 @@ const pushBreak = (sink: ParagraphSink): void => {
 const isFillerBreak = (element: Element): boolean =>
   element.parentElement !== null && element.parentElement.childNodes.length === 1;
 
-const walkNode = (node: Node, bold: boolean, italic: boolean, sink: ParagraphSink): void => {
+const walkNode = (node: Node, sink: TextSink): void => {
   for (const child of Array.from(node.childNodes)) {
     if (child.nodeType === Node.TEXT_NODE) {
-      pushText(sink, (child as Text).data, bold, italic);
+      const text = (child as Text).data;
+      if (text.length === 0) continue;
+      flushBreaks(sink);
+      sink.chunks.push(text);
+      sink.started = true;
       continue;
     }
 
     if (child.nodeType !== Node.ELEMENT_NODE) continue;
 
     const element = child as Element;
-    const tagName = element.tagName;
-
-    if (tagName === "BR") {
-      if (!isFillerBreak(element)) pushBreak(sink);
+    if (element.tagName === "BR") {
+      if (!isFillerBreak(element)) {
+        sink.pendingBreaks += 1;
+        sink.started = true;
+      }
       continue;
     }
 
-    const isBlock = blockTagNames.has(tagName);
+    const isBlock = blockTagNames.has(element.tagName);
     if (isBlock && sink.started) sink.pendingBreaks += 1;
-
-    walkNode(
-      element,
-      bold || boldTagNames.has(tagName),
-      italic || italicTagNames.has(tagName),
-      sink,
-    );
-
+    walkNode(element, sink);
     if (isBlock) sink.started = true;
   }
 };
 
-export const readRichTextParagraphs = (root: HTMLElement): RichTextParagraph[] => {
-  const sink: ParagraphSink = { paragraphs: [[]], pendingBreaks: 0, started: false };
-  walkNode(root, false, false, sink);
-  flushBreaks(sink);
+/** Reads the contentEditable back as the markdown source it renders. */
+export const readMarkdownSource = (root: HTMLElement): string => {
+  const sink: TextSink = { chunks: [], pendingBreaks: 0, started: false };
+  walkNode(root, sink);
 
-  return sink.paragraphs;
+  return sink.chunks.join("");
 };
 
-const createRunNode = (document: Document, run: RichTextRun): Node => {
-  let node: Node = document.createTextNode(run.text);
-  if (run.italic) {
-    const emphasis = document.createElement("em");
-    emphasis.append(node);
-    node = emphasis;
-  }
-  if (run.bold) {
-    const strong = document.createElement("strong");
-    strong.append(node);
-    node = strong;
+export const getMarkdownSourceLength = (root: HTMLElement): number =>
+  readMarkdownSource(root).length;
+
+const createLineElement = (document: Document, line: string): HTMLElement => {
+  const element = document.createElement("div");
+  element.className = richTextLineClassName;
+
+  const spans = annotateInlineMarkdown(line);
+  if (spans.length === 0) {
+    element.append(document.createElement("br"));
+    return element;
   }
 
-  return node;
+  for (const span of spans) {
+    const node = document.createElement("span");
+    const classNames = ["rich-text-span"];
+    if (span.bold) classNames.push("rich-text-bold");
+    if (span.italic) classNames.push("rich-text-italic");
+    if (span.marker) classNames.push("rich-text-marker");
+    node.className = classNames.join(" ");
+    node.textContent = line.slice(span.start, span.end);
+    element.append(node);
+  }
+
+  return element;
 };
 
-const createLineElement = (document: Document, runs: RichTextParagraph): HTMLElement => {
-  const line = document.createElement("div");
-  line.className = richTextLineClassName;
-  let hasContent = false;
-  for (const run of runs) {
-    if (run.text.length === 0) continue;
-    line.append(createRunNode(document, run));
-    hasContent = true;
-  }
-  if (!hasContent) line.append(document.createElement("br"));
-
-  return line;
-};
-
-export const renderRichTextParagraphs = (
-  root: HTMLElement,
-  paragraphs: readonly RichTextParagraph[],
-): void => {
-  const lines = paragraphs.length > 0 ? paragraphs : [[]];
+/**
+ * Renders the markdown source verbatim, wrapping each character range in a span
+ * that previews the styling. DOM text stays identical to the source so caret
+ * offsets need no translation.
+ */
+export const renderMarkdownSource = (root: HTMLElement, text: string): void => {
+  const lines = text.split("\n");
   const document = root.ownerDocument;
-  root.replaceChildren(...lines.map((runs) => createLineElement(document, runs)));
+  root.replaceChildren(...lines.map((line) => createLineElement(document, line)));
 };
-
-const plainLengthOfParagraphs = (paragraphs: readonly RichTextParagraph[]): number =>
-  paragraphs.reduce(
-    (total, runs, index) =>
-      total + (index > 0 ? 1 : 0) + runs.reduce((sum, run) => sum + run.text.length, 0),
-    0,
-  );
 
 const collectTextNodes = (element: Element): Text[] => {
   const textNodes: Text[] = [];
@@ -171,9 +133,6 @@ const measureLines = (root: HTMLElement): LineMeasurement[] => {
   return measurements;
 };
 
-export const getRichTextLength = (root: HTMLElement): number =>
-  plainLengthOfParagraphs(readRichTextParagraphs(root));
-
 const offsetForPoint = (root: HTMLElement, node: Node, offset: number): number => {
   const document = root.ownerDocument;
   const range = document.createRange();
@@ -182,10 +141,10 @@ const offsetForPoint = (root: HTMLElement, node: Node, offset: number): number =
   const holder = document.createElement("div");
   holder.append(range.cloneContents());
 
-  return plainLengthOfParagraphs(readRichTextParagraphs(holder));
+  return readMarkdownSource(holder).length;
 };
 
-export const readRichTextSelection = (root: HTMLElement): RichTextSelection | null => {
+export const readMarkdownSelection = (root: HTMLElement): RichTextSelection | null => {
   const selection = root.ownerDocument.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
 
@@ -221,13 +180,13 @@ const locatePoint = (
   return { node: line.element, offset: 0 };
 };
 
-export const applyRichTextSelection = (
+export const applyMarkdownSelection = (
   root: HTMLElement,
-  richTextSelection: RichTextSelection,
+  markdownSelection: RichTextSelection,
 ): void => {
   const lines = measureLines(root);
-  const start = locatePoint(lines, richTextSelection.start);
-  const end = locatePoint(lines, richTextSelection.end);
+  const start = locatePoint(lines, markdownSelection.start);
+  const end = locatePoint(lines, markdownSelection.end);
   if (!start || !end) return;
 
   const document = root.ownerDocument;

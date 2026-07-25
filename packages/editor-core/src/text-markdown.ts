@@ -106,75 +106,102 @@ export type RichTextEdit = {
   selectionEnd: number;
 };
 
-const markdownEscapePattern = /[\\`*_[\]]/g;
-
-export const escapeMarkdownText = (text: string): string =>
-  text.replace(markdownEscapePattern, (marker) => `\\${marker}`);
-
-const mergeRuns = (runs: readonly RichTextRun[]): RichTextRun[] => {
-  const merged: RichTextRun[] = [];
-  for (const run of runs) {
-    appendRun(merged, run.text, run.bold, run.italic);
-  }
-
-  return merged;
-};
-
-const runToMarkdown = (run: RichTextRun): string => {
-  const escaped = escapeMarkdownText(run.text);
-  const marker = `${run.bold ? "**" : ""}${run.italic ? "*" : ""}`;
-  if (marker.length === 0) return escaped;
-
-  const match = /^(\s*)([\s\S]*?)(\s*)$/.exec(escaped);
-  const leading = match?.[1] ?? "";
-  const core = match?.[2] ?? "";
-  const trailing = match?.[3] ?? "";
-  if (core.length === 0) return escaped;
-
-  return `${leading}${marker}${core}${marker}${trailing}`;
-};
-
-export const runsToMarkdown = (paragraphs: readonly RichTextParagraph[]): string =>
-  paragraphs.map((runs) => mergeRuns(runs).map(runToMarkdown).join("")).join("\n");
-
-export const normalizeRichText = (text: string): string => runsToMarkdown(parseRichText(text));
-
-export const richTextLength = (text: string): number =>
-  richTextToPlainString(parseRichText(text)).length;
-
-type StyledCharacter = {
-  char: string;
+/**
+ * A slice of a markdown line, mapped 1:1 onto the source characters. `marker`
+ * spans are the emphasis delimiters themselves (`**`, `_`, ...) so editors can
+ * keep showing the markdown while previewing the styling it produces.
+ */
+export type MarkdownSpan = {
+  start: number;
+  end: number;
   bold: boolean;
   italic: boolean;
+  marker: boolean;
 };
 
-const paragraphsToCharacters = (paragraphs: readonly RichTextParagraph[]): StyledCharacter[] => {
-  const characters: StyledCharacter[] = [];
-  paragraphs.forEach((runs, index) => {
-    if (index > 0) characters.push({ char: "\n", bold: false, italic: false });
-    for (const run of runs) {
-      for (const char of run.text.split("")) {
-        characters.push({ char, bold: run.bold, italic: run.italic });
-      }
-    }
-  });
+const pushSpan = (
+  spans: MarkdownSpan[],
+  start: number,
+  end: number,
+  bold: boolean,
+  italic: boolean,
+  marker: boolean,
+): void => {
+  if (end <= start) return;
 
-  return characters;
-};
-
-const charactersToParagraphs = (characters: readonly StyledCharacter[]): RichTextParagraph[] => {
-  const paragraphs: RichTextParagraph[] = [[]];
-  for (const character of characters) {
-    if (character.char === "\n") {
-      paragraphs.push([]);
-      continue;
-    }
-
-    const current = paragraphs[paragraphs.length - 1];
-    if (current) appendRun(current, character.char, character.bold, character.italic);
+  const previous = spans[spans.length - 1];
+  if (
+    previous &&
+    previous.end === start &&
+    previous.bold === bold &&
+    previous.italic === italic &&
+    previous.marker === marker
+  ) {
+    previous.end = end;
+    return;
   }
 
-  return paragraphs;
+  spans.push({ start, end, bold, italic, marker });
+};
+
+const walkSpans = (
+  tokens: readonly Token[],
+  offset: number,
+  bold: boolean,
+  italic: boolean,
+  spans: MarkdownSpan[],
+): number => {
+  let cursor = offset;
+
+  for (const token of tokens) {
+    const raw = (token as { raw?: string }).raw ?? "";
+    const length = raw.length;
+
+    if (token.type === "strong" || token.type === "em") {
+      const markerLength = token.type === "strong" ? 2 : 1;
+      const children = (token as Tokens.Strong | Tokens.Em).tokens ?? [];
+      const nextBold = bold || token.type === "strong";
+      const nextItalic = italic || token.type === "em";
+
+      if (length > markerLength * 2 && children.length > 0) {
+        pushSpan(spans, cursor, cursor + markerLength, nextBold, nextItalic, true);
+        walkSpans(children, cursor + markerLength, nextBold, nextItalic, spans);
+        pushSpan(
+          spans,
+          cursor + length - markerLength,
+          cursor + length,
+          nextBold,
+          nextItalic,
+          true,
+        );
+        cursor += length;
+        continue;
+      }
+    }
+
+    pushSpan(spans, cursor, cursor + length, bold, italic, false);
+    cursor += length;
+  }
+
+  return cursor;
+};
+
+export const annotateInlineMarkdown = (line: string): MarkdownSpan[] => {
+  if (line.length === 0) return [];
+
+  const plainSpans: MarkdownSpan[] = [
+    { start: 0, end: line.length, bold: false, italic: false, marker: false },
+  ];
+
+  try {
+    const spans: MarkdownSpan[] = [];
+    const cursor = walkSpans(Lexer.lexInline(line, inlineLexerOptions), 0, false, false, spans);
+    if (cursor !== line.length || spans.length === 0) return plainSpans;
+
+    return spans;
+  } catch {
+    return plainSpans;
+  }
 };
 
 const clampOffset = (value: number, max: number): number => {
@@ -183,80 +210,139 @@ const clampOffset = (value: number, max: number): number => {
   return Math.min(Math.max(Math.trunc(value), 0), max);
 };
 
-const withStyle = (
-  character: StyledCharacter,
+const findStyledRegion = (
+  spans: readonly MarkdownSpan[],
+  start: number,
+  end: number,
   style: RichTextStyle,
-  enabled: boolean,
-): StyledCharacter =>
-  style === "bold" ? { ...character, bold: enabled } : { ...character, italic: enabled };
+): { opening: MarkdownSpan; closing: MarkdownSpan } | null => {
+  const overlapping = spans
+    .map((span, index) => ({ span, index }))
+    .filter(({ span }) => span.start < end && start < span.end);
+  if (overlapping.length === 0) return null;
+  if (overlapping.some(({ span }) => !span.marker && !span[style])) return null;
 
-const styleToggleInsertion = "text";
+  const firstOverlap = overlapping[0];
+  const lastOverlap = overlapping[overlapping.length - 1];
+  if (!firstOverlap || !lastOverlap) return null;
 
-export const toggleRichTextStyle = (
+  let first = firstOverlap.index;
+  let last = lastOverlap.index;
+  while (first > 0 && spans[first - 1]?.[style]) first -= 1;
+  while (last < spans.length - 1 && spans[last + 1]?.[style]) last += 1;
+
+  const opening = spans[first];
+  const closing = spans[last];
+  const markerLength = style === "bold" ? 2 : 1;
+  if (!opening || !closing || opening === closing) return null;
+  if (!opening.marker || opening.end - opening.start !== markerLength) return null;
+  if (!closing.marker || closing.end - closing.start !== markerLength) return null;
+
+  return { opening, closing };
+};
+
+type LineEdit = {
+  line: string;
+  start: number;
+  end: number;
+};
+
+const toggleMarkerOnLine = (
+  line: string,
+  start: number,
+  end: number,
+  style: RichTextStyle,
+): LineEdit => {
+  const markerLength = style === "bold" ? 2 : 1;
+  const marker = style === "bold" ? "**" : "*";
+
+  if (end > start) {
+    const region = findStyledRegion(annotateInlineMarkdown(line), start, end, style);
+    if (region) {
+      const { opening, closing } = region;
+      const next =
+        line.slice(0, opening.start) +
+        line.slice(opening.end, closing.start) +
+        line.slice(closing.end);
+      const remap = (offset: number) =>
+        Math.min(Math.max(offset, opening.end), closing.start) - markerLength;
+
+      return { line: next, start: remap(start), end: remap(end) };
+    }
+  }
+
+  return {
+    line: `${line.slice(0, start)}${marker}${line.slice(start, end)}${marker}${line.slice(end)}`,
+    start: start + markerLength,
+    end: end + markerLength,
+  };
+};
+
+/**
+ * Adds or removes markdown emphasis markers around the selection. The document
+ * stays markdown: toggling bold on `word` produces `**word**`, and toggling it
+ * again removes the markers again.
+ */
+export const toggleMarkdownStyle = (
   text: string,
   selectionStart: number,
   selectionEnd: number,
   style: RichTextStyle,
 ): RichTextEdit => {
-  const characters = paragraphsToCharacters(parseRichText(text));
-  const start = clampOffset(Math.min(selectionStart, selectionEnd), characters.length);
-  const end = clampOffset(Math.max(selectionStart, selectionEnd), characters.length);
+  const start = clampOffset(Math.min(selectionStart, selectionEnd), text.length);
+  const end = clampOffset(Math.max(selectionStart, selectionEnd), text.length);
 
-  if (start === end) {
-    const inserted = styleToggleInsertion.split("").map((char) => ({
-      char,
-      bold: style === "bold",
-      italic: style === "italic",
-    }));
-    const next = [...characters.slice(0, start), ...inserted, ...characters.slice(start)];
+  const lines = text.split("\n");
+  const editedLines: string[] = [];
+  let lineStart = 0;
+  let nextStart: number | null = null;
+  let nextEnd: number | null = null;
+  let offsetShift = 0;
 
-    return {
-      text: runsToMarkdown(charactersToParagraphs(next)),
-      selectionStart: start,
-      selectionEnd: start + inserted.length,
-    };
+  for (const line of lines) {
+    const lineEnd = lineStart + line.length;
+    const localStart = clampOffset(start - lineStart, line.length);
+    const localEnd = clampOffset(end - lineStart, line.length);
+    const intersects =
+      start <= lineEnd &&
+      end >= lineStart &&
+      (localEnd > localStart || (start === end && start >= lineStart && start <= lineEnd));
+
+    if (!intersects) {
+      editedLines.push(line);
+      lineStart = lineEnd + 1;
+      continue;
+    }
+
+    const edit = toggleMarkerOnLine(line, localStart, localEnd, style);
+    editedLines.push(edit.line);
+    if (nextStart === null) nextStart = lineStart + offsetShift + edit.start;
+    nextEnd = lineStart + offsetShift + edit.end;
+    offsetShift += edit.line.length - line.length;
+    lineStart = lineEnd + 1;
   }
 
-  const selected = characters.slice(start, end).filter((character) => character.char !== "\n");
-  const enabled = selected.length === 0 || !selected.every((character) => character[style]);
-  const next = characters.map((character, index) =>
-    index >= start && index < end && character.char !== "\n"
-      ? withStyle(character, style, enabled)
-      : character,
-  );
-
   return {
-    text: runsToMarkdown(charactersToParagraphs(next)),
-    selectionStart: start,
-    selectionEnd: end,
+    text: editedLines.join("\n"),
+    selectionStart: nextStart ?? start,
+    selectionEnd: nextEnd ?? end,
   };
 };
 
-export const replaceRichTextRange = (
+export const replaceTextRange = (
   text: string,
   selectionStart: number,
   selectionEnd: number,
   insertedText: string,
 ): RichTextEdit => {
-  const characters = paragraphsToCharacters(parseRichText(text));
-  const start = clampOffset(Math.min(selectionStart, selectionEnd), characters.length);
-  const end = clampOffset(Math.max(selectionStart, selectionEnd), characters.length);
-  const inheritedFrom = characters[start - 1] ?? characters[end] ?? null;
-  const bold = inheritedFrom?.char === "\n" ? false : (inheritedFrom?.bold ?? false);
-  const italic = inheritedFrom?.char === "\n" ? false : (inheritedFrom?.italic ?? false);
-  const inserted = insertedText
-    .replace(/\r\n?/g, "\n")
-    .split("")
-    .map((char) => ({
-      char,
-      bold: char === "\n" ? false : bold,
-      italic: char === "\n" ? false : italic,
-    }));
-  const next = [...characters.slice(0, start), ...inserted, ...characters.slice(end)];
+  const start = clampOffset(Math.min(selectionStart, selectionEnd), text.length);
+  const end = clampOffset(Math.max(selectionStart, selectionEnd), text.length);
+  const inserted = insertedText.replace(/\r\n?/g, "\n");
+  const caret = start + inserted.length;
 
   return {
-    text: runsToMarkdown(charactersToParagraphs(next)),
-    selectionStart: start + inserted.length,
-    selectionEnd: start + inserted.length,
+    text: `${text.slice(0, start)}${inserted}${text.slice(end)}`,
+    selectionStart: caret,
+    selectionEnd: caret,
   };
 };

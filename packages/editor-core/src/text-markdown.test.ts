@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  escapeMarkdownText,
-  normalizeRichText,
+  annotateInlineMarkdown,
   parseInlineRuns,
   parseRichText,
-  replaceRichTextRange,
-  runsToMarkdown,
-  toggleRichTextStyle,
+  replaceTextRange,
+  toggleMarkdownStyle,
 } from "./text-markdown.js";
 
 describe("parseInlineRuns", () => {
@@ -96,143 +94,147 @@ describe("parseRichText", () => {
   });
 });
 
-describe("escapeMarkdownText", () => {
-  it("escapes characters that would otherwise be parsed as markup", () => {
-    expect(escapeMarkdownText("2 * 3 _ [x] `y` \\")).toBe("2 \\* 3 \\_ \\[x\\] \\`y\\` \\\\");
+describe("annotateInlineMarkdown", () => {
+  const cover = (line: string) => {
+    const spans = annotateInlineMarkdown(line);
+    let cursor = 0;
+    for (const span of spans) {
+      expect(span.start).toBe(cursor);
+      expect(span.end).toBeGreaterThan(span.start);
+      cursor = span.end;
+    }
+    expect(cursor).toBe(line.length);
+    return spans;
+  };
+
+  it("returns nothing for an empty line", () => {
+    expect(annotateInlineMarkdown("")).toEqual([]);
+  });
+
+  it("returns a single plain span for unstyled text", () => {
+    expect(cover("hello world")).toEqual([
+      { start: 0, end: 11, bold: false, italic: false, marker: false },
+    ]);
+  });
+
+  it("marks bold markers separately from bold content", () => {
+    expect(cover("a **b** c")).toEqual([
+      { start: 0, end: 2, bold: false, italic: false, marker: false },
+      { start: 2, end: 4, bold: true, italic: false, marker: true },
+      { start: 4, end: 5, bold: true, italic: false, marker: false },
+      { start: 5, end: 7, bold: true, italic: false, marker: true },
+      { start: 7, end: 9, bold: false, italic: false, marker: false },
+    ]);
+  });
+
+  it("marks italic markers", () => {
+    expect(cover("*i*")).toEqual([
+      { start: 0, end: 1, bold: false, italic: true, marker: true },
+      { start: 1, end: 2, bold: false, italic: true, marker: false },
+      { start: 2, end: 3, bold: false, italic: true, marker: true },
+    ]);
+  });
+
+  it("handles bold and italic together", () => {
+    const spans = cover("***bi***");
+    expect(spans.at(0)).toEqual({ start: 0, end: 1, bold: false, italic: true, marker: true });
+    expect(spans.some((span) => !span.marker && span.bold && span.italic)).toBe(true);
+  });
+
+  it("supports underscore markers", () => {
+    expect(cover("__b__").filter((span) => span.marker)).toHaveLength(2);
+    expect(cover("_i_").filter((span) => span.marker)).toHaveLength(2);
+  });
+
+  it("keeps unmatched markers unstyled", () => {
+    expect(cover("**oops")).toEqual([
+      { start: 0, end: 6, bold: false, italic: false, marker: false },
+    ]);
+  });
+
+  it("covers escaped markers", () => {
+    const spans = cover("a \\*b\\* c");
+    expect(spans.every((span) => !span.bold && !span.italic)).toBe(true);
+  });
+
+  it("covers links without splitting their source", () => {
+    const spans = cover("see [docs](https://example.com) now");
+    expect(spans.every((span) => !span.marker)).toBe(true);
   });
 });
 
-describe("runsToMarkdown", () => {
-  it("wraps styled runs in markers", () => {
-    expect(
-      runsToMarkdown([
-        [
-          { text: "hello ", bold: false, italic: false },
-          { text: "brave", bold: true, italic: false },
-          { text: " new ", bold: false, italic: false },
-          { text: "world", bold: true, italic: true },
-        ],
-      ]),
-    ).toBe("hello **brave** new ***world***");
-  });
-
-  it("keeps whitespace outside of markers", () => {
-    expect(runsToMarkdown([[{ text: " spaced ", bold: true, italic: false }]])).toBe(
-      " **spaced** ",
-    );
-  });
-
-  it("leaves whitespace-only runs unwrapped", () => {
-    expect(runsToMarkdown([[{ text: "  ", bold: true, italic: false }]])).toBe("  ");
-  });
-
-  it("escapes literal markers typed by the author", () => {
-    expect(runsToMarkdown([[{ text: "5 * 6", bold: false, italic: false }]])).toBe("5 \\* 6");
-  });
-
-  it("joins paragraphs with newlines", () => {
-    expect(
-      runsToMarkdown([
-        [{ text: "first", bold: false, italic: false }],
-        [],
-        [{ text: "third", bold: false, italic: false }],
-      ]),
-    ).toBe("first\n\nthird");
-  });
-
-  it("round-trips parsed markdown", () => {
-    expect(normalizeRichText("a **b** *c* ***d***\n\ne")).toBe("a **b** *c* ***d***\n\ne");
-  });
-});
-
-describe("toggleRichTextStyle", () => {
-  it("adds bold to an unstyled selection", () => {
-    expect(toggleRichTextStyle("hello world", 6, 11, "bold")).toEqual({
+describe("toggleMarkdownStyle", () => {
+  it("wraps the selection in bold markers", () => {
+    expect(toggleMarkdownStyle("hello world", 6, 11, "bold")).toEqual({
       text: "hello **world**",
-      selectionStart: 6,
-      selectionEnd: 11,
+      selectionStart: 8,
+      selectionEnd: 13,
     });
   });
 
-  it("removes bold when the whole selection is already bold", () => {
-    expect(toggleRichTextStyle("hello **world**", 6, 11, "bold")).toEqual({
+  it("wraps the selection in italic markers", () => {
+    expect(toggleMarkdownStyle("hello world", 0, 5, "italic")).toEqual({
+      text: "*hello* world",
+      selectionStart: 1,
+      selectionEnd: 6,
+    });
+  });
+
+  it("removes existing bold markers", () => {
+    expect(toggleMarkdownStyle("hello **world**", 8, 13, "bold")).toEqual({
       text: "hello world",
       selectionStart: 6,
       selectionEnd: 11,
     });
   });
 
-  it("adds italic across a partially styled selection", () => {
-    expect(toggleRichTextStyle("*ab*cd", 0, 4, "italic")).toEqual({
-      text: "*abcd*",
-      selectionStart: 0,
-      selectionEnd: 4,
-    });
-  });
-
-  it("keeps bold and italic independent", () => {
-    expect(toggleRichTextStyle("**bold**", 0, 4, "italic")).toEqual({
-      text: "***bold***",
-      selectionStart: 0,
-      selectionEnd: 4,
-    });
-  });
-
-  it("spans paragraph boundaries without styling the newline", () => {
-    expect(toggleRichTextStyle("ab\ncd", 0, 5, "bold")).toEqual({
-      text: "**ab**\n**cd**",
+  it("removes bold markers when the selection includes them", () => {
+    expect(toggleMarkdownStyle("**world**", 0, 9, "bold")).toEqual({
+      text: "world",
       selectionStart: 0,
       selectionEnd: 5,
     });
   });
 
-  it("inserts styled placeholder text for a collapsed selection", () => {
-    expect(toggleRichTextStyle("hi ", 3, 3, "bold")).toEqual({
-      text: "hi **text**",
-      selectionStart: 3,
-      selectionEnd: 7,
-    });
+  it("keeps italic when removing bold from combined emphasis", () => {
+    expect(toggleMarkdownStyle("***x***", 3, 4, "bold").text).toBe("*x*");
   });
 
-  it("clamps out-of-range offsets", () => {
-    expect(toggleRichTextStyle("hi", -4, 40, "bold")).toEqual({
-      text: "**hi**",
-      selectionStart: 0,
-      selectionEnd: 2,
-    });
-  });
-});
-
-describe("replaceRichTextRange", () => {
-  it("inserts plain text at the caret", () => {
-    expect(replaceRichTextRange("hello world", 5, 5, " brave")).toEqual({
-      text: "hello brave world",
-      selectionStart: 11,
-      selectionEnd: 11,
-    });
+  it("adds italic to already bold text", () => {
+    expect(toggleMarkdownStyle("**x**", 2, 3, "italic").text).toBe("***x***");
   });
 
-  it("replaces the selected range and inherits the preceding style", () => {
-    expect(replaceRichTextRange("**bold**", 4, 4, "er")).toEqual({
-      text: "**bolder**",
-      selectionStart: 6,
-      selectionEnd: 6,
-    });
-  });
-
-  it("normalizes pasted line endings", () => {
-    expect(replaceRichTextRange("", 0, 0, "a\r\nb")).toEqual({
-      text: "a\nb",
+  it("inserts empty markers for a collapsed selection", () => {
+    expect(toggleMarkdownStyle("ab", 1, 1, "bold")).toEqual({
+      text: "a****b",
       selectionStart: 3,
       selectionEnd: 3,
     });
   });
 
-  it("escapes pasted markdown markers", () => {
-    expect(replaceRichTextRange("", 0, 0, "**not bold**")).toEqual({
-      text: "\\*\\*not bold\\*\\*",
-      selectionStart: 12,
-      selectionEnd: 12,
+  it("applies per line for multi-line selections", () => {
+    expect(toggleMarkdownStyle("one\ntwo", 0, 7, "bold")).toEqual({
+      text: "**one**\n**two**",
+      selectionStart: 2,
+      selectionEnd: 13,
     });
+  });
+});
+
+describe("replaceTextRange", () => {
+  it("replaces the selected range and moves the caret", () => {
+    expect(replaceTextRange("hello world", 6, 11, "there")).toEqual({
+      text: "hello there",
+      selectionStart: 11,
+      selectionEnd: 11,
+    });
+  });
+
+  it("normalizes CRLF in inserted text", () => {
+    expect(replaceTextRange("ab", 2, 2, "\r\nc").text).toBe("ab\nc");
+  });
+
+  it("clamps out-of-range offsets", () => {
+    expect(replaceTextRange("ab", -5, 99, "z").text).toBe("z");
   });
 });

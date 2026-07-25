@@ -97,7 +97,8 @@ export function TextControls({
           />
         </div>
         <p className="text-content-hint">
-          Formatting is shown as you type — use the B and I buttons or Ctrl/Cmd+B and Ctrl/Cmd+I.
+          Use **bold**, *italic*, or ***both*** — markers stay visible and styling updates as you
+          type. B/I or Ctrl/Cmd+B and Ctrl/Cmd+I toggle them for the selection.
         </p>
       </fieldset>
       <fieldset className="inspector-section text-effects-section">

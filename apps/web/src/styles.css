@@ -84,6 +84,18 @@ textarea:focus-visible {
   min-height: 1em;
 }
 
+.rich-text-editor .rich-text-bold {
+  font-weight: 700;
+}
+
+.rich-text-editor .rich-text-italic {
+  font-style: italic;
+}
+
+.rich-text-editor .rich-text-marker {
+  opacity: 0.4;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

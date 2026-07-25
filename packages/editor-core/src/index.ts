@@ -15,19 +15,16 @@ export {
 } from "./fonts.js";
 
 export {
-  escapeMarkdownText,
-  normalizeRichText,
+  annotateInlineMarkdown,
+  type MarkdownSpan,
   parseInlineRuns,
   parseRichText,
-  replaceRichTextRange,
+  replaceTextRange,
   type RichTextEdit,
   type RichTextParagraph,
   type RichTextRun,
   type RichTextStyle,
-  richTextLength,
-  richTextToPlainString,
-  runsToMarkdown,
-  toggleRichTextStyle,
+  toggleMarkdownStyle,
 } from "./text-markdown.js";
 
 const colorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/);
