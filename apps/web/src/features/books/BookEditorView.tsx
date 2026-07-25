@@ -1,5 +1,12 @@
 import { Button } from "@fluentui/react-components";
-import { AddRegular, DeleteRegular, DismissRegular } from "@fluentui/react-icons";
+import {
+  AddRegular,
+  ArrowRedoRegular,
+  ArrowUndoRegular,
+  DeleteRegular,
+  DismissRegular,
+  SaveRegular,
+} from "@fluentui/react-icons";
 import {
   addLayer,
   createPageDocument,
@@ -46,6 +53,7 @@ import { BookSettingsModal } from "./BookSettingsModal";
 import { fetchBookWithPages } from "./bookEditorData";
 import {
   type BookEditorHistoryEntry,
+  coalesceEdits,
   type EditHistoryMode,
   getChangedPageIds,
   useBookEditorHistory,
@@ -73,6 +81,85 @@ import {
 } from "./spreadLayers";
 
 type PhotoPickerMode = { kind: "washiTapePattern"; layerId: string; pageId: string };
+
+/**
+ * Layer properties that are driven by continuous controls (typing, sliders, colour pickers). Runs of
+ * these edits collapse into a single undo step instead of one step per keystroke or pointer tick.
+ */
+const continuousLayerUpdateKeys = new Set([
+  "background",
+  "bubble",
+  "color",
+  "fontSize",
+  "glow",
+  "height",
+  "opacity",
+  "pattern",
+  "photoTransform",
+  "rotation",
+  "shadow",
+  "stroke",
+  "text",
+  "width",
+  "x",
+  "y",
+]);
+
+const isTextEntryTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+
+  return (
+    tagName === "INPUT" ||
+    tagName === "TEXTAREA" ||
+    tagName === "SELECT" ||
+    target.isContentEditable
+  );
+};
+
+/**
+ * Ctrl/Cmd+Z should defer to a field's own undo stack rather than rolling the whole book back, but
+ * only when that stack actually exists. RichTextEditor repaints its contenteditable DOM on every
+ * keystroke, which wipes the browser's native undo stack, so it falls through to editor history.
+ */
+const hasNativeUndoStack = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+
+  if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
+    return true;
+  }
+
+  return target.isContentEditable && !target.closest("[data-rich-text-editor]");
+};
+
+const getLayerEditHistoryMode = (
+  pageId: string,
+  layerId: string,
+  update: Partial<PageLayer>,
+  historyMode: EditHistoryMode,
+): EditHistoryMode => {
+  if (historyMode !== "record") {
+    return historyMode;
+  }
+
+  const updateKeys = Object.keys(update);
+
+  if (
+    updateKeys.length === 0 ||
+    !updateKeys.every((updateKey) => continuousLayerUpdateKeys.has(updateKey))
+  ) {
+    return historyMode;
+  }
+
+  return coalesceEdits(`layer:${pageId}:${layerId}:${[...updateKeys].sort().join(",")}`);
+};
 
 export function BookEditorView() {
   const { bookId } = useParams();
@@ -102,8 +189,15 @@ export function BookEditorView() {
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { endHistoryGroup, recordHistory, redoHistory, resetHistory, undoHistory } =
-    useBookEditorHistory<BookEditorHistoryEntry>();
+  const {
+    canRedo,
+    canUndo,
+    endHistoryGroup,
+    recordHistory,
+    redoHistory,
+    resetHistory,
+    undoHistory,
+  } = useBookEditorHistory<BookEditorHistoryEntry>();
 
   const applyLoadedBook = useCallback(
     (loadedBook: LoadedBook, preferredPageId: string | null) => {
@@ -394,6 +488,12 @@ export function BookEditorView() {
         return;
       }
 
+      // Fields that own a working undo stack keep Ctrl/Cmd+Z for themselves instead of rolling the
+      // whole book back to the previous history entry.
+      if (hasNativeUndoStack(event.target)) {
+        return;
+      }
+
       event.preventDefault();
 
       if (event.shiftKey) {
@@ -436,16 +536,8 @@ export function BookEditorView() {
       }
 
       const target = event.target as HTMLElement | null;
-      if (target) {
-        const tagName = target.tagName;
-        if (
-          tagName === "INPUT" ||
-          tagName === "TEXTAREA" ||
-          tagName === "SELECT" ||
-          target.isContentEditable
-        ) {
-          return;
-        }
+      if (isTextEntryTarget(target)) {
+        return;
       }
 
       if (!activePageId || selectedLayerIds.length === 0) {
@@ -488,17 +580,22 @@ export function BookEditorView() {
     editPageDocument(pageId, updateCanvas(page.document, { backgroundColor }));
   };
 
-  useEffect(() => {
-    const unsavedPageIds = Object.entries(pageStatuses)
-      .filter(([pageId, status]) => status === "unsaved" && pageDetails.has(pageId))
-      .map(([pageId]) => pageId);
+  const unsavedPageIds = useMemo(
+    () =>
+      Object.entries(pageStatuses)
+        .filter(([pageId, status]) => status === "unsaved" && pageDetails.has(pageId))
+        .map(([pageId]) => pageId),
+    [pageDetails, pageStatuses],
+  );
 
-    if (unsavedPageIds.length === 0) {
-      return;
-    }
+  const isSavingPages = useMemo(
+    () => Object.values(pageStatuses).some((status) => status === "saving"),
+    [pageStatuses],
+  );
 
-    const autosaveTimer = window.setTimeout(() => {
-      const pagesToSave = unsavedPageIds
+  const savePages = useCallback(
+    (pageIds: string[]) => {
+      const pagesToSave = pageIds
         .map((pageId) => pageDetails.get(pageId))
         .filter((page): page is PageDetail => Boolean(page));
 
@@ -562,10 +659,23 @@ export function BookEditorView() {
           setError(getErrorMessage(firstFailure?.reason ?? "Failed to save page"));
         }
       });
-    }, 700);
+    },
+    [pageDetails],
+  );
+
+  const saveUnsavedPages = useCallback(() => {
+    savePages(unsavedPageIds);
+  }, [savePages, unsavedPageIds]);
+
+  useEffect(() => {
+    if (unsavedPageIds.length === 0) {
+      return;
+    }
+
+    const autosaveTimer = window.setTimeout(saveUnsavedPages, 700);
 
     return () => window.clearTimeout(autosaveTimer);
-  }, [pageDetails, pageStatuses]);
+  }, [saveUnsavedPages, unsavedPageIds]);
 
   const applySpreadLayerSync = (
     result: SpreadLayerSyncResult,
@@ -638,12 +748,13 @@ export function BookEditorView() {
       return;
     }
 
+    const editHistoryMode = getLayerEditHistoryMode(pageId, layerId, update, historyMode);
     const nextDocument = updateLayer(page.document, layerId, update);
     const nextLayer = nextDocument.layers.find((layer) => layer.id === layerId);
 
     if (viewMode === "spread" && nextLayer && visiblePageIds.length > 1) {
       updateSharedSpreadLayer({
-        historyMode,
+        historyMode: editHistoryMode,
         removeNonOverlappingSource: false,
         selectContainingPage: false,
         sourceLayer: nextLayer,
@@ -652,7 +763,7 @@ export function BookEditorView() {
       return;
     }
 
-    editPageDocument(pageId, nextDocument, historyMode);
+    editPageDocument(pageId, nextDocument, editHistoryMode);
   };
 
   const finishLayerTransform = (
@@ -1497,6 +1608,43 @@ export function BookEditorView() {
           inspector={
             selectedLayer && activePageId
               ? {
+                  actions: (
+                    <div className="editor-edit-pane-actions">
+                      <Button
+                        appearance="subtle"
+                        size="small"
+                        icon={<ArrowUndoRegular />}
+                        aria-label="Undo"
+                        title="Undo (Ctrl/Cmd+Z)"
+                        disabled={!canUndo}
+                        onClick={undoBookEdit}
+                      />
+                      <Button
+                        appearance="subtle"
+                        size="small"
+                        icon={<ArrowRedoRegular />}
+                        aria-label="Redo"
+                        title="Redo (Ctrl/Cmd+Shift+Z)"
+                        disabled={!canRedo}
+                        onClick={redoBookEdit}
+                      />
+                      <Button
+                        appearance="subtle"
+                        size="small"
+                        icon={<SaveRegular />}
+                        aria-label={isSavingPages ? "Saving" : "Save"}
+                        title={
+                          isSavingPages
+                            ? "Saving…"
+                            : unsavedPageIds.length > 0
+                              ? "Save now"
+                              : "All changes saved"
+                        }
+                        disabled={isSavingPages || unsavedPageIds.length === 0}
+                        onClick={saveUnsavedPages}
+                      />
+                    </div>
+                  ),
                   title: `Edit ${formatLayerKindLabel(selectedLayer.kind)}`,
                   content: (
                     <LayerInspector
