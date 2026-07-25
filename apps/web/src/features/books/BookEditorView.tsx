@@ -250,8 +250,13 @@ export function BookEditorView() {
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [activeSelectionPanel]);
+  const closePageSettingsForOtherPage = (pageId: string) => {
+    setEditingPageId((currentPageId) => (currentPageId === pageId ? currentPageId : null));
+  };
+
   const selectPage = (pageId: string, layerId: string | null = null) => {
     setActivePageId(pageId);
+    closePageSettingsForOtherPage(pageId);
     setSelectedLayerIds(layerId ? [layerId] : []);
   };
 
@@ -261,6 +266,7 @@ export function BookEditorView() {
     options?: { additive?: boolean },
   ) => {
     setActivePageId(pageId);
+    closePageSettingsForOtherPage(pageId);
     if (layerId === null) {
       setSelectedLayerIds([]);
       return;
