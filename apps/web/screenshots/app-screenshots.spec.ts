@@ -646,6 +646,39 @@ const scenarios: ScreenshotScenario[] = [
     waitFor: waitForBookEditor,
   },
   {
+    name: "book-editor-text-inline-resize",
+    path: "/books/book_summer",
+    prepare: async (page) => {
+      const textLayer = page
+        .locator('.book-page-frame[aria-label="Page 1"] .canvas-layer[data-kind="text"]')
+        .first();
+      await textLayer.locator(".canvas-layer-hitbox").dblclick({ force: true });
+      const inlineEditor = page.getByRole("textbox", { name: "Edit text" });
+      await expect(inlineEditor).toBeVisible();
+
+      const resizeHandle = textLayer.locator('.transform-resize-handle[data-handle="e"]');
+      if (!(await isVisible(resizeHandle))) return;
+
+      const handleBox = await resizeHandle.boundingBox();
+      const beforeBox = await inlineEditor.boundingBox();
+      if (!handleBox || !beforeBox) return;
+
+      const handleX = handleBox.x + handleBox.width / 2;
+      const handleY = handleBox.y + handleBox.height / 2;
+      await page.mouse.move(handleX, handleY);
+      await page.mouse.down();
+      await page.mouse.move(handleX + 80, handleY, { steps: 10 });
+      await page.mouse.up();
+
+      const afterBox = await inlineEditor.boundingBox();
+      expect(afterBox?.width ?? 0).toBeGreaterThan(beforeBox.width + 40);
+      await expect(inlineEditor).toBeVisible();
+      await expect(inlineEditor).toBeFocused();
+    },
+    viewports: ["desktop"],
+    waitFor: waitForBookEditor,
+  },
+  {
     name: "book-editor-text-settings-edit",
     path: "/books/book_summer",
     prepare: async (page) => {
