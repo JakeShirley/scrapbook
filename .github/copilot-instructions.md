@@ -29,8 +29,11 @@ When adding API endpoints, persistence tables, or migrations:
 
 - Use Conventional Commits with only these types: `feat`, `fix`, `chore`.
 - If the work addresses a GitHub issue, include `(fixes #<issue number>)` on the first line.
-- Do not commit automatically unless explicitly instructed.
 
 ## If Blocked
 
 - If a required validation step cannot run, report what command or browser step was attempted, why it failed, and what fallback checks were completed.
+
+## Pull Requests
+
+- Always include screenshots in pull requests if the change affects the UI.
