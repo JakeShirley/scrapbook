@@ -63,6 +63,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     const rootRef = useRef<HTMLDivElement | null>(null);
     const renderedValueRef = useRef<string | null>(null);
     const pendingSelectionRef = useRef<RichTextSelection | null>(null);
+    const lastSelectionRef = useRef<RichTextSelection | null>(null);
     const composingRef = useRef(false);
 
     const paint = useCallback(
@@ -92,10 +93,13 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
 
     const currentSelection = useCallback((root: HTMLDivElement): RichTextSelection => {
       const selection = readMarkdownSelection(root);
-      if (selection) return selection;
+      if (selection) {
+        lastSelectionRef.current = selection;
+        return selection;
+      }
       const end = getMarkdownSourceLength(root);
 
-      return { start: end, end };
+      return lastSelectionRef.current ?? { start: end, end };
     }, []);
 
     const commitEdit = useCallback(
@@ -128,9 +132,16 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
           const root = rootRef.current;
           if (!root) return;
           root.focus({ preventScroll: true });
-          if (!options?.placeCaretAtEnd) return;
-          const end = getMarkdownSourceLength(root);
-          applyMarkdownSelection(root, { start: end, end });
+          if (options?.placeCaretAtEnd) {
+            const end = getMarkdownSourceLength(root);
+            applyMarkdownSelection(root, { start: end, end });
+            return;
+          }
+
+          // Restore the caret the editor had before focus moved away, so
+          // interactions like resizing the text box mid-edit keep the cursor.
+          const selection = lastSelectionRef.current;
+          if (selection) applyMarkdownSelection(root, selection);
         },
         toggleStyle,
       }),
@@ -150,7 +161,10 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         spellCheck={spellCheck}
         style={style}
         tabIndex={0}
-        onBlur={onBlur}
+        onBlur={(event) => {
+          currentSelection(event.currentTarget);
+          onBlur?.(event);
+        }}
         onCompositionEnd={(event) => {
           composingRef.current = false;
           const root = event.currentTarget;
@@ -190,6 +204,12 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
           }
 
           onKeyDown?.(event);
+        }}
+        onKeyUp={(event) => {
+          currentSelection(event.currentTarget);
+        }}
+        onMouseUp={(event) => {
+          currentSelection(event.currentTarget);
         }}
         onPaste={(event) => {
           const root = event.currentTarget;
