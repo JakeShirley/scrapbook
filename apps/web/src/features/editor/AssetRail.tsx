@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import type { Asset } from "../../types";
 
 export type AssetRailInspector = {
+  actions?: ReactNode;
   title: string;
   content: ReactNode;
 };
@@ -109,6 +110,7 @@ export function AssetRail(props: AssetRailProps) {
         <section aria-label={inspector.title} className="asset-rail-inspector" role="dialog">
           <header className="editor-edit-pane-header">
             <h3>{inspector.title}</h3>
+            {inspector.actions ?? null}
           </header>
           <div className="editor-edit-pane-body">{inspector.content}</div>
         </section>

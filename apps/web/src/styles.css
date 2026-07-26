@@ -4495,6 +4495,13 @@ body {
   white-space: nowrap;
 }
 
+.editor-edit-pane-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
 .editor-edit-pane-body {
   min-height: 0;
   overflow-y: auto;

@@ -156,6 +156,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         aria-multiline="true"
         className={className ? `rich-text-editor ${className}` : "rich-text-editor"}
         contentEditable
+        data-rich-text-editor="true"
         id={id}
         role="textbox"
         spellCheck={spellCheck}

@@ -9,7 +9,9 @@ export type BookEditorHistoryEntry = {
   selectedLayerIds: string[];
 };
 
-export type EditHistoryMode = "group" | "record";
+export type EditHistoryCoalesce = { coalesceToken: string };
+
+export type EditHistoryMode = "group" | "record" | EditHistoryCoalesce;
 
 type BookEditorHistoryState<Entry> = {
   redoStack: Entry[];
@@ -22,6 +24,14 @@ type BookEditorHistoryChange<Entry> = {
 };
 
 const bookEditorHistoryLimit = 100;
+
+/**
+ * Consecutive edits that share a coalesce token and land within this window collapse into a single
+ * undo step, so typing a word or dragging a slider is not replayed one keystroke/tick at a time.
+ */
+const editHistoryCoalesceWindowMs = 700;
+
+export const coalesceEdits = (coalesceToken: string): EditHistoryCoalesce => ({ coalesceToken });
 
 const createEmptyHistory = <Entry>(): BookEditorHistoryState<Entry> => ({
   redoStack: [],
@@ -40,9 +50,11 @@ export const getChangedPageIds = (
 export function useBookEditorHistory<Entry>() {
   const [history, setHistory] = useState<BookEditorHistoryState<Entry>>(() => createEmptyHistory());
   const pendingHistoryEntryRef = useRef<Entry | null>(null);
+  const coalesceRef = useRef<{ coalesceToken: string; timestamp: number } | null>(null);
 
   const resetHistory = useCallback(() => {
     pendingHistoryEntryRef.current = null;
+    coalesceRef.current = null;
     setHistory(createEmptyHistory());
   }, []);
 
@@ -53,15 +65,15 @@ export function useBookEditorHistory<Entry>() {
     }));
   }, []);
 
-  const recordHistory = useCallback(
-    (createEntry: () => Entry, historyMode: EditHistoryMode = "record") => {
+  const captureHistoryEntry = useCallback(
+    (createEntry: () => Entry, isGroupStart: boolean) => {
       if (pendingHistoryEntryRef.current) {
         return;
       }
 
       const entry = createEntry();
 
-      if (historyMode === "group") {
+      if (isGroupStart) {
         pendingHistoryEntryRef.current = entry;
       }
 
@@ -70,8 +82,35 @@ export function useBookEditorHistory<Entry>() {
     [pushHistoryEntry],
   );
 
+  const recordHistory = useCallback(
+    (createEntry: () => Entry, historyMode: EditHistoryMode = "record") => {
+      if (typeof historyMode === "object") {
+        const timestamp = Date.now();
+        const previousCoalesce = coalesceRef.current;
+
+        coalesceRef.current = { coalesceToken: historyMode.coalesceToken, timestamp };
+
+        if (
+          previousCoalesce &&
+          previousCoalesce.coalesceToken === historyMode.coalesceToken &&
+          timestamp - previousCoalesce.timestamp <= editHistoryCoalesceWindowMs
+        ) {
+          return;
+        }
+
+        captureHistoryEntry(createEntry, false);
+        return;
+      }
+
+      coalesceRef.current = null;
+      captureHistoryEntry(createEntry, historyMode === "group");
+    },
+    [captureHistoryEntry],
+  );
+
   const endHistoryGroup = useCallback(() => {
     pendingHistoryEntryRef.current = null;
+    coalesceRef.current = null;
   }, []);
 
   const undoHistory = useCallback(
@@ -84,6 +123,7 @@ export function useBookEditorHistory<Entry>() {
 
       const redoEntry = createEntry();
       pendingHistoryEntryRef.current = null;
+      coalesceRef.current = null;
 
       setHistory((currentHistory) => ({
         redoStack: [...currentHistory.redoStack, redoEntry].slice(-bookEditorHistoryLimit),
@@ -104,6 +144,7 @@ export function useBookEditorHistory<Entry>() {
 
       const undoEntry = createEntry();
       pendingHistoryEntryRef.current = null;
+      coalesceRef.current = null;
 
       setHistory((currentHistory) => ({
         redoStack: currentHistory.redoStack.slice(0, -1),
@@ -115,6 +156,8 @@ export function useBookEditorHistory<Entry>() {
   );
 
   return {
+    canRedo: history.redoStack.length > 0,
+    canUndo: history.undoStack.length > 0,
     endHistoryGroup,
     recordHistory,
     redoHistory,
