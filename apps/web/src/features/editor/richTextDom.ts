@@ -58,6 +58,9 @@ const walkNode = (node: Node, sink: TextSink): void => {
 export const readMarkdownSource = (root: HTMLElement): string => {
   const sink: TextSink = { chunks: [], pendingBreaks: 0, started: false };
   walkNode(root, sink);
+  // Trailing breaks have no text after them to trigger a flush, but an empty
+  // last line is still a line the caret can sit on.
+  flushBreaks(sink);
 
   return sink.chunks.join("");
 };
