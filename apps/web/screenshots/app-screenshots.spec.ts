@@ -249,7 +249,7 @@ const pageFixtures = [
     backgroundColor: "#fff6e6",
     layers: [
       photoLayer("photo_cover", "asset_sunroom", 220, 240, 1240, 980, -3),
-      textLayer("text_cover", "A little book of bright days", 360, 1320, 1320, 260, 92),
+      textLayer("text_cover", "A little book of **bright** days", 360, 1320, 1320, 260, 92),
       stickerLayer("sticker_cover", "noto:sun-with-face", 1660, 300, 360, 360, 8),
     ],
   }),

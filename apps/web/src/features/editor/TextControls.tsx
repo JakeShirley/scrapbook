@@ -3,27 +3,11 @@ import { useRef } from "react";
 
 import { NumericInput } from "../../components/NumericInput";
 import { FontFamilySelect } from "./FontFamilySelect";
+import { RichTextEditor, type RichTextEditorHandle } from "./RichTextEditor";
 import { TextAlignmentControl } from "./TextAlignmentControl";
 
 type TextLayer = Extract<PageLayer, { kind: "text" }>;
 type TextEffectKey = "background" | "bubble" | "glow" | "shadow" | "stroke";
-
-const wrapSelectionWithMarker = (
-  source: string,
-  selectionStart: number,
-  selectionEnd: number,
-  marker: string,
-): { text: string; selectionStart: number; selectionEnd: number } => {
-  const before = source.slice(0, selectionStart);
-  const selected = source.slice(selectionStart, selectionEnd);
-  const after = source.slice(selectionEnd);
-  const placeholder = selected.length > 0 ? selected : "text";
-  const inserted = `${marker}${placeholder}${marker}`;
-  const text = `${before}${inserted}${after}`;
-  const insertionStart = before.length + marker.length;
-  const insertionEnd = insertionStart + placeholder.length;
-  return { text, selectionStart: insertionStart, selectionEnd: insertionEnd };
-};
 
 export function TextControls({
   layer,
@@ -32,27 +16,11 @@ export function TextControls({
   layer: TextLayer;
   onChange: (update: Partial<PageLayer>) => void;
 }) {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editorRef = useRef<RichTextEditorHandle | null>(null);
   const updateEffect = <Key extends TextEffectKey>(key: Key, update: Partial<TextLayer[Key]>) =>
     onChange({
       [key]: { ...layer[key], ...update },
     } as Partial<PageLayer>);
-
-  const applyInlineMarker = (marker: string) => {
-    const textarea = textareaRef.current;
-    const source = layer.text;
-    const selectionStart = textarea?.selectionStart ?? source.length;
-    const selectionEnd = textarea?.selectionEnd ?? source.length;
-    const result = wrapSelectionWithMarker(source, selectionStart, selectionEnd, marker);
-    onChange({ text: result.text } as Partial<PageLayer>);
-
-    requestAnimationFrame(() => {
-      const liveTextarea = textareaRef.current;
-      if (!liveTextarea) return;
-      liveTextarea.focus();
-      liveTextarea.setSelectionRange(result.selectionStart, result.selectionEnd);
-    });
-  };
 
   return (
     <>
@@ -63,20 +31,20 @@ export function TextControls({
             <button
               type="button"
               className="text-content-toolbar-button"
-              title="Bold (Ctrl/Cmd+B) — wraps selection in **double asterisks**"
+              title="Bold (Ctrl/Cmd+B)"
               aria-label="Bold"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => applyInlineMarker("**")}
+              onClick={() => editorRef.current?.toggleStyle("bold")}
             >
               <strong>B</strong>
             </button>
             <button
               type="button"
               className="text-content-toolbar-button"
-              title="Italic (Ctrl/Cmd+I) — wraps selection in *single asterisks*"
+              title="Italic (Ctrl/Cmd+I)"
               aria-label="Italic"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => applyInlineMarker("*")}
+              onClick={() => editorRef.current?.toggleStyle("italic")}
             >
               <em>I</em>
             </button>
@@ -119,29 +87,19 @@ export function TextControls({
             />
           </div>
         </div>
-        <label className="text-content-field" htmlFor="text-layer-text">
-          <span className="visually-hidden">Text</span>
-          <textarea
+        <div className="text-content-field">
+          <RichTextEditor
+            ref={editorRef}
+            ariaLabel="Text"
             id="text-layer-text"
-            ref={textareaRef}
             value={layer.text}
-            onChange={(event) =>
-              onChange({ text: event.currentTarget.value } as Partial<PageLayer>)
-            }
-            onKeyDown={(event) => {
-              if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-              const key = event.key.toLowerCase();
-              if (key === "b") {
-                event.preventDefault();
-                applyInlineMarker("**");
-              } else if (key === "i") {
-                event.preventDefault();
-                applyInlineMarker("*");
-              }
-            }}
+            onChange={(text) => onChange({ text } as Partial<PageLayer>)}
           />
-        </label>
-        <p className="text-content-hint">Use **bold**, *italic*, or ***both***.</p>
+        </div>
+        <p className="text-content-hint">
+          Use **bold**, *italic*, or ***both*** — markers stay visible and styling updates as you
+          type. B/I or Ctrl/Cmd+B and Ctrl/Cmd+I toggle them for the selection.
+        </p>
       </fieldset>
       <fieldset className="inspector-section text-effects-section">
         <legend>Effects</legend>
