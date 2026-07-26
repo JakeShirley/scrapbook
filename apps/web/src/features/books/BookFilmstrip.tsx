@@ -1,13 +1,13 @@
 import { Button } from "@fluentui/react-components";
 import { AddRegular, EditRegular, ReOrderDotsVerticalRegular } from "@fluentui/react-icons";
-import type { DragEvent } from "react";
+import type { DragEvent, MouseEvent } from "react";
 
+import type { PageDropTarget, PageSelectionMode } from "./bookEditorTypes";
 import type { PageDetail } from "../../types";
-import type { PageDropTarget } from "./bookEditorTypes";
 
 type BookFilmstripProps = {
   activePageId: string;
-  draggedPageId: string | null;
+  draggedPageIds: string[];
   editingPageId: string | null;
   isWorking: boolean;
   orderedPageIds: string[];
@@ -19,13 +19,24 @@ type BookFilmstripProps = {
   onDragOver: (event: DragEvent<HTMLLIElement>, pageId: string) => void;
   onDragStart: (event: DragEvent<HTMLLIElement>, pageId: string) => void;
   onDrop: (event: DragEvent<HTMLLIElement>, pageId: string) => void;
-  onSelectPage: (pageId: string) => void;
+  onSelectPage: (pageId: string, mode: PageSelectionMode) => void;
   onTogglePageSettings: (pageId: string) => void;
+};
+
+const selectionHint =
+  "Ctrl or Cmd click to select more pages, Shift click to select a range, then drag to move them together.";
+
+const getSelectionMode = (event: MouseEvent<HTMLButtonElement>): PageSelectionMode => {
+  if (event.shiftKey) {
+    return "range";
+  }
+
+  return event.ctrlKey || event.metaKey ? "toggle" : "replace";
 };
 
 export function BookFilmstrip({
   activePageId,
-  draggedPageId,
+  draggedPageIds,
   editingPageId,
   isWorking,
   orderedPageIds,
@@ -41,20 +52,23 @@ export function BookFilmstrip({
   onTogglePageSettings,
 }: BookFilmstripProps) {
   const selectedPageIdSet = new Set(selectedPageIds.length > 0 ? selectedPageIds : [activePageId]);
+  const draggedPageIdSet = new Set(draggedPageIds);
 
   return (
     <ol className="book-filmstrip" aria-label="Book pages">
       {orderedPageIds.map((pageId, index) => {
         const page = pageDetails.get(pageId);
+        const isSelected = selectedPageIdSet.has(pageId);
 
         return (
           <li
             key={pageId}
-            data-dragging={draggedPageId === pageId}
+            data-dragging={draggedPageIdSet.has(pageId)}
             data-drop-position={
               pageDropTarget?.pageId === pageId ? pageDropTarget.position : undefined
             }
             data-editing={editingPageId === pageId}
+            data-selected={isSelected}
             draggable={!isWorking}
             onDragEnd={onClearDragState}
             onDragOver={(event) => onDragOver(event, pageId)}
@@ -64,8 +78,9 @@ export function BookFilmstrip({
             <button
               type="button"
               className="book-filmstrip-select"
-              aria-current={selectedPageIdSet.has(pageId) ? "page" : undefined}
-              onClick={() => onSelectPage(pageId)}
+              aria-current={isSelected ? "page" : undefined}
+              title={selectionHint}
+              onClick={(event) => onSelectPage(pageId, getSelectionMode(event))}
             >
               <span className="book-filmstrip-index">{index + 1}</span>
               <span className="book-filmstrip-title">{page?.title ?? "Page"}</span>

@@ -1663,6 +1663,10 @@ textarea:focus-visible {
   height: 16px;
 }
 
+.book-filmstrip li[data-selected="true"] .book-filmstrip-drag-handle {
+  color: #24766e;
+}
+
 .book-filmstrip-add-button,
 .fui-Button.book-filmstrip-add-button {
   width: 100%;
@@ -4458,6 +4462,10 @@ body {
 .book-filmstrip-index {
   color: #ffffff;
   background: var(--sb-brand);
+}
+
+.book-filmstrip li[data-selected="true"] .book-filmstrip-drag-handle {
+  color: var(--sb-brand);
 }
 
 .editor-edit-pane {
