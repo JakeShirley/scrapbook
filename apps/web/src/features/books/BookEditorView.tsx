@@ -398,6 +398,11 @@ export function BookEditorView() {
     selectPage(pageId);
   };
 
+  const clearPageSelection = () => {
+    setMarkedPageIds([]);
+    setPageSelectionAnchorId(activePageId);
+  };
+
   const selectLayer = (
     pageId: string,
     layerId: string | null,
@@ -1369,6 +1374,16 @@ export function BookEditorView() {
     return transferred ? transferred.split(",").filter(Boolean) : [];
   };
 
+  const setMultiPageDragImage = (event: DragEvent<HTMLLIElement>, pageCount: number) => {
+    const ghost = document.createElement("div");
+
+    ghost.className = "book-filmstrip-drag-ghost";
+    ghost.textContent = `Moving ${pageCount} pages`;
+    document.body.append(ghost);
+    event.dataTransfer.setDragImage(ghost, 12, 12);
+    window.setTimeout(() => ghost.remove(), 0);
+  };
+
   const handlePageDragStart = (event: DragEvent<HTMLLIElement>, pageId: string) => {
     if (isWorking) {
       event.preventDefault();
@@ -1379,6 +1394,11 @@ export function BookEditorView() {
 
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", nextDraggedPageIds.join(","));
+
+    if (nextDraggedPageIds.length > 1) {
+      setMultiPageDragImage(event, nextDraggedPageIds.length);
+    }
+
     setDraggedPageIds(nextDraggedPageIds);
   };
 
@@ -1768,16 +1788,17 @@ export function BookEditorView() {
                 />
               ) : null}
               <BookFilmstrip
-                activePageId={activePage.id}
                 draggedPageIds={draggedPageIds}
                 editingPageId={editingPageId}
                 isWorking={isWorking}
+                markedPageIds={markedPageIds}
                 orderedPageIds={orderedPageIds}
                 pageDetails={pageDetails}
                 pageDropTarget={pageDropTarget}
-                selectedPageIds={markedPageIds.length > 0 ? markedPageIds : visiblePageIds}
+                visiblePageIds={visiblePageIds}
                 onAddPage={addPage}
                 onClearDragState={clearPageDragState}
+                onClearSelection={clearPageSelection}
                 onDragOver={handlePageDragOver}
                 onDragStart={handlePageDragStart}
                 onDrop={(event, pageId) => void handlePageDrop(event, pageId)}
