@@ -76,8 +76,13 @@ textarea:focus-visible {
   word-break: break-word;
 }
 
-.rich-text-editor:focus {
+.rich-text-editor:focus:not(:focus-visible) {
   outline: none;
+}
+
+.rich-text-editor:focus-visible {
+  outline: 2px solid var(--sb-brand);
+  outline-offset: 2px;
 }
 
 .rich-text-editor .rich-text-line {
@@ -1844,11 +1849,6 @@ textarea:focus-visible {
   overflow: auto;
 }
 
-.inspector-form .rich-text-editor:focus-visible {
-  outline: 2px solid var(--sb-brand);
-  outline-offset: 2px;
-}
-
 .save-badge {
   display: inline-grid;
   min-height: 34px;
@@ -2009,6 +2009,12 @@ textarea:focus-visible {
 
 .canvas-inline-text-editor::placeholder {
   color: rgb(36 118 110 / 50%);
+}
+
+/* The dashed border and glow above are this editor's focus affordance; it only
+   exists while editing, so the shared outline would just be noise. */
+.canvas-inline-text-editor:focus-visible {
+  outline: none;
 }
 
 .canvas-group-selection {

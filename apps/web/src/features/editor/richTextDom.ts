@@ -136,15 +136,56 @@ const measureLines = (root: HTMLElement): LineMeasurement[] => {
   return measurements;
 };
 
-const offsetForPoint = (root: HTMLElement, node: Node, offset: number): number => {
-  const document = root.ownerDocument;
-  const range = document.createRange();
-  range.selectNodeContents(root);
-  range.setEnd(node, offset);
-  const holder = document.createElement("div");
-  holder.append(range.cloneContents());
+const offsetWithinLine = (line: LineMeasurement, node: Node, offset: number): number => {
+  if (node.nodeType === Node.TEXT_NODE) {
+    let total = 0;
+    for (const textNode of line.textNodes) {
+      if (textNode === node) return total + Math.min(Math.max(offset, 0), textNode.data.length);
+      total += textNode.data.length;
+    }
 
-  return readMarkdownSource(holder).length;
+    return line.length;
+  }
+
+  // An element point sits before child `offset`; count every text node that
+  // ends before it. Walking the line's own text nodes keeps this proportional
+  // to the current line rather than the whole document.
+  const boundary = node.childNodes[offset] ?? null;
+  let total = 0;
+  for (const textNode of line.textNodes) {
+    const position = boundary
+      ? boundary.compareDocumentPosition(textNode)
+      : node.compareDocumentPosition(textNode);
+    const mask = boundary
+      ? Node.DOCUMENT_POSITION_PRECEDING
+      : Node.DOCUMENT_POSITION_PRECEDING | Node.DOCUMENT_POSITION_CONTAINED_BY;
+    if ((position & mask) === 0) break;
+    total += textNode.data.length;
+  }
+
+  return Math.min(total, line.length);
+};
+
+const offsetForPoint = (
+  root: HTMLElement,
+  lines: readonly LineMeasurement[],
+  node: Node,
+  offset: number,
+): number => {
+  const lastLine = lines[lines.length - 1];
+  if (!lastLine) return 0;
+
+  if (node === root) {
+    const line = lines[Math.min(Math.max(offset, 0), lines.length - 1)];
+    if (!line) return 0;
+
+    return offset >= lines.length ? lastLine.start + lastLine.length : line.start;
+  }
+
+  const line = lines.find(({ element }) => element === node || element.contains(node));
+  if (!line) return lastLine.start + lastLine.length;
+
+  return line.start + offsetWithinLine(line, node, offset);
 };
 
 export const readMarkdownSelection = (root: HTMLElement): RichTextSelection | null => {
@@ -154,9 +195,11 @@ export const readMarkdownSelection = (root: HTMLElement): RichTextSelection | nu
   const range = selection.getRangeAt(0);
   if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return null;
 
+  const lines = measureLines(root);
+
   return {
-    start: offsetForPoint(root, range.startContainer, range.startOffset),
-    end: offsetForPoint(root, range.endContainer, range.endOffset),
+    start: offsetForPoint(root, lines, range.startContainer, range.startOffset),
+    end: offsetForPoint(root, lines, range.endContainer, range.endOffset),
   };
 };
 
