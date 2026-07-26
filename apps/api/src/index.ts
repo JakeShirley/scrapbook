@@ -2,6 +2,11 @@ import { serve } from "@hono/node-server";
 import { loadConfig } from "@zakka/config";
 
 import { createApp } from "./app.js";
+import {
+  developmentAccountEmail,
+  developmentAccountPassword,
+  ensureDevelopmentAccount,
+} from "./dev-account.js";
 import { createDatabaseConnection } from "./persistence/database.js";
 import { createPageDocumentStore } from "./persistence/page-documents.js";
 import { createRepositories } from "./persistence/repositories.js";
@@ -16,9 +21,18 @@ const storage = createDiskStorage({ rootDir: config.ZAKKA_DATA_DIR });
 const pageDocuments = createPageDocumentStore({ rootDir: config.ZAKKA_DATA_DIR });
 await storage.ensureReady();
 
+const repositories = createRepositories(databaseConnection.db, { pageDocuments });
+
+if (config.NODE_ENV === "development") {
+  await ensureDevelopmentAccount(repositories);
+  console.log(
+    `Development sign-in available: ${developmentAccountEmail} / ${developmentAccountPassword}`,
+  );
+}
+
 const staticAssetsDir = process.env.WEB_ASSETS_DIR;
 const app = createApp({
-  repositories: createRepositories(databaseConnection.db, { pageDocuments }),
+  repositories,
   ...(config.SESSION_COOKIE_SECURE === undefined
     ? {}
     : { sessionCookieSecure: config.SESSION_COOKIE_SECURE }),
