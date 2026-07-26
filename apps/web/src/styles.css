@@ -1585,6 +1585,11 @@ textarea:focus-visible {
   background: var(--sb-select-tint);
 }
 
+.book-filmstrip-selection-bar[data-active="false"] {
+  min-height: 0;
+  padding: 0;
+}
+
 .book-filmstrip-selection-count {
   display: inline-flex;
   gap: 4px;
@@ -5261,6 +5266,11 @@ body {
 .book-editor-page .book-filmstrip-selection-bar {
   min-height: 28px;
   padding: 4px 10px;
+}
+
+.book-editor-page .book-filmstrip-selection-bar[data-active="false"] {
+  min-height: 0;
+  padding: 0;
 }
 
 .book-editor-page .book-filmstrip-select {

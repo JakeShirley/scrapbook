@@ -92,11 +92,7 @@ export function BookFilmstrip({
               Clear selection
             </Button>
           </>
-        ) : (
-          <span className="book-filmstrip-selection-hint">
-            Ctrl or Cmd click to select several pages, Shift click for a range
-          </span>
-        )}
+        ) : null}
       </div>
       <ol className="book-filmstrip" aria-label="Book pages" data-dragging={isDraggingSelection}>
         {orderedPageIds.map((pageId, index) => {
