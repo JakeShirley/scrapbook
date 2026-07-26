@@ -135,6 +135,14 @@ pnpm dev:web
 
 In development, the API runs at `http://127.0.0.1:4000` and the Vite web app runs at `http://127.0.0.1:5173`.
 
+The development API seeds a local account on startup so no manual sign-up is needed:
+
+| Email | Password |
+| --- | --- |
+| `dev@zakka.local` | `zakka-dev-password` |
+
+Seeding only happens when `NODE_ENV=development`. See [Development Workflow](docs/development.md) for details.
+
 Useful checks:
 
 ```sh

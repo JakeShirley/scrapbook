@@ -34,6 +34,19 @@ The API health endpoint is available at `http://127.0.0.1:4000/api/v1/health` wh
 
 The API applies SQLite migrations on startup. To apply migrations without starting the server, run `pnpm --filter @zakka/api db:migrate`.
 
+## Development Credentials
+
+When the API starts with `NODE_ENV=development`, it seeds a local account if one does not already exist:
+
+| Field | Value |
+| --- | --- |
+| Email | `dev@zakka.local` |
+| Password | `zakka-dev-password` |
+
+Sign in with those credentials at `http://127.0.0.1:5173`. The account lives in the local SQLite database under `ZAKKA_DATA_DIR` (`./storage/dev` by default), so deleting that directory removes it and the next dev server start recreates it. Registration still works if a different account is preferred.
+
+The seed never runs when `NODE_ENV` is `test` or `production`, including the Docker Compose service, so deployed instances have no default login.
+
 ## App Screenshots
 
 Generate documentation and PR review screenshots with:
