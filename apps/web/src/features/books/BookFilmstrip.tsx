@@ -3,6 +3,7 @@ import {
   AddRegular,
   CheckmarkRegular,
   EditRegular,
+  EyeRegular,
   ReOrderDotsVerticalRegular,
 } from "@fluentui/react-icons";
 import type { DragEvent, MouseEvent } from "react";
@@ -138,13 +139,13 @@ export function BookFilmstrip({
                       <CheckmarkRegular />
                     </span>
                   ) : null}
+                  {isVisible ? (
+                    <span className="book-filmstrip-viewing" aria-hidden="true" title="On canvas">
+                      <EyeRegular />
+                    </span>
+                  ) : null}
                 </span>
                 <span className="book-filmstrip-title">{page?.title ?? "Page"}</span>
-                {isVisible ? (
-                  <span className="book-filmstrip-viewing" aria-hidden="true">
-                    Viewing
-                  </span>
-                ) : null}
                 {stateLabels.length > 0 ? (
                   <span className="visually-hidden">{`, ${stateLabels.join(" and ")}`}</span>
                 ) : null}
