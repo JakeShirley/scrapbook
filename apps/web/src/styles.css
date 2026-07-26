@@ -4918,6 +4918,26 @@ body {
   min-height: 0;
 }
 
+/*
+ * Explicitly place the three layout children. The notices banner collapses to
+ * `display: none` when empty, and modals render as transient extra children, so
+ * relying on grid auto-placement would let the shell land in an `auto` row and
+ * size itself to its content. That made the editor stage grow and shrink every
+ * time the sidebar inspector appeared or disappeared.
+ */
+.book-editor-page > .topbar {
+  grid-row: 1;
+}
+
+.book-editor-page > .book-editor-notices {
+  grid-row: 2;
+}
+
+.book-editor-page > .book-editor-shell {
+  grid-row: 3;
+  min-height: 0;
+}
+
 .book-editor-page .editor-asset-rail {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
