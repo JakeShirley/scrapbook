@@ -6,6 +6,8 @@ export type PngExportTarget = "book";
 
 export type PageDropPosition = "before" | "after";
 
+export type PageSelectionMode = "replace" | "toggle" | "range";
+
 export type PageDropTarget = {
   pageId: string;
   position: PageDropPosition;

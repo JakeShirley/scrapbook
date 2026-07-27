@@ -62,9 +62,11 @@ import type {
   LoadedBook,
   PageDropPosition,
   PageDropTarget,
+  PageSelectionMode,
   PngExportTarget,
   ViewMode,
 } from "./bookEditorTypes";
+import { getPageIdRange, movePageIds, orderPageIds, togglePageId } from "./bookPageOrdering";
 import { PageSettingsPanel } from "./PageSettingsPanel";
 import {
   customBookPageSizeKey,
@@ -184,7 +186,9 @@ export function BookEditorView() {
   const [isLibraryPickerOpen, setIsLibraryPickerOpen] = useState(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [pngExportTarget, setPngExportTarget] = useState<PngExportTarget | null>(null);
-  const [draggedPageId, setDraggedPageId] = useState<string | null>(null);
+  const [draggedPageIds, setDraggedPageIds] = useState<string[]>([]);
+  const [markedPageIds, setMarkedPageIds] = useState<string[]>([]);
+  const [pageSelectionAnchorId, setPageSelectionAnchorId] = useState<string | null>(null);
   const [pageDropTarget, setPageDropTarget] = useState<PageDropTarget | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
@@ -216,6 +220,14 @@ export function BookEditorView() {
       resetHistory();
       setPageStatuses(Object.fromEntries(loadedBook.pages.map((page) => [page.id, "saved"])));
       setActivePageId(nextActivePageId);
+      setMarkedPageIds((currentPageIds) => {
+        const remainingPageIds = currentPageIds.filter((pageId) => orderedPageIds.includes(pageId));
+
+        return remainingPageIds.length > 1 ? remainingPageIds : [];
+      });
+      setPageSelectionAnchorId((currentPageId) =>
+        currentPageId && orderedPageIds.includes(currentPageId) ? currentPageId : null,
+      );
       setSelectedLayerIds([]);
     },
     [resetHistory],
@@ -352,6 +364,41 @@ export function BookEditorView() {
     setActivePageId(pageId);
     closePageSettingsForOtherPage(pageId);
     setSelectedLayerIds(layerId ? [layerId] : []);
+  };
+
+  const selectFilmstripPage = (pageId: string, mode: PageSelectionMode) => {
+    if (mode === "toggle") {
+      const basePageIds =
+        markedPageIds.length > 0 ? markedPageIds : activePageId ? [activePageId] : [];
+      const nextPageIds = togglePageId(orderedPageIds, basePageIds, pageId);
+
+      setMarkedPageIds(nextPageIds.length > 1 ? nextPageIds : []);
+      setPageSelectionAnchorId(pageId);
+
+      return;
+    }
+
+    if (mode === "range") {
+      const anchorPageId = pageSelectionAnchorId ?? activePageId;
+      const nextPageIds = anchorPageId
+        ? getPageIdRange(orderedPageIds, anchorPageId, pageId)
+        : [pageId];
+
+      setMarkedPageIds(nextPageIds.length > 1 ? nextPageIds : []);
+      if (nextPageIds.length <= 1) {
+        selectPage(pageId);
+      }
+      return;
+    }
+
+    setMarkedPageIds([]);
+    setPageSelectionAnchorId(pageId);
+    selectPage(pageId);
+  };
+
+  const clearPageSelection = () => {
+    setMarkedPageIds([]);
+    setPageSelectionAnchorId(activePageId);
   };
 
   const selectLayer = (
@@ -1279,33 +1326,17 @@ export function BookEditorView() {
   };
 
   const reorderBookPages = async (
-    sourcePageId: string,
+    sourcePageIds: string[],
     targetPageId: string,
     position: PageDropPosition,
   ) => {
-    if (!book || sourcePageId === targetPageId) {
+    if (!book) {
       return;
     }
 
-    const sourceIndex = orderedPageIds.indexOf(sourcePageId);
-    const targetIndex = orderedPageIds.indexOf(targetPageId);
+    const nextPageIds = movePageIds(orderedPageIds, sourcePageIds, targetPageId, position);
 
-    if (sourceIndex < 0 || targetIndex < 0) {
-      return;
-    }
-
-    const targetDropIndex = targetIndex + (position === "after" ? 1 : 0);
-    const insertionIndex = sourceIndex < targetDropIndex ? targetDropIndex - 1 : targetDropIndex;
-    const nextPageIds = [...orderedPageIds];
-    const [movedPageId] = nextPageIds.splice(sourceIndex, 1);
-
-    if (!movedPageId) {
-      return;
-    }
-
-    nextPageIds.splice(Math.max(0, Math.min(insertionIndex, nextPageIds.length)), 0, movedPageId);
-
-    if (nextPageIds.every((pageId, index) => pageId === orderedPageIds[index])) {
+    if (!nextPageIds) {
       return;
     }
 
@@ -1328,21 +1359,52 @@ export function BookEditorView() {
     return event.clientX > targetBounds.left + targetBounds.width / 2 ? "after" : "before";
   };
 
+  const getDraggedPageIds = (pageId: string) =>
+    markedPageIds.includes(pageId) ? orderPageIds(orderedPageIds, markedPageIds) : [pageId];
+
+  const readDraggedPageIds = (event: DragEvent<HTMLLIElement>) => {
+    if (draggedPageIds.length > 0) {
+      return draggedPageIds;
+    }
+
+    const transferred = event.dataTransfer.getData("text/plain");
+
+    return transferred ? transferred.split(",").filter(Boolean) : [];
+  };
+
+  const setMultiPageDragImage = (event: DragEvent<HTMLLIElement>, pageCount: number) => {
+    const ghost = document.createElement("div");
+
+    ghost.className = "book-filmstrip-drag-ghost";
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.textContent = `Moving ${pageCount} pages`;
+    document.body.append(ghost);
+    event.dataTransfer.setDragImage(ghost, 12, 12);
+    window.setTimeout(() => ghost.remove(), 0);
+  };
+
   const handlePageDragStart = (event: DragEvent<HTMLLIElement>, pageId: string) => {
     if (isWorking) {
       event.preventDefault();
       return;
     }
 
+    const nextDraggedPageIds = getDraggedPageIds(pageId);
+
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", pageId);
-    setDraggedPageId(pageId);
+    event.dataTransfer.setData("text/plain", nextDraggedPageIds.join(","));
+
+    if (nextDraggedPageIds.length > 1) {
+      setMultiPageDragImage(event, nextDraggedPageIds.length);
+    }
+
+    setDraggedPageIds(nextDraggedPageIds);
   };
 
   const handlePageDragOver = (event: DragEvent<HTMLLIElement>, pageId: string) => {
-    const sourcePageId = draggedPageId ?? event.dataTransfer.getData("text/plain");
+    const sourcePageIds = readDraggedPageIds(event);
 
-    if (!sourcePageId || sourcePageId === pageId || isWorking) {
+    if (sourcePageIds.length === 0 || sourcePageIds.includes(pageId) || isWorking) {
       setPageDropTarget(null);
       return;
     }
@@ -1355,20 +1417,20 @@ export function BookEditorView() {
   const handlePageDrop = async (event: DragEvent<HTMLLIElement>, pageId: string) => {
     event.preventDefault();
 
-    const sourcePageId = draggedPageId ?? event.dataTransfer.getData("text/plain");
+    const sourcePageIds = readDraggedPageIds(event);
     const position = getPageDropPosition(event);
-    setDraggedPageId(null);
+    setDraggedPageIds([]);
     setPageDropTarget(null);
 
-    if (!sourcePageId || isWorking) {
+    if (sourcePageIds.length === 0 || isWorking) {
       return;
     }
 
-    await reorderBookPages(sourcePageId, pageId, position);
+    await reorderBookPages(sourcePageIds, pageId, position);
   };
 
   const clearPageDragState = () => {
-    setDraggedPageId(null);
+    setDraggedPageIds([]);
     setPageDropTarget(null);
   };
 
@@ -1725,22 +1787,23 @@ export function BookEditorView() {
                 />
               ) : null}
               <BookFilmstrip
-                activePageId={activePage.id}
-                draggedPageId={draggedPageId}
+                draggedPageIds={draggedPageIds}
                 editingPageId={editingPageId}
                 isWorking={isWorking}
+                markedPageIds={markedPageIds}
                 orderedPageIds={orderedPageIds}
                 pageDetails={pageDetails}
                 pageDropTarget={pageDropTarget}
-                selectedPageIds={visiblePageIds}
+                visiblePageIds={visiblePageIds}
                 onAddPage={addPage}
                 onClearDragState={clearPageDragState}
+                onClearSelection={clearPageSelection}
                 onDragOver={handlePageDragOver}
                 onDragStart={handlePageDragStart}
                 onDrop={(event, pageId) => void handlePageDrop(event, pageId)}
-                onSelectPage={selectPage}
+                onSelectPage={selectFilmstripPage}
                 onTogglePageSettings={(pageId) => {
-                  selectPage(pageId);
+                  selectFilmstripPage(pageId, "replace");
                   setEditingPageId((currentPageId) => (currentPageId === pageId ? null : pageId));
                 }}
               />
