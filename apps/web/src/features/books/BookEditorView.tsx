@@ -1376,6 +1376,7 @@ export function BookEditorView() {
     const ghost = document.createElement("div");
 
     ghost.className = "book-filmstrip-drag-ghost";
+    ghost.setAttribute("aria-hidden", "true");
     ghost.textContent = `Moving ${pageCount} pages`;
     document.body.append(ghost);
     event.dataTransfer.setDragImage(ghost, 12, 12);

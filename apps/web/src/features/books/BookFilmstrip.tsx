@@ -67,19 +67,17 @@ export function BookFilmstrip({
 
   return (
     <div className="book-filmstrip-region">
-      <div
-        className="book-filmstrip-selection-bar"
-        data-active={hasMultiSelection}
-        role="status"
-        aria-live="polite"
-      >
+      <p className="visually-hidden" role="status" aria-live="polite">
+        {hasMultiSelection ? `${markedPageIds.length} pages selected` : ""}
+      </p>
+      <div className="book-filmstrip-selection-bar" data-active={hasMultiSelection}>
         {hasMultiSelection ? (
           <>
-            <span className="book-filmstrip-selection-count">
+            <span className="book-filmstrip-selection-count" aria-hidden="true">
               <CheckmarkRegular />
               {markedPageIds.length} pages selected
             </span>
-            <span className="book-filmstrip-selection-hint">
+            <span className="book-filmstrip-selection-hint" aria-hidden="true">
               Drag any selected page to move them together
             </span>
             <Button
