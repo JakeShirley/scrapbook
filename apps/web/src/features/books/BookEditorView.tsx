@@ -375,10 +375,6 @@ export function BookEditorView() {
       setMarkedPageIds(nextPageIds.length > 1 ? nextPageIds : []);
       setPageSelectionAnchorId(pageId);
 
-      if (nextPageIds.includes(pageId)) {
-        selectPage(pageId);
-      }
-
       return;
     }
 
@@ -389,7 +385,9 @@ export function BookEditorView() {
         : [pageId];
 
       setMarkedPageIds(nextPageIds.length > 1 ? nextPageIds : []);
-      selectPage(pageId);
+      if (nextPageIds.length <= 1) {
+        selectPage(pageId);
+      }
       return;
     }
 
